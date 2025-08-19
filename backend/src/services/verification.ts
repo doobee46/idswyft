@@ -7,6 +7,7 @@ import {
   OCRData,
   VerificationStatus 
 } from '@/types/index.js';
+import { DocumentQualityService, DocumentQualityResult } from './documentQuality.js';
 
 export class VerificationService {
   async createVerificationRequest(data: {
@@ -176,6 +177,22 @@ export class VerificationService {
     }
     
     return document as Document;
+  }
+  
+  async analyzeDocumentQuality(filePath: string): Promise<DocumentQualityResult> {
+    try {
+      logger.info('Starting document quality analysis', { filePath });
+      const qualityResult = await DocumentQualityService.analyzeDocument(filePath);
+      logger.info('Document quality analysis completed', { 
+        filePath, 
+        overallQuality: qualityResult.overallQuality,
+        issues: qualityResult.issues.length 
+      });
+      return qualityResult;
+    } catch (error) {
+      logger.error('Document quality analysis failed:', error);
+      throw new Error('Failed to analyze document quality');
+    }
   }
   
   async createSelfie(data: {

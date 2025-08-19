@@ -135,9 +135,32 @@ router.post('/document',
         document_type
       });
       
-      // Update verification request with document ID
+      // Analyze document quality
+      let qualityAnalysis = null;
+      try {
+        if (!req.isSandbox && (file.mimetype.startsWith('image/'))) {
+          // Get the actual file path for quality analysis
+          const localFilePath = await storageService.getLocalFilePath(documentPath);
+          qualityAnalysis = await verificationService.analyzeDocumentQuality(localFilePath);
+          
+          logVerificationEvent('quality_analysis_completed', verificationRequest.id, {
+            documentId: document.id,
+            overallQuality: qualityAnalysis.overallQuality,
+            issues: qualityAnalysis.issues.length
+          });
+        }
+      } catch (error) {
+        logger.error('Document quality analysis failed:', error);
+        // Don't fail the entire verification for quality analysis errors
+        logVerificationEvent('quality_analysis_failed', verificationRequest.id, {
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+      
+      // Update verification request with document ID and quality analysis
       await verificationService.updateVerificationRequest(verificationRequest.id, {
-        document_id: document.id
+        document_id: document.id,
+        quality_analysis: qualityAnalysis
       });
       
       // Start OCR processing asynchronously
@@ -185,13 +208,31 @@ router.post('/document',
         }, 2000);
       }
       
-      res.status(201).json({
+      const response: any = {
         verification_id: verificationRequest.id,
         status: verificationRequest.status,
         message: 'Document uploaded successfully. Processing started.',
         document_id: document.id,
         next_steps: 'Upload a selfie using /api/verify/selfie or check status with /api/verify/status/:user_id'
-      });
+      };
+      
+      // Include quality analysis in response if available
+      if (qualityAnalysis) {
+        response.quality_analysis = {
+          overall_quality: qualityAnalysis.overallQuality,
+          issues: qualityAnalysis.issues,
+          recommendations: qualityAnalysis.recommendations,
+          quality_scores: {
+            blur_score: qualityAnalysis.blurScore,
+            brightness: qualityAnalysis.brightness,
+            contrast: qualityAnalysis.contrast,
+            resolution: qualityAnalysis.resolution,
+            file_size: qualityAnalysis.fileSize
+          }
+        };
+      }
+      
+      res.status(201).json(response);
       
     } catch (error) {
       logVerificationEvent('document_upload_failed', `${user_id}_${Date.now()}`, {
@@ -353,6 +394,10 @@ router.get('/status/:user_id',
     
     if (verificationRequest.ocr_data) {
       responseData.ocr_data = verificationRequest.ocr_data;
+    }
+    
+    if (verificationRequest.quality_analysis) {
+      responseData.quality_analysis = verificationRequest.quality_analysis;
     }
     
     res.json({

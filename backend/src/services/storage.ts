@@ -279,6 +279,33 @@ export class StorageService {
     }
   }
   
+  async getLocalFilePath(filePath: string): Promise<string> {
+    try {
+      if (config.storage.provider === 'local') {
+        // For local storage, just return the full path
+        return path.join(process.cwd(), filePath);
+      } else if (config.storage.provider === 'supabase') {
+        // For Supabase, download to temp directory for processing
+        const tempDir = path.join(process.cwd(), 'temp');
+        await this.ensureDirectoryExists(tempDir);
+        
+        const fileName = path.basename(filePath);
+        const tempFilePath = path.join(tempDir, `temp_${Date.now()}_${fileName}`);
+        
+        // Download file from Supabase
+        const buffer = await this.downloadFile(filePath);
+        await fs.writeFile(tempFilePath, buffer);
+        
+        return tempFilePath;
+      } else {
+        throw new Error(`Local file path not available for provider: ${config.storage.provider}`);
+      }
+    } catch (error) {
+      logger.error('Failed to get local file path:', error);
+      throw new Error('Failed to get local file path');
+    }
+  }
+  
   // Health check for storage service
   async healthCheck(): Promise<{ status: string; provider: string; error?: string }> {
     try {
