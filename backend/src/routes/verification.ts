@@ -114,8 +114,7 @@ router.post('/document',
       // Create verification request
       const verificationRequest = await verificationService.createVerificationRequest({
         user_id,
-        developer_id: req.developer!.id,
-        is_sandbox: req.isSandbox || false
+        developer_id: req.developer!.id
       });
       
       // Store document file

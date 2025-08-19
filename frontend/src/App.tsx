@@ -1,12 +1,13 @@
+import React from 'react'
 import { Routes, Route } from 'react-router-dom'
-import { Layout } from '@/components/layout/Layout'
-import { HomePage } from '@/pages/HomePage'
-import { DeveloperPage } from '@/pages/DeveloperPage'
-import { VerificationPage } from '@/pages/VerificationPage'
-import { AdminPage } from '@/pages/AdminPage'
-import { AdminLogin } from '@/pages/AdminLogin'
-import { DocsPage } from '@/pages/DocsPage'
-import { NotFoundPage } from '@/pages/NotFoundPage'
+import { Layout } from './components/layout/Layout'
+import { HomePage } from './pages/HomePage'
+import { DeveloperPage } from './pages/DeveloperPage'
+import { VerificationPage } from './pages/VerificationPage'
+import { AdminPage } from './pages/AdminPage'
+import { AdminLogin } from './pages/AdminLogin'
+import { DocsPage } from './pages/DocsPage'
+import { NotFoundPage } from './pages/NotFoundPage'
 
 function App() {
   return (

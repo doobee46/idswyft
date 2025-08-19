@@ -12,14 +12,13 @@ export class VerificationService {
   async createVerificationRequest(data: {
     user_id: string;
     developer_id: string;
-    is_sandbox: boolean;
+    is_sandbox?: boolean;
   }): Promise<VerificationRequest> {
     const { data: verification, error } = await supabase
       .from('verification_requests')
       .insert({
         user_id: data.user_id,
         developer_id: data.developer_id,
-        is_sandbox: data.is_sandbox,
         status: 'pending'
       })
       .select('*')
