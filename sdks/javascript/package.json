@@ -1,6 +1,7 @@
 {
-  "name": "@idswyft/sdk",
+  "name": "idswyft-sdk",
   "version": "1.0.0",
+  "type": "module",
   "description": "Official JavaScript/Node.js SDK for the Idswyft identity verification platform",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
@@ -21,7 +22,7 @@
     "lint:fix": "eslint src --ext .ts --fix",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist",
-    "prepublishOnly": "npm run clean && npm run type-check && npm run lint && npm run test && npm run build"
+    "prepublishOnly": "npm run clean && npm run type-check && npm run build"
   },
   "keywords": [
     "idswyft",

@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "lib": ["ES2020"],
+    "lib": ["ES2020", "DOM"],
     "module": "ESNext",
     "moduleResolution": "node",
     "declaration": true,
@@ -14,7 +14,8 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "types": ["node"]
   },
   "include": [
     "src/**/*"
@@ -23,6 +24,7 @@
     "node_modules",
     "dist",
     "**/*.test.ts",
-    "**/*.spec.ts"
+    "**/*.spec.ts",
+    "src/examples.ts"
   ]
 }

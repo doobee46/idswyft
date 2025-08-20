@@ -307,13 +307,5 @@ export default function createIdswyftSDK(config: IdswyftConfig): IdswyftSDK {
   return new IdswyftSDK(config);
 }
 
-// Export types and classes
-export {
-  IdswyftSDK as Idswyft,
-  IdswyftError,
-  IdswyftConfig,
-  VerificationResult,
-  DocumentVerificationRequest,
-  SelfieVerificationRequest,
-  ApiError
-};
+// Export alias for the main SDK class
+export { IdswyftSDK as Idswyft };
