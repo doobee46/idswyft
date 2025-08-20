@@ -86,7 +86,7 @@ Frontend (Vercel) → Backend (Railway) → Database (Supabase)
 1. **Prepare Environment Configuration**
    - Update `frontend/.env.production`:
    ```
-   VITE_API_URL=https://your-railway-backend-url.railway.app
+   VITE_API_URL=https://api.idswyft.app
    ```
 
 2. **Create Vercel Project**
@@ -103,7 +103,7 @@ Frontend (Vercel) → Backend (Railway) → Database (Supabase)
    - In Vercel project settings → Environment Variables
    - Add:
    ```
-   VITE_API_URL = https://your-railway-backend-url.railway.app
+   VITE_API_URL = https://api.idswyft.app
    ```
 
 4. **Deploy**
@@ -119,7 +119,8 @@ Frontend (Vercel) → Backend (Railway) → Database (Supabase)
    app.use(cors({
      origin: [
        'http://localhost:3000',
-       'https://your-project.vercel.app'
+       'https://idswyft.app',
+       'https://www.idswyft.app'
      ],
      credentials: true
    }));
@@ -129,13 +130,28 @@ Frontend (Vercel) → Backend (Railway) → Database (Supabase)
    - Push changes to main branch
    - Railway will automatically redeploy
 
-## Step 5: DNS & Custom Domain (Optional)
+## Step 5: Custom Domain Setup
 
-1. **Configure Custom Domain**
+1. **Configure Custom Domains**
+   
+   **Frontend Domain (idswyft.app):**
    - In Vercel project settings → Domains
-   - Add your custom domain
-   - Update DNS records as instructed
-   - SSL certificate will be automatically provisioned
+   - Add domains: `idswyft.app` and `www.idswyft.app`
+   - Update DNS records:
+     ```
+     Type: A, Name: @, Value: 76.76.19.19
+     Type: CNAME, Name: www, Value: cname.vercel-dns.com
+     ```
+   
+   **Backend Domain (api.idswyft.app):**
+   - In Railway project settings → Domains
+   - Add custom domain: `api.idswyft.app`
+   - Add DNS record:
+     ```
+     Type: CNAME, Name: api, Value: your-app.up.railway.app
+     ```
+   
+   - SSL certificates will be automatically provisioned
 
 ## Step 6: Environment-Specific Configuration
 
