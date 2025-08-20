@@ -41,6 +41,11 @@ interface DeveloperStats {
 
 export const DeveloperPage: React.FC = () => {
   const [currentApiKey, setCurrentApiKey] = useState<string>('');
+  
+  // Debug logging for currentApiKey state changes
+  React.useEffect(() => {
+    console.log('currentApiKey state changed:', currentApiKey);
+  }, [currentApiKey]);
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [showApiKey, setShowApiKey] = useState<boolean>(false);
   const [isRegistered, setIsRegistered] = useState<boolean>(false);
@@ -146,8 +151,19 @@ export const DeveloperPage: React.FC = () => {
     try {
       const response = await fetch(`http://localhost:3001/api/developer/api-keys?developer_email=${email}`);
       const data = await response.json();
+      console.log('Load API Keys Response:', data);
+      
       if (response.ok) {
+        console.log('Setting API keys:', data.api_keys);
         setApiKeys(data.api_keys);
+      } else {
+        console.error('Failed to load API keys:', data);
+        if (response.status === 401) {
+          console.log('Developer not authenticated, redirecting to registration');
+          setIsRegistered(false);
+          localStorage.removeItem('developer_email');
+          toast.error('❌ Authentication failed. Please register as a developer first.');
+        }
       }
     } catch (error) {
       console.error('Failed to load API keys:', error);
@@ -205,12 +221,23 @@ export const DeveloperPage: React.FC = () => {
       });
       
       const data = await response.json();
+      console.log('API Key Generation Response:', data);
+      
       if (response.ok) {
+        console.log('Setting current API key:', data.api_key);
         setCurrentApiKey(data.api_key);
         toast.success('🔑 New API key generated successfully!');
         await loadApiKeys(developerInfo.email);
       } else {
-        toast.error(data.message || 'Failed to generate API key');
+        console.error('API Key generation failed:', data);
+        if (response.status === 401) {
+          toast.error('❌ Authentication failed. Please make sure you are registered as a developer.');
+          // Reset the registration state if authentication fails
+          setIsRegistered(false);
+          localStorage.removeItem('developer_email');
+        } else {
+          toast.error(data.message || 'Failed to generate API key');
+        }
       }
     } catch (error) {
       console.error('API key generation failed:', error);
