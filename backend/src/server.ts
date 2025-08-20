@@ -16,6 +16,11 @@ import webhookRoutes from './routes/webhooks.js';
 
 const app = express();
 
+// Trust proxy for production deployment (Railway, etc.)
+if (config.nodeEnv === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // Security middleware
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
