@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { 
   ShieldCheckIcon, 
@@ -324,7 +324,7 @@ export function HomePage() {
           
           {/* Integration Steps */}
           <div className="grid md:grid-cols-3 gap-8 mb-16">
-            {integrationSteps.map((step, index) => (
+            {integrationSteps.map((step, _) => (
               <div key={step.step} className="text-center group">
                 <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r ${step.color} text-white mb-6 group-hover:shadow-lg group-hover:shadow-blue-500/25 transition-all duration-300 transform group-hover:scale-110`}>
                   <step.icon className="w-8 h-8" />
@@ -397,7 +397,7 @@ export function HomePage() {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
+            {features.map((feature, _) => (
               <div 
                 key={feature.name} 
                 className="group bg-white rounded-2xl p-8 shadow-lg border border-gray-100 hover:shadow-2xl hover:border-gray-200 transition-all duration-300 transform hover:scale-105"
@@ -627,7 +627,7 @@ export function HomePage() {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
+            {testimonials.map((testimonial, _) => (
               <div key={testimonial.name} className="group bg-white rounded-2xl p-8 shadow-xl border border-gray-100 hover:shadow-2xl hover:border-gray-200 transition-all duration-300 transform hover:scale-105">
                 <div className="flex items-center mb-6">
                   {Array.from({ length: testimonial.rating }).map((_, i) => (
