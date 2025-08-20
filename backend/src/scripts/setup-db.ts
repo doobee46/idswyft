@@ -4,6 +4,13 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { supabase } from '../database.js';
 
+const logger = {
+  info: console.log,
+  error: console.error,
+  warn: console.warn,
+  debug: console.debug
+};
+
 async function setupDatabase() {
   try {
     console.log('🗄️ Setting up Idswyft database schema...');
