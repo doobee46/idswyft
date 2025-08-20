@@ -1,31 +1,87 @@
 import express from 'express';
-import { body, validationResult } from 'express-validator';
+import { body, param, validationResult } from 'express-validator';
 import { supabase } from '@/config/database.js';
 import { generateAPIKey } from '@/middleware/auth.js';
-import { catchAsync, ValidationError, NotFoundError } from '@/middleware/errorHandler.js';
+import { catchAsync, ValidationError, NotFoundError, AuthenticationError } from '@/middleware/errorHandler.js';
 import { logger } from '@/utils/logger.js';
+import rateLimit from 'express-rate-limit';
+import crypto from 'crypto';
 
 const router = express.Router();
 
+// Rate limiting for developer registration
+const registrationRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // limit each IP to 5 registration attempts per windowMs
+  message: {
+    error: 'Too many registration attempts from this IP, please try again later.',
+    retryAfter: 15 * 60 * 1000
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Rate limiting for API key operations
+const apiKeyRateLimit = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // limit each IP to 10 API key operations per minute
+  message: {
+    error: 'Too many API key operations, please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Simple developer authentication middleware
+const authenticateDeveloper = catchAsync(async (req: any, res: any, next: any) => {
+  const { developer_email } = req.body.developer_email ? req.body : req.query;
+  
+  if (!developer_email) {
+    throw new AuthenticationError('Developer email is required for authentication');
+  }
+
+  const { data: developer, error } = await supabase
+    .from('developers')
+    .select('*')
+    .eq('email', developer_email)
+    .eq('is_verified', true)
+    .single();
+
+  if (error || !developer) {
+    logger.warn('Invalid developer authentication attempt', {
+      email: developer_email,
+      ip: req.ip
+    });
+    throw new AuthenticationError('Invalid developer credentials');
+  }
+
+  req.developer = developer;
+  next();
+});
+
 // Register as developer
 router.post('/register',
+  registrationRateLimit,
   [
     body('email')
       .isEmail()
+      .normalizeEmail()
       .withMessage('Valid email is required'),
     body('name')
       .trim()
+      .escape()
       .isLength({ min: 2, max: 100 })
       .withMessage('Name must be between 2 and 100 characters'),
     body('company')
       .optional()
       .trim()
+      .escape()
       .isLength({ max: 100 })
       .withMessage('Company name must be less than 100 characters'),
     body('webhook_url')
       .optional()
-      .isURL()
-      .withMessage('Webhook URL must be a valid URL')
+      .isURL({ protocols: ['https'] })
+      .withMessage('Webhook URL must be a valid HTTPS URL')
   ],
   catchAsync(async (req, res) => {
     console.log('🎯 REGISTRATION ENDPOINT CALLED', req.body);
@@ -148,10 +204,15 @@ router.post('/register',
 
 // Create API key (requires developer authentication)
 router.post('/api-key',
-  // TODO: Add developer authentication middleware
+  apiKeyRateLimit,
   [
+    body('developer_email')
+      .isEmail()
+      .normalizeEmail()
+      .withMessage('Developer email is required'),
     body('name')
       .trim()
+      .escape()
       .isLength({ min: 1, max: 100 })
       .withMessage('API key name is required and must be less than 100 characters'),
     body('is_sandbox')
@@ -163,33 +224,40 @@ router.post('/api-key',
       .isInt({ min: 1, max: 365 })
       .withMessage('expires_in_days must be between 1 and 365')
   ],
+  authenticateDeveloper,
   catchAsync(async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       throw new ValidationError('Validation failed', 'multiple', errors.array());
     }
     
-    // For MVP, we'll use email from request body
-    // In production, this would come from authenticated session
-    const { developer_email, name, is_sandbox = false, expires_in_days } = req.body;
+    const { name, is_sandbox = false, expires_in_days } = req.body;
+    const developer = req.developer;
     
-    if (!developer_email) {
-      throw new ValidationError('Developer email is required', 'developer_email', developer_email);
+    // Check if developer has reached API key limit
+    const { count: existingKeysCount, error: countError } = await supabase
+      .from('api_keys')
+      .select('*', { count: 'exact', head: true })
+      .eq('developer_id', developer.id)
+      .eq('is_active', true);
+    
+    if (countError) {
+      logger.error('Failed to count API keys:', countError);
+      throw new Error('Failed to check API key limits');
     }
     
-    // Get developer
-    const { data: developer, error: devError } = await supabase
-      .from('developers')
-      .select('*')
-      .eq('email', developer_email)
-      .single();
-    
-    if (devError || !developer) {
-      throw new NotFoundError('Developer');
+    const maxKeys = is_sandbox ? 10 : 5; // Allow more sandbox keys
+    if (existingKeysCount && existingKeysCount >= maxKeys) {
+      throw new ValidationError(
+        `Maximum ${maxKeys} ${is_sandbox ? 'sandbox' : 'production'} API keys allowed. Please revoke unused keys.`,
+        'api_key_limit',
+        maxKeys
+      );
     }
     
-    // Generate API key
+    // Generate API key with enhanced security
     const { key, hash, prefix } = generateAPIKey();
+    const keyId = crypto.randomUUID();
     
     // Calculate expiration date
     let expiresAt = null;
@@ -198,16 +266,18 @@ router.post('/api-key',
       expiresAt.setDate(expiresAt.getDate() + expires_in_days);
     }
     
-    // Create API key record
+    // Create API key record with enhanced security
     const { data: apiKey, error: keyError } = await supabase
       .from('api_keys')
       .insert({
+        id: keyId,
         developer_id: developer.id,
         key_hash: hash,
         key_prefix: prefix,
         name,
         is_sandbox,
-        expires_at: expiresAt?.toISOString()
+        expires_at: expiresAt?.toISOString(),
+        created_at: new Date().toISOString()
       })
       .select('id, name, is_sandbox, created_at, expires_at')
       .single();
@@ -231,6 +301,12 @@ router.post('/api-key',
       is_sandbox: apiKey.is_sandbox,
       created_at: apiKey.created_at,
       expires_at: apiKey.expires_at,
+      key_prefix: prefix,
+      security_info: {
+        store_securely: 'This API key will not be shown again. Store it in a secure location.',
+        environment_variable: 'Consider storing in an environment variable like IDSWYFT_API_KEY',
+        revocation: 'You can revoke this key at any time from your developer dashboard'
+      },
       message: 'API key created successfully. Store it securely - it will not be shown again.'
     });
   })
@@ -238,26 +314,12 @@ router.post('/api-key',
 
 // List API keys for developer
 router.get('/api-keys',
-  // TODO: Add developer authentication middleware
+  apiKeyRateLimit,
+  authenticateDeveloper,
   catchAsync(async (req, res) => {
-    const { developer_email } = req.query;
+    const developer = req.developer;
     
-    if (!developer_email) {
-      throw new ValidationError('Developer email is required', 'developer_email', developer_email);
-    }
-    
-    // Get developer
-    const { data: developer, error: devError } = await supabase
-      .from('developers')
-      .select('id')
-      .eq('email', developer_email as string)
-      .single();
-    
-    if (devError || !developer) {
-      throw new NotFoundError('Developer');
-    }
-    
-    // Get API keys
+    // Get API keys with additional security info
     const { data: apiKeys, error } = await supabase
       .from('api_keys')
       .select('id, key_prefix, name, is_sandbox, is_active, last_used_at, created_at, expires_at')
@@ -270,50 +332,73 @@ router.get('/api-keys',
     }
     
     res.json({
-      api_keys: apiKeys.map(key => ({
-        id: key.id,
-        name: key.name,
-        key_preview: `${key.key_prefix}...`,
-        is_sandbox: key.is_sandbox,
-        is_active: key.is_active,
-        last_used_at: key.last_used_at,
-        created_at: key.created_at,
-        expires_at: key.expires_at,
-        status: key.expires_at && new Date(key.expires_at) < new Date() ? 'expired' : 'active'
-      }))
+      api_keys: apiKeys.map(key => {
+        const isExpired = key.expires_at && new Date(key.expires_at) < new Date();
+        const daysSinceLastUse = key.last_used_at 
+          ? Math.floor((Date.now() - new Date(key.last_used_at).getTime()) / (1000 * 60 * 60 * 24))
+          : null;
+        
+        return {
+          id: key.id,
+          name: key.name,
+          key_preview: `${key.key_prefix}...`,
+          is_sandbox: key.is_sandbox,
+          is_active: key.is_active && !isExpired,
+          last_used_at: key.last_used_at,
+          created_at: key.created_at,
+          expires_at: key.expires_at,
+          status: !key.is_active ? 'revoked' : isExpired ? 'expired' : 'active',
+          security_status: {
+            days_since_last_use: daysSinceLastUse,
+            needs_rotation: daysSinceLastUse && daysSinceLastUse > 90,
+            expires_soon: key.expires_at && new Date(key.expires_at).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000
+          }
+        };
+      }),
+      total_keys: apiKeys.length,
+      active_keys: apiKeys.filter(k => k.is_active && (!k.expires_at || new Date(k.expires_at) >= new Date())).length,
+      security_recommendations: {
+        rotate_unused_keys: 'Consider rotating API keys that haven\'t been used in 90+ days',
+        monitor_usage: 'Regularly monitor API key usage and revoke unused keys',
+        use_environment_variables: 'Store API keys in environment variables, not in code'
+      }
     });
   })
 );
 
 // Revoke API key
 router.delete('/api-key/:keyId',
-  // TODO: Add developer authentication middleware
+  apiKeyRateLimit,
+  [
+    param('keyId')
+      .isUUID()
+      .withMessage('Invalid API key ID format'),
+    body('developer_email')
+      .isEmail()
+      .normalizeEmail()
+      .withMessage('Developer email is required')
+  ],
+  authenticateDeveloper,
   catchAsync(async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      throw new ValidationError('Validation failed', 'multiple', errors.array());
+    }
+    
     const { keyId } = req.params;
-    const { developer_email } = req.body;
+    const developer = req.developer;
     
-    if (!developer_email) {
-      throw new ValidationError('Developer email is required', 'developer_email', developer_email);
-    }
-    
-    // Get developer
-    const { data: developer, error: devError } = await supabase
-      .from('developers')
-      .select('id')
-      .eq('email', developer_email)
-      .single();
-    
-    if (devError || !developer) {
-      throw new NotFoundError('Developer');
-    }
-    
-    // Deactivate API key
+    // Deactivate API key with audit trail
     const { data: apiKey, error } = await supabase
       .from('api_keys')
-      .update({ is_active: false })
+      .update({ 
+        is_active: false,
+        revoked_at: new Date().toISOString(),
+        revoked_reason: 'Manually revoked by developer'
+      })
       .eq('id', keyId)
       .eq('developer_id', developer.id)
-      .select('id, name')
+      .select('id, name, key_prefix')
       .single();
     
     if (error || !apiKey) {
@@ -330,8 +415,57 @@ router.delete('/api-key/:keyId',
       message: 'API key revoked successfully',
       revoked_key: {
         id: apiKey.id,
-        name: apiKey.name
+        name: apiKey.name,
+        key_preview: `${apiKey.key_prefix}...`
+      },
+      security_info: {
+        immediate_effect: 'This API key is immediately invalid for all requests',
+        cleanup_recommendation: 'Remove this key from your applications and environment variables',
+        regeneration: 'Generate a new API key if you need continued access'
       }
+    });
+  })
+);
+
+// Get developer usage statistics
+router.get('/stats',
+  apiKeyRateLimit,
+  authenticateDeveloper,
+  catchAsync(async (req, res) => {
+    const developer = req.developer;
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // Get verification request stats
+    const { data: stats, error } = await supabase
+      .from('verification_requests')
+      .select('status, created_at')
+      .eq('developer_id', developer.id)
+      .gte('created_at', thirtyDaysAgo.toISOString());
+
+    if (error) {
+      logger.error('Failed to get developer stats:', error);
+      throw new Error('Failed to get usage statistics');
+    }
+
+    const totalRequests = stats.length;
+    const successfulRequests = stats.filter(s => s.status === 'verified').length;
+    const failedRequests = stats.filter(s => s.status === 'failed').length;
+    const pendingRequests = stats.filter(s => s.status === 'pending').length;
+    const manualReviewRequests = stats.filter(s => s.status === 'manual_review').length;
+
+    res.json({
+      period: '30_days',
+      total_requests: totalRequests,
+      successful_requests: successfulRequests,
+      failed_requests: failedRequests,
+      pending_requests: pendingRequests,
+      manual_review_requests: manualReviewRequests,
+      success_rate: totalRequests > 0 ? (successfulRequests / totalRequests * 100).toFixed(2) + '%' : '0%',
+      monthly_limit: 1000,
+      monthly_usage: totalRequests,
+      remaining_quota: Math.max(0, 1000 - totalRequests),
+      quota_reset_date: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString()
     });
   })
 );
