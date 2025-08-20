@@ -1,9 +1,10 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import { authenticateAPIKey } from '@/middleware/auth.js';
 import { catchAsync, ValidationError, NotFoundError } from '@/middleware/errorHandler.js';
 import { WebhookService } from '@/services/webhook.js';
 import { logger } from '@/utils/logger.js';
+import { WebhookPayload } from '@/types/index.js';
 
 const router = express.Router();
 const webhookService = new WebhookService();
@@ -24,7 +25,7 @@ router.post('/register',
       .isLength({ min: 10, max: 100 })
       .withMessage('Secret token must be between 10 and 100 characters')
   ],
-  catchAsync(async (req, res) => {
+  catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       throw new ValidationError('Validation failed', 'multiple', errors.array());
@@ -70,7 +71,7 @@ router.post('/register',
 // List webhooks for developer
 router.get('/',
   authenticateAPIKey,
-  catchAsync(async (req, res) => {
+  catchAsync(async (req: Request, res: Response) => {
     const developerId = req.developer!.id;
     const webhooks = await webhookService.getWebhooksByDeveloper(developerId);
     
@@ -103,7 +104,7 @@ router.put('/:webhookId',
       .isLength({ min: 10, max: 100 })
       .withMessage('Secret token must be between 10 and 100 characters')
   ],
-  catchAsync(async (req, res) => {
+  catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       throw new ValidationError('Validation failed', 'multiple', errors.array());
@@ -144,7 +145,7 @@ router.put('/:webhookId',
 // Delete webhook
 router.delete('/:webhookId',
   authenticateAPIKey,
-  catchAsync(async (req, res) => {
+  catchAsync(async (req: Request, res: Response) => {
     const { webhookId } = req.params;
     const developerId = req.developer!.id;
     
@@ -171,7 +172,7 @@ router.delete('/:webhookId',
 // Get webhook deliveries
 router.get('/:webhookId/deliveries',
   authenticateAPIKey,
-  catchAsync(async (req, res) => {
+  catchAsync(async (req: Request, res: Response) => {
     const { webhookId } = req.params;
     const developerId = req.developer!.id;
     const page = parseInt(req.query.page as string) || 1;
@@ -208,7 +209,7 @@ router.get('/:webhookId/deliveries',
 // Test webhook (send test payload)
 router.post('/:webhookId/test',
   authenticateAPIKey,
-  catchAsync(async (req, res) => {
+  catchAsync(async (req: Request, res: Response) => {
     const { webhookId } = req.params;
     const developerId = req.developer!.id;
     
@@ -219,14 +220,17 @@ router.post('/:webhookId/test',
     }
     
     // Send test webhook
-    const testPayload = {
+    const testPayload: WebhookPayload = {
       user_id: 'test-user-123',
       verification_id: 'test-verification-456',
       status: 'verified' as const,
       timestamp: new Date().toISOString(),
       data: {
-        test: true,
-        message: 'This is a test webhook delivery'
+        ocr_data: {
+          name: 'Test User',
+          raw_text: 'This is a test webhook delivery'
+        },
+        face_match_score: 0.95
       }
     };
     
