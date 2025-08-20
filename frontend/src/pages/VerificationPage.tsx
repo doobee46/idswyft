@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { API_BASE_URL } from '../config/api';
 
 interface QualityAnalysis {
   overall_quality: 'excellent' | 'good' | 'fair' | 'poor';
@@ -138,7 +139,7 @@ export const VerificationPage: React.FC = () => {
       formData.append('user_id', userId);
       formData.append('document_type', 'passport');
       
-      const response = await fetch('http://localhost:3001/api/verify/document', {
+      const response = await fetch(`${API_BASE_URL}/api/verify/document`, {
         method: 'POST',
         headers: {
           'X-API-Key': apiKey,
@@ -175,7 +176,7 @@ export const VerificationPage: React.FC = () => {
       formData.append('selfie', selfieFile);
       formData.append('verification_id', verificationResult.verification_id);
       
-      const response = await fetch('http://localhost:3001/api/verify/selfie', {
+      const response = await fetch(`${API_BASE_URL}/api/verify/selfie`, {
         method: 'POST',
         headers: {
           'X-API-Key': apiKey,
@@ -202,7 +203,7 @@ export const VerificationPage: React.FC = () => {
     if (!apiKey || !userId) return;
     
     try {
-      const response = await fetch(`http://localhost:3001/api/verify/status/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/verify/status/${userId}`, {
         headers: {
           'X-API-Key': apiKey,
         },

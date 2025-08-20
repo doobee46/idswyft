@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { API_BASE_URL } from '../config/api';
 import {
   KeyIcon,
   EyeIcon,
@@ -110,7 +111,7 @@ export const DeveloperPage: React.FC = () => {
       
       console.log('Sending registration request:', requestData);
       
-      const response = await fetch('http://localhost:3001/api/developer/register', {
+      const response = await fetch(`${API_BASE_URL}/api/developer/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -149,7 +150,7 @@ export const DeveloperPage: React.FC = () => {
 
   const loadApiKeys = async (email: string) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/developer/api-keys?developer_email=${email}`);
+      const response = await fetch(`${API_BASE_URL}/api/developer/api-keys?developer_email=${email}`);
       const data = await response.json();
       console.log('Load API Keys Response:', data);
       
@@ -172,7 +173,7 @@ export const DeveloperPage: React.FC = () => {
 
   const loadStats = async (email: string) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/developer/stats?developer_email=${email}`);
+      const response = await fetch(`${API_BASE_URL}/api/developer/stats?developer_email=${email}`);
       const data = await response.json();
       if (response.ok) {
         setStats({
@@ -208,7 +209,7 @@ export const DeveloperPage: React.FC = () => {
   const generateApiKey = async (name: string, isSandbox: boolean = false): Promise<boolean> => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3001/api/developer/api-key', {
+      const response = await fetch(`${API_BASE_URL}/api/developer/api-key`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -286,7 +287,7 @@ export const DeveloperPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:3001/api/developer/api-key/${keyId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/developer/api-key/${keyId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
