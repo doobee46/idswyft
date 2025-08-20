@@ -1,5 +1,6 @@
 import express from 'express';
 import { body, param, validationResult } from 'express-validator';
+import validator from 'validator';
 import { supabase } from '@/config/database.js';
 import { generateAPIKey } from '@/middleware/auth.js';
 import { catchAsync, ValidationError, NotFoundError, AuthenticationError } from '@/middleware/errorHandler.js';
@@ -40,16 +41,20 @@ const authenticateDeveloper = catchAsync(async (req: any, res: any, next: any) =
     throw new AuthenticationError('Developer email is required for authentication');
   }
 
+  // Apply the same email normalization as during registration
+  const normalizedEmail = validator.normalizeEmail(developer_email);
+
   const { data: developer, error } = await supabase
     .from('developers')
     .select('*')
-    .eq('email', developer_email)
+    .eq('email', normalizedEmail)
     .eq('is_verified', true)
     .single();
 
   if (error || !developer) {
     logger.warn('Invalid developer authentication attempt', {
       email: developer_email,
+      normalizedEmail,
       ip: req.ip
     });
     throw new AuthenticationError('Invalid developer credentials');

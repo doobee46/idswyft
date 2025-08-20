@@ -205,7 +205,7 @@ export const DeveloperPage: React.FC = () => {
     }
   };
 
-  const generateApiKey = async (name: string, isSandbox: boolean = false) => {
+  const generateApiKey = async (name: string, isSandbox: boolean = false): Promise<boolean> => {
     setLoading(true);
     try {
       const response = await fetch('http://localhost:3001/api/developer/api-key', {
@@ -228,6 +228,7 @@ export const DeveloperPage: React.FC = () => {
         setCurrentApiKey(data.api_key);
         toast.success('🔑 New API key generated successfully!');
         await loadApiKeys(developerInfo.email);
+        return true; // Success
       } else {
         console.error('API Key generation failed:', data);
         if (response.status === 401) {
@@ -238,10 +239,12 @@ export const DeveloperPage: React.FC = () => {
         } else {
           toast.error(data.message || 'Failed to generate API key');
         }
+        return false; // Failure
       }
     } catch (error) {
       console.error('API key generation failed:', error);
       toast.error('Failed to generate API key. Please try again.');
+      return false; // Failure
     } finally {
       setLoading(false);
     }
@@ -334,9 +337,13 @@ export const DeveloperPage: React.FC = () => {
       return;
     }
     
-    await generateApiKey(newApiKeyForm.name.trim(), newApiKeyForm.isSandbox);
-    setShowApiKeyModal(false);
-    setNewApiKeyForm({ name: '', isSandbox: false });
+    const success = await generateApiKey(newApiKeyForm.name.trim(), newApiKeyForm.isSandbox);
+    if (success) {
+      setShowApiKeyModal(false);
+      setNewApiKeyForm({ name: '', isSandbox: false });
+      setActiveTab('overview'); // Switch to overview tab to show the new key
+    }
+    // If not successful, keep modal open so user can try again
   };
 
   if (!isRegistered) {
