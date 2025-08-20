@@ -14,7 +14,9 @@ import {
   CpuChipIcon,
   GlobeAltIcon,
   LockClosedIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  ArrowRightOnRectangleIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 
 interface ApiKey {
@@ -50,6 +52,11 @@ export const DeveloperPage: React.FC = () => {
     email: '',
     company: '',
     webhookUrl: ''
+  });
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [newApiKeyForm, setNewApiKeyForm] = useState({
+    name: '',
+    isSandbox: false
   });
 
   useEffect(() => {
@@ -282,6 +289,29 @@ export const DeveloperPage: React.FC = () => {
     });
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('developer_email');
+    setIsRegistered(false);
+    setDeveloperInfo({ name: '', email: '', company: '', webhookUrl: '' });
+    setApiKeys([]);
+    setStats(null);
+    setCurrentApiKey('');
+    setActiveTab('overview');
+    toast.success('👋 Logged out successfully');
+  };
+
+  const handleCreateApiKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newApiKeyForm.name.trim()) {
+      toast.error('API key name is required');
+      return;
+    }
+    
+    await generateApiKey(newApiKeyForm.name.trim(), newApiKeyForm.isSandbox);
+    setShowApiKeyModal(false);
+    setNewApiKeyForm({ name: '', isSandbox: false });
+  };
+
   if (!isRegistered) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -461,6 +491,13 @@ export const DeveloperPage: React.FC = () => {
                   <span className="font-semibold">Operational</span>
                 </div>
               </div>
+              <button
+                onClick={handleLogout}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+              >
+                <ArrowRightOnRectangleIcon className="w-4 h-4 mr-2" />
+                Logout
+              </button>
             </div>
           </div>
           
@@ -616,12 +653,7 @@ export const DeveloperPage: React.FC = () => {
                   <p className="text-gray-600">Create, view, and manage your API keys</p>
                 </div>
                 <button
-                  onClick={() => {
-                    const name = prompt('Enter a name for your API key:');
-                    if (name) {
-                      generateApiKey(name, false);
-                    }
-                  }}
+                  onClick={() => setShowApiKeyModal(true)}
                   disabled={loading}
                   className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 transition-all duration-200"
                 >
@@ -637,10 +669,7 @@ export const DeveloperPage: React.FC = () => {
                     <h3 className="text-lg font-medium text-gray-900 mb-2">No API Keys</h3>
                     <p className="text-gray-600 mb-6">Generate your first API key to start using our verification APIs</p>
                     <button
-                      onClick={() => {
-                        const name = prompt('Enter a name for your API key:');
-                        if (name) generateApiKey(name, false);
-                      }}
+                      onClick={() => setShowApiKeyModal(true)}
                       className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors"
                     >
                       <PlusIcon className="w-5 h-5 mr-2" />
@@ -771,6 +800,88 @@ export const DeveloperPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* API Key Creation Modal */}
+      {showApiKeyModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-gray-900">Create New API Key</h3>
+              <button
+                onClick={() => {
+                  setShowApiKeyModal(false);
+                  setNewApiKeyForm({ name: '', isSandbox: false });
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <XMarkIcon className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleCreateApiKey} className="space-y-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  API Key Name *
+                </label>
+                <input
+                  type="text"
+                  value={newApiKeyForm.name}
+                  onChange={(e) => setNewApiKeyForm({ ...newApiKeyForm, name: e.target.value })}
+                  className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  placeholder="e.g., Production API Key, Development Key"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Choose a descriptive name to help identify this key
+                </p>
+              </div>
+              
+              <div className="flex items-center space-x-3">
+                <input
+                  type="checkbox"
+                  id="isSandbox"
+                  checked={newApiKeyForm.isSandbox}
+                  onChange={(e) => setNewApiKeyForm({ ...newApiKeyForm, isSandbox: e.target.checked })}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="isSandbox" className="text-sm font-medium text-gray-700">
+                  Sandbox Key
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 -mt-2">
+                Sandbox keys are for testing and have higher rate limits but process test data only
+              </p>
+              
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowApiKeyModal(false);
+                    setNewApiKeyForm({ name: '', isSandbox: false });
+                  }}
+                  className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading || !newApiKeyForm.name.trim()}
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 transition-all font-medium"
+                >
+                  {loading ? (
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Creating...
+                    </div>
+                  ) : (
+                    'Create API Key'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
