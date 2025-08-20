@@ -26,22 +26,22 @@ import {
 
 const features = [
   {
-    name: 'Document Verification',
-    description: 'Advanced OCR and authenticity checks for government-issued IDs, passports, and driver licenses with 99% accuracy.',
+    name: 'AI-Powered Document Verification',
+    description: 'Advanced OCR extraction with confidence scores, quality analysis (blur, brightness, resolution), and authenticity checks with 99% accuracy.',
     icon: DocumentCheckIcon,
     color: 'text-blue-600',
     bgColor: 'bg-blue-100'
   },
   {
-    name: 'Face Recognition',
-    description: 'State-of-the-art face matching technology comparing selfies with document photos in real-time.',
+    name: 'Face Matching & Liveness Detection',
+    description: 'State-of-the-art face matching with similarity scores and liveness detection to prevent spoofing attacks.',
     icon: CameraIcon,
     color: 'text-purple-600',
     bgColor: 'bg-purple-100'
   },
   {
     name: 'Developer-First API',
-    description: 'RESTful API with comprehensive SDKs, webhooks, and detailed documentation for seamless integration.',
+    description: 'RESTful API with TypeScript/Python SDKs, comprehensive AI analysis results, webhooks, and detailed documentation for seamless integration.',
     icon: CodeBracketIcon,
     color: 'text-green-600',
     bgColor: 'bg-green-100'
@@ -77,62 +77,88 @@ const stats = [
 ]
 
 const codeExamples = {
-  curl: `curl -X POST https://api.idswyft.com/v1/verify/document \
-  -H "Authorization: Bearer YOUR_API_KEY" \
+  curl: `curl -X POST https://api.idswyft.com/api/verify/document \
+  -H "X-API-Key: YOUR_API_KEY" \
   -H "Content-Type: multipart/form-data" \
   -F "document=@passport.jpg" \
   -F "user_id=user_123" \
   -F "document_type=passport"`,
   javascript: `import { IdswyftSDK } from '@idswyft/sdk';
 
-const idswyft = new IdswyftSDK({
+const client = new IdswyftSDK({
   apiKey: 'your_api_key',
-  environment: 'production'
+  sandbox: false
 });
 
-const result = await idswyft.verifyDocument({
-  document: documentFile,
-  userId: 'user_123',
-  documentType: 'passport'
+const result = await client.verifyDocument({
+  document_type: 'passport',
+  document_file: documentFile,
+  user_id: 'user_123',
+  metadata: { source: 'web_app' }
 });
 
-console.log(result.status); // 'verified'`,
+// Access AI analysis results
+console.log(result.status); // 'verified'
+console.log(result.ocr_data.name); // 'John Doe'
+console.log(result.quality_analysis.overallQuality); // 'excellent'`,
   python: `import idswyft
 
-client = idswyft.Client(api_key="your_api_key")
-
-result = client.verify_document(
-    document_path="passport.jpg",
-    user_id="user_123",
-    document_type="passport"
+client = idswyft.IdswyftClient(
+    api_key="your_api_key",
+    sandbox=False
 )
 
+result = client.verify_document(
+    document_type="passport",
+    document_file="passport.jpg",
+    user_id="user_123",
+    metadata={"source": "python_app"}
+)
+
+# Access AI analysis results
 print(f"Status: {result['status']}")
-print(f"Quality: {result['quality_analysis']['overall_quality']}")`,
+print(f"Name: {result['ocr_data']['name']}")
+print(f"Quality: {result['quality_analysis']['overallQuality']}")
+print(f"Confidence: {result['ocr_data']['confidence_scores']}")`,
   response: `{
-  "verification_id": "ver_abc123",
+  "id": "verif_abc123",
   "status": "verified",
+  "type": "document",
+  "confidence_score": 0.95,
   "user_id": "user_123",
-  "quality_analysis": {
-    "overall_quality": "excellent",
-    "quality_scores": {
-      "blur_score": 342.5,
-      "brightness": 128.3,
-      "contrast": 45.2,
-      "resolution": {
-        "width": 1920,
-        "height": 1080,
-        "isHighRes": true
-      }
-    },
-    "issues": [],
-    "recommendations": []
-  },
+  "developer_id": "dev_xyz789",
+  "created_at": "2024-01-01T12:00:00Z",
+  "updated_at": "2024-01-01T12:00:15Z",
   "ocr_data": {
     "name": "John Doe",
     "date_of_birth": "1990-01-01",
     "document_number": "P123456789",
-    "expiration_date": "2030-01-01"
+    "expiration_date": "2030-01-01",
+    "nationality": "US",
+    "confidence_scores": {
+      "name": 0.98,
+      "date_of_birth": 0.95,
+      "document_number": 0.92,
+      "expiration_date": 0.94
+    }
+  },
+  "quality_analysis": {
+    "overallQuality": "excellent",
+    "isBlurry": false,
+    "blurScore": 342.5,
+    "brightness": 128,
+    "contrast": 45,
+    "resolution": {
+      "width": 1920,
+      "height": 1080,
+      "isHighRes": true
+    },
+    "fileSize": {
+      "bytes": 2457600,
+      "isReasonableSize": true
+    },
+    "issues": [],
+    "recommendations": ["Increase lighting for even better clarity"]
   }
 }`
 }
@@ -148,7 +174,7 @@ const integrationSteps = [
   {
     step: '2', 
     title: 'Install SDK',
-    description: 'npm install @idswyft/sdk or use our REST API',
+    description: 'npm install @idswyft/sdk or pip install idswyft',
     icon: CubeIcon,
     color: 'from-purple-500 to-purple-600'
   },
