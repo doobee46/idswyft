@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import {
   KeyIcon,
   EyeIcon,
@@ -66,32 +67,69 @@ export const DeveloperPage: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     
+    // Basic client-side validation
+    if (!developerInfo.name.trim()) {
+      toast.error('Developer name is required');
+      setLoading(false);
+      return;
+    }
+    
+    if (!developerInfo.email.trim()) {
+      toast.error('Email address is required');
+      setLoading(false);
+      return;
+    }
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(developerInfo.email)) {
+      toast.error('Please enter a valid email address');
+      setLoading(false);
+      return;
+    }
+    
     try {
+      const requestData = {
+        name: developerInfo.name.trim(),
+        email: developerInfo.email.trim(),
+        company: developerInfo.company.trim() || undefined,
+        webhook_url: developerInfo.webhookUrl.trim() || undefined
+      };
+      
+      console.log('Sending registration request:', requestData);
+      
       const response = await fetch('http://localhost:3001/api/developer/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...developerInfo,
-          webhook_url: developerInfo.webhookUrl
-        }),
+        body: JSON.stringify(requestData),
       });
       
       const data = await response.json();
+      console.log('Registration response:', data);
       
       if (response.ok && data.api_key && data.api_key.key) {
         setCurrentApiKey(data.api_key.key);
         setIsRegistered(true);
         localStorage.setItem('developer_email', developerInfo.email);
+        toast.success('🎉 Developer account created successfully!');
         await loadApiKeys(developerInfo.email);
         await loadStats(developerInfo.email);
       } else {
-        alert(data.message || 'Registration failed');
+        // Handle validation errors
+        if (data.code === 'multiple' && data.details) {
+          // Multiple validation errors
+          data.details.forEach((error: any) => {
+            toast.error(error.msg || error.message);
+          });
+        } else {
+          toast.error(data.message || 'Registration failed. Please try again.');
+        }
       }
     } catch (error) {
       console.error('Registration failed:', error);
-      alert('Registration failed. Please try again.');
+      toast.error('Registration failed. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -162,22 +200,52 @@ export const DeveloperPage: React.FC = () => {
       const data = await response.json();
       if (response.ok) {
         setCurrentApiKey(data.api_key);
+        toast.success('🔑 New API key generated successfully!');
         await loadApiKeys(developerInfo.email);
       } else {
-        alert(data.message || 'Failed to generate API key');
+        toast.error(data.message || 'Failed to generate API key');
       }
     } catch (error) {
       console.error('API key generation failed:', error);
-      alert('Failed to generate API key. Please try again.');
+      toast.error('Failed to generate API key. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   const revokeApiKey = async (keyId: string) => {
-    if (!confirm('Are you sure you want to revoke this API key? This action cannot be undone.')) {
-      return;
-    }
+    const confirmed = await new Promise((resolve) => {
+      toast((t) => (
+        <div className="flex flex-col space-y-3">
+          <div className="font-medium">Revoke API Key</div>
+          <div className="text-sm text-gray-600">
+            Are you sure you want to revoke this API key? This action cannot be undone.
+          </div>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => {
+                toast.dismiss(t.id);
+                resolve(true);
+              }}
+              className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+            >
+              Revoke
+            </button>
+            <button
+              onClick={() => {
+                toast.dismiss(t.id);
+                resolve(false);
+              }}
+              className="px-3 py-1 bg-gray-300 text-gray-700 text-sm rounded hover:bg-gray-400"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ), { duration: Infinity });
+    });
+
+    if (!confirmed) return;
 
     setLoading(true);
     try {
@@ -192,22 +260,26 @@ export const DeveloperPage: React.FC = () => {
       });
       
       if (response.ok) {
+        toast.success('🗑️ API key revoked successfully');
         await loadApiKeys(developerInfo.email);
       } else {
         const data = await response.json();
-        alert(data.message || 'Failed to revoke API key');
+        toast.error(data.message || 'Failed to revoke API key');
       }
     } catch (error) {
       console.error('Failed to revoke API key:', error);
-      alert('Failed to revoke API key. Please try again.');
+      toast.error('Failed to revoke API key. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    // Could add toast notification here
+    navigator.clipboard.writeText(text).then(() => {
+      toast.success('📋 Copied to clipboard!');
+    }).catch(() => {
+      toast.error('Failed to copy to clipboard');
+    });
   };
 
   if (!isRegistered) {
@@ -547,8 +619,7 @@ export const DeveloperPage: React.FC = () => {
                   onClick={() => {
                     const name = prompt('Enter a name for your API key:');
                     if (name) {
-                      const isSandbox = confirm('Is this a sandbox key?');
-                      generateApiKey(name, isSandbox);
+                      generateApiKey(name, false);
                     }
                   }}
                   disabled={loading}
