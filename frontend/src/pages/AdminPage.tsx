@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ShieldCheckIcon } from '@heroicons/react/24/outline';
 
 interface VerificationRequest {
   id: string;
@@ -155,7 +156,24 @@ export const AdminPage: React.FC = () => {
       {/* Header */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+          <div className="flex items-center space-x-4">
+            <img 
+              src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo.png" 
+              alt="Idswyft" 
+              className="h-10 w-auto"
+              onError={(e) => {
+                // Fallback to icon and text if image fails to load
+                e.currentTarget.style.display = 'none';
+                const fallback = e.currentTarget.nextSibling as HTMLElement;
+                if (fallback) fallback.style.display = 'flex';
+              }}
+            />
+            <div className="hidden items-center space-x-2">
+              <ShieldCheckIcon className="h-8 w-8 text-primary-600" />
+              <span className="text-2xl font-bold text-gray-900">Idswyft</span>
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+          </div>
           <button
             onClick={handleLogout}
             className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition"

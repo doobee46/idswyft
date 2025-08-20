@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ShieldCheckIcon } from '@heroicons/react/24/outline';
 
 export const AdminLogin: React.FC = () => {
   const [credentials, setCredentials] = useState({
@@ -44,7 +45,24 @@ export const AdminLogin: React.FC = () => {
       <div className="max-w-md w-full space-y-8">
         <div className="bg-white p-8 rounded-lg shadow-md">
           <div className="text-center">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Admin Login</h2>
+            <div className="flex flex-col items-center mb-6">
+              <img 
+                src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo.png" 
+                alt="Idswyft" 
+                className="h-12 w-auto mb-4"
+                onError={(e) => {
+                  // Fallback to icon and text if image fails to load
+                  e.currentTarget.style.display = 'none';
+                  const fallback = e.currentTarget.nextSibling as HTMLElement;
+                  if (fallback) fallback.style.display = 'flex';
+                }}
+              />
+              <div className="hidden items-center space-x-2 mb-4">
+                <ShieldCheckIcon className="h-10 w-10 text-primary-600" />
+                <span className="text-2xl font-bold text-gray-900">Idswyft</span>
+              </div>
+              <h2 className="text-3xl font-bold text-gray-900">Admin Login</h2>
+            </div>
             <p className="text-gray-600">Access the Idswyft admin dashboard</p>
           </div>
 

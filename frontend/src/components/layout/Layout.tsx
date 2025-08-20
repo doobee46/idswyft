@@ -39,9 +39,22 @@ export function Layout({ children }: LayoutProps) {
             <div className="flex">
               {/* Logo */}
               <div className="flex-shrink-0 flex items-center">
-                <Link to="/" className="flex items-center space-x-2">
-                  <ShieldCheckIcon className="h-8 w-8 text-primary-600 flex-shrink-0" />
-                  <span className="text-xl font-bold text-gray-900">Idswyft</span>
+                <Link to="/" className="flex items-center">
+                  <img 
+                    src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo.png" 
+                    alt="Idswyft" 
+                    className="h-8 w-auto flex-shrink-0"
+                    onError={(e) => {
+                      // Fallback to icon and text if image fails to load
+                      e.currentTarget.style.display = 'none';
+                      const fallback = e.currentTarget.nextSibling as HTMLElement;
+                      if (fallback) fallback.style.display = 'flex';
+                    }}
+                  />
+                  <div className="hidden items-center space-x-2">
+                    <ShieldCheckIcon className="h-8 w-8 text-primary-600 flex-shrink-0" />
+                    <span className="text-xl font-bold text-gray-900">Idswyft</span>
+                  </div>
                 </Link>
               </div>
               
@@ -130,11 +143,24 @@ export function Layout({ children }: LayoutProps) {
         <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="col-span-1 md:col-span-2">
-              <div className="flex items-center space-x-2 mb-4">
-                <ShieldCheckIcon className="h-8 w-8 text-primary-600 flex-shrink-0" />
-                <span className="text-xl font-bold text-gray-900">Idswyft</span>
+              <div className="mb-6">
+                <img 
+                  src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo.png" 
+                  alt="Idswyft" 
+                  className="h-10 w-auto flex-shrink-0"
+                  onError={(e) => {
+                    // Fallback to icon and text if image fails to load
+                    e.currentTarget.style.display = 'none';
+                    const fallback = e.currentTarget.nextSibling as HTMLElement;
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
+                />
+                <div className="hidden items-center space-x-2">
+                  <ShieldCheckIcon className="h-8 w-8 text-primary-600 flex-shrink-0" />
+                  <span className="text-xl font-bold text-gray-900">Idswyft</span>
+                </div>
               </div>
-              <p className="text-gray-600 text-sm">
+              <p className="text-gray-600 text-sm leading-relaxed">
                 Open-source identity verification platform built for developers. 
                 Secure, fast, and compliant with GDPR and CCPA.
               </p>
