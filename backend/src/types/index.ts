@@ -2,7 +2,7 @@ export interface User {
   id: string;
   email?: string;
   created_at: Date;
-  updated_at: Date;
+  updated_at?: Date;
 }
 
 export interface VerificationRequest {
@@ -15,6 +15,7 @@ export interface VerificationRequest {
   face_match_score?: number;
   manual_review_reason?: string;
   external_verification_id?: string;
+  quality_analysis?: any; // Quality analysis data from document processing
   created_at: Date;
   updated_at: Date;
 }
@@ -134,6 +135,7 @@ export interface AdminUser {
   email: string;
   role: 'admin' | 'reviewer';
   created_at: Date;
+  updated_at?: Date;
 }
 
 // API Request/Response Types

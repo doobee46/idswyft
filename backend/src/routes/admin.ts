@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { body, query, param, validationResult } from 'express-validator';
 import { authenticateJWT, requireAdminRole } from '@/middleware/auth.js';
 import { catchAsync, ValidationError, NotFoundError } from '@/middleware/errorHandler.js';
@@ -17,7 +17,7 @@ const storageService = new StorageService();
 router.get('/dashboard',
   authenticateJWT,
   requireAdminRole(['admin', 'reviewer']),
-  catchAsync(async (req, res) => {
+  catchAsync(async (req: Request, res: Response) => {
     const [
       verificationStats,
       recentVerifications,
@@ -61,7 +61,7 @@ router.get('/verifications',
       .isInt({ min: 1, max: 100 })
       .withMessage('Limit must be between 1 and 100')
   ],
-  catchAsync(async (req, res) => {
+  catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       throw new ValidationError('Validation failed', 'multiple', errors.array());
@@ -97,7 +97,7 @@ router.get('/verification/:id',
       .isUUID()
       .withMessage('Verification ID must be a valid UUID')
   ],
-  catchAsync(async (req, res) => {
+  catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       throw new ValidationError('Validation failed', 'multiple', errors.array());
@@ -169,7 +169,7 @@ router.put('/verification/:id/review',
       .isLength({ min: 1, max: 500 })
       .withMessage('Reason must be between 1 and 500 characters')
   ],
-  catchAsync(async (req, res) => {
+  catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       throw new ValidationError('Validation failed', 'multiple', errors.array());
@@ -209,7 +209,7 @@ router.get('/developers',
       .isInt({ min: 1, max: 100 })
       .withMessage('Limit must be between 1 and 100')
   ],
-  catchAsync(async (req, res) => {
+  catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       throw new ValidationError('Validation failed', 'multiple', errors.array());
@@ -273,7 +273,7 @@ router.get('/analytics',
       .isUUID()
       .withMessage('Developer ID must be a valid UUID')
   ],
-  catchAsync(async (req, res) => {
+  catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       throw new ValidationError('Validation failed', 'multiple', errors.array());
@@ -292,7 +292,7 @@ router.get('/analytics',
 router.get('/health',
   authenticateJWT,
   requireAdminRole(['admin']),
-  catchAsync(async (req, res) => {
+  catchAsync(async (req: Request, res: Response) => {
     const health = await getSystemHealth();
     res.json(health);
   })

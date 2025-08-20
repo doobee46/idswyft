@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { body, param, validationResult } from 'express-validator';
 import validator from 'validator';
 import { supabase } from '@/config/database.js';
@@ -88,7 +88,7 @@ router.post('/register',
       .isURL({ protocols: ['https'] })
       .withMessage('Webhook URL must be a valid HTTPS URL')
   ],
-  catchAsync(async (req, res) => {
+  catchAsync(async (req: Request, res: Response) => {
     console.log('🎯 REGISTRATION ENDPOINT CALLED', req.body);
     
     const errors = validationResult(req);
@@ -230,7 +230,7 @@ router.post('/api-key',
       .withMessage('expires_in_days must be between 1 and 365')
   ],
   authenticateDeveloper,
-  catchAsync(async (req, res) => {
+  catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       throw new ValidationError('Validation failed', 'multiple', errors.array());
@@ -238,6 +238,9 @@ router.post('/api-key',
     
     const { name, is_sandbox = false, expires_in_days } = req.body;
     const developer = req.developer;
+    if (!developer) {
+      throw new AuthenticationError('Developer authentication required');
+    }
     
     // Check if developer has reached API key limit
     const { count: existingKeysCount, error: countError } = await supabase
@@ -321,8 +324,11 @@ router.post('/api-key',
 router.get('/api-keys',
   apiKeyRateLimit,
   authenticateDeveloper,
-  catchAsync(async (req, res) => {
+  catchAsync(async (req: Request, res: Response) => {
     const developer = req.developer;
+    if (!developer) {
+      throw new AuthenticationError('Developer authentication required');
+    }
     
     // Get API keys with additional security info
     const { data: apiKeys, error } = await supabase
@@ -384,7 +390,7 @@ router.delete('/api-key/:keyId',
       .withMessage('Developer email is required')
   ],
   authenticateDeveloper,
-  catchAsync(async (req, res) => {
+  catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       throw new ValidationError('Validation failed', 'multiple', errors.array());
@@ -392,6 +398,9 @@ router.delete('/api-key/:keyId',
     
     const { keyId } = req.params;
     const developer = req.developer;
+    if (!developer) {
+      throw new AuthenticationError('Developer authentication required');
+    }
     
     // Deactivate API key with audit trail
     const { data: apiKey, error } = await supabase
@@ -436,8 +445,11 @@ router.delete('/api-key/:keyId',
 router.get('/stats',
   apiKeyRateLimit,
   authenticateDeveloper,
-  catchAsync(async (req, res) => {
+  catchAsync(async (req: Request, res: Response) => {
     const developer = req.developer;
+    if (!developer) {
+      throw new AuthenticationError('Developer authentication required');
+    }
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 

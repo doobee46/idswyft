@@ -97,7 +97,10 @@ export const authenticateJWT = catchAsync(async (req: Request, res: Response, ne
       throw new AuthenticationError('Invalid token');
     }
     
-    req.user = adminUser as AdminUser;
+    req.user = {
+      ...adminUser,
+      updated_at: adminUser.updated_at || adminUser.created_at
+    } as AdminUser;
     next();
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {

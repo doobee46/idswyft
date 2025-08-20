@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import multer from 'multer';
 import { body, param, validationResult } from 'express-validator';
 import { authenticateAPIKey, authenticateUser, checkSandboxMode } from '@/middleware/auth.js';
@@ -78,7 +78,7 @@ router.post('/document',
   verificationRateLimit,
   upload.single('document'),
   validateDocumentUpload,
-  catchAsync(async (req, res) => {
+  catchAsync(async (req: Request, res: Response) => {
     // Check validation results
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -249,7 +249,7 @@ router.post('/selfie',
   checkSandboxMode,
   upload.single('selfie'),
   validateSelfieUpload,
-  catchAsync(async (req, res) => {
+  catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       throw new ValidationError('Validation failed', 'multiple', errors.array());
@@ -367,7 +367,7 @@ router.post('/selfie',
 router.get('/status/:user_id',
   authenticateAPIKey,
   validateStatusQuery,
-  catchAsync(async (req, res) => {
+  catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       throw new ValidationError('Validation failed', 'multiple', errors.array());
@@ -415,7 +415,7 @@ router.get('/status/:user_id',
 router.get('/history/:user_id',
   authenticateAPIKey,
   validateStatusQuery,
-  catchAsync(async (req, res) => {
+  catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       throw new ValidationError('Validation failed', 'multiple', errors.array());

@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { supabase } from '@/config/database.js';
 import config from '@/config/index.js';
 import { catchAsync } from '@/middleware/errorHandler.js';
@@ -6,7 +6,7 @@ import { catchAsync } from '@/middleware/errorHandler.js';
 const router = express.Router();
 
 // Basic health check
-router.get('/', catchAsync(async (req, res) => {
+router.get('/', catchAsync(async (req: Request, res: Response) => {
   const healthcheck = {
     uptime: process.uptime(),
     message: 'OK',
@@ -19,7 +19,7 @@ router.get('/', catchAsync(async (req, res) => {
 }));
 
 // Detailed health check with database
-router.get('/detailed', catchAsync(async (req, res) => {
+router.get('/detailed', catchAsync(async (req: Request, res: Response) => {
   const startTime = Date.now();
   
   // Check database connection
@@ -84,7 +84,7 @@ router.get('/detailed', catchAsync(async (req, res) => {
 }));
 
 // Ready check (for Kubernetes readiness probe)
-router.get('/ready', catchAsync(async (req, res) => {
+router.get('/ready', catchAsync(async (req: Request, res: Response) => {
   try {
     // Quick database check
     await supabase
@@ -99,7 +99,7 @@ router.get('/ready', catchAsync(async (req, res) => {
 }));
 
 // Live check (for Kubernetes liveness probe)
-router.get('/live', (req, res) => {
+router.get('/live', (req: Request, res: Response) => {
   res.status(200).json({ status: 'alive' });
 });
 

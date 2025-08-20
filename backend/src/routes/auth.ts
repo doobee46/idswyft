@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { body, validationResult } from 'express-validator';
 import { supabase } from '@/config/database.js';
@@ -18,7 +18,7 @@ router.post('/admin/login',
       .isLength({ min: 6 })
       .withMessage('Password must be at least 6 characters')
   ],
-  catchAsync(async (req, res) => {
+  catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       throw new ValidationError('Validation failed', 'multiple', errors.array());
