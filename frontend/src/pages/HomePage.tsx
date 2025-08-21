@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { getDocumentationApiUrl } from '../config/api'
 import { 
   ShieldCheckIcon, 
   CodeBracketIcon, 
@@ -76,8 +77,8 @@ const stats = [
   { name: 'Developers Trust Us', value: '10K+', icon: UserGroupIcon },
 ]
 
-const codeExamples = {
-  curl: `curl -X POST https://api.idswyft.com/api/verify/document \
+const getCodeExamples = (apiUrl: string) => ({
+  curl: `curl -X POST ${apiUrl}/api/verify/document \
   -H "X-API-Key: YOUR_API_KEY" \
   -H "Content-Type: multipart/form-data" \
   -F "document=@passport.jpg" \
@@ -161,7 +162,7 @@ print(f"Confidence: {result['ocr_data']['confidence_scores']}")`,
     "recommendations": ["Increase lighting for even better clarity"]
   }
 }`
-}
+})
 
 const integrationSteps = [
   {
@@ -220,6 +221,8 @@ const useCases = [
 export function HomePage() {
   const [activeTab, setActiveTab] = useState('javascript')
   const [isVisible, setIsVisible] = useState(false)
+  const apiUrl = getDocumentationApiUrl()
+  const codeExamples = getCodeExamples(apiUrl)
 
   useEffect(() => {
     setIsVisible(true)

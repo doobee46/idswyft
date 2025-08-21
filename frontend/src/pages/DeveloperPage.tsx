@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, getDocumentationApiUrl } from '../config/api';
 import {
   KeyIcon,
   EyeIcon,
@@ -41,6 +41,7 @@ interface DeveloperStats {
 
 export const DeveloperPage: React.FC = () => {
   const [currentApiKey, setCurrentApiKey] = useState<string>('');
+  const apiUrl = getDocumentationApiUrl();
   
   // Debug logging for currentApiKey state changes
   React.useEffect(() => {
@@ -785,7 +786,7 @@ export const DeveloperPage: React.FC = () => {
                 <h3 className="text-xl font-semibold text-gray-900 mb-4">Document Verification</h3>
                 <div className="bg-gray-50 rounded-xl p-4">
                   <pre className="text-sm overflow-x-auto">
-{`curl -X POST https://api.idswyft.com/v1/verify/document \\
+{`curl -X POST ${apiUrl}/v1/verify/document \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: multipart/form-data" \\
   -F "document=@passport.jpg" \\
@@ -799,7 +800,7 @@ export const DeveloperPage: React.FC = () => {
                 <h3 className="text-xl font-semibold text-gray-900 mb-4">Selfie Verification</h3>
                 <div className="bg-gray-50 rounded-xl p-4">
                   <pre className="text-sm overflow-x-auto">
-{`curl -X POST https://api.idswyft.com/v1/verify/selfie \\
+{`curl -X POST ${apiUrl}/v1/verify/selfie \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: multipart/form-data" \\
   -F "selfie=@selfie.jpg" \\

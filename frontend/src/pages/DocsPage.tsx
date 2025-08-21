@@ -6,8 +6,11 @@ import {
   ChartBarIcon,
   ShieldCheckIcon
 } from '@heroicons/react/24/outline';
+import { getDocumentationApiUrl } from '../config/api';
 
 export const DocsPage: React.FC = () => {
+  const apiUrl = getDocumentationApiUrl();
+  
   return (
     <div className="max-w-6xl mx-auto p-6">
       <div className="bg-white rounded-lg shadow-md p-8">
@@ -80,7 +83,7 @@ print(result['quality_analysis'])`}
           </h2>
           <div className="bg-blue-50 p-6 rounded-lg mb-4">
             <p className="text-blue-800 mb-3">
-              <strong>Base URL:</strong> <code className="bg-blue-100 px-2 py-1 rounded">https://api.idswyft.com</code>
+              <strong>Base URL:</strong> <code className="bg-blue-100 px-2 py-1 rounded">{apiUrl}</code>
             </p>
             <p className="text-blue-800">
               <strong>Authentication:</strong> Include <code className="bg-blue-100 px-2 py-1 rounded">X-API-Key</code> header with your API key
@@ -129,7 +132,7 @@ metadata: object (optional)`}
               <h4 className="font-medium mb-2">Example with cURL:</h4>
               <div className="bg-gray-900 text-green-400 p-4 rounded text-sm mb-4">
                 <pre>
-{`curl -X POST https://api.idswyft.com/api/verify/document \\
+{`curl -X POST ${apiUrl}/api/verify/document \\
   -H "X-API-Key: your-api-key" \\
   -F "document_type=passport" \\
   -F "document=@passport.jpg" \\
@@ -243,7 +246,7 @@ metadata: object (optional)`}
               
               <div className="bg-gray-900 text-green-400 p-4 rounded text-sm">
                 <pre>
-{`curl -X GET https://api.idswyft.com/api/verify/status/verif_abc123 \\
+{`curl -X GET ${apiUrl}/api/verify/status/verif_abc123 \\
   -H "X-API-Key: your-api-key"
 
 // Returns the same detailed response as the original verification`}
