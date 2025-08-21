@@ -65,9 +65,7 @@ export const DeveloperPage: React.FC = () => {
     name: '',
     email: '',
     company: '',
-    password: '',
-    webhook_url: '',
-    confirmPassword: ''
+    webhook_url: ''
   });
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [developerToken, setDeveloperToken] = useState<string | null>(null);
@@ -88,13 +86,8 @@ export const DeveloperPage: React.FC = () => {
     
     try {
       // Basic client-side validation
-      if (!formData.name || !formData.email || !formData.password) {
+      if (!formData.name || !formData.email) {
         toast.error('Please fill in all required fields');
-        return;
-      }
-
-      if (formData.password !== formData.confirmPassword) {
-        toast.error('Passwords do not match');
         return;
       }
 
@@ -102,11 +95,6 @@ export const DeveloperPage: React.FC = () => {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.email)) {
         toast.error('Please enter a valid email address');
-        return;
-      }
-
-      if (formData.password.length < 8) {
-        toast.error('Password must be at least 8 characters long');
         return;
       }
 
@@ -119,7 +107,6 @@ export const DeveloperPage: React.FC = () => {
           name: formData.name,
           email: formData.email,
           company: formData.company || undefined,
-          password: formData.password,
           webhook_url: formData.webhook_url || undefined
         }),
       });
@@ -138,8 +125,7 @@ export const DeveloperPage: React.FC = () => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            email: formData.email,
-            password: formData.password
+            email: formData.email
           }),
         });
 
@@ -176,8 +162,8 @@ export const DeveloperPage: React.FC = () => {
     
     try {
       // Basic client-side validation
-      if (!formData.email || !formData.password) {
-        toast.error('Please enter both email and password');
+      if (!formData.email) {
+        toast.error('Please enter your email address');
         return;
       }
 
@@ -194,8 +180,7 @@ export const DeveloperPage: React.FC = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: formData.email,
-          password: formData.password
+          email: formData.email
         }),
       });
 
@@ -369,9 +354,7 @@ export const DeveloperPage: React.FC = () => {
       name: '',
       email: '',
       company: '',
-      password: '',
-      webhook_url: '',
-      confirmPassword: ''
+      webhook_url: ''
     });
   };
 
@@ -388,7 +371,7 @@ export const DeveloperPage: React.FC = () => {
                 </div>
               </div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">Idswyft Developer Portal</h1>
-              <p className="text-gray-600">Access your API keys and documentation</p>
+              <p className="text-gray-600">Enter your email to access your API keys and documentation</p>
               
               <div className="flex bg-gray-100 p-1 rounded-lg mt-6">
                 <button
@@ -467,37 +450,8 @@ export const DeveloperPage: React.FC = () => {
                   </div>
                 )}
 
-                <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                    Password *
-                  </label>
-                  <input
-                    type="password"
-                    id="password"
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
-                    placeholder={registrationMode ? "At least 8 characters" : "Your password"}
-                  />
-                </div>
-
                 {registrationMode && (
                   <>
-                    <div>
-                      <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                        Confirm Password *
-                      </label>
-                      <input
-                        type="password"
-                        id="confirmPassword"
-                        required={registrationMode}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        value={formData.confirmPassword}
-                        onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
-                        placeholder="Confirm your password"
-                      />
-                    </div>
 
                     <div>
                       <label htmlFor="webhook_url" className="block text-sm font-medium text-gray-700 mb-2">
