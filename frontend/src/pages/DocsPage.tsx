@@ -1,6 +1,6 @@
 import { 
   DocumentCheckIcon, 
- 
+  CameraIcon,
   CodeBracketIcon,
   BoltIcon,
   ChartBarIcon,
@@ -233,6 +233,110 @@ metadata: object (optional)`}
             </div>
           </div>
 
+          {/* Live Camera Capture */}
+          <div className="mb-8 border border-gray-200 rounded-lg">
+            <div className="bg-orange-50 p-4 border-b">
+              <h3 className="font-semibold text-lg">Live Camera Capture with Liveness Detection</h3>
+              <code className="text-sm text-orange-700">POST /api/verify/live-capture</code>
+            </div>
+            <div className="p-6">
+              <p className="text-gray-700 mb-4">
+                Real-time camera capture with advanced liveness detection, challenge-response verification, 
+                and instant face matching against uploaded document photos.
+              </p>
+              
+              <h4 className="font-medium mb-2">Request Parameters:</h4>
+              <div className="bg-gray-50 p-4 rounded text-sm mb-4">
+                <pre>
+{`verification_id: string (existing verification with document)
+live_image_data: string (base64 encoded image)
+challenge_response: string (optional - for challenge-based liveness)
+metadata: object (optional)`}
+                </pre>
+              </div>
+
+              <h4 className="font-medium mb-2">Example Request:</h4>
+              <div className="bg-gray-900 text-green-400 p-4 rounded text-sm mb-4">
+                <pre>
+{`curl -X POST ${apiUrl}/api/verify/live-capture \\
+  -H "X-API-Key: your-api-key" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "verification_id": "verif_abc123",
+    "live_image_data": "data:image/jpeg;base64,/9j/4AAQSkZJRgABA...",
+    "challenge_response": "smile",
+    "metadata": {"source": "web_app"}
+  }'`}
+                </pre>
+              </div>
+
+              <h4 className="font-medium mb-2">Response with Liveness Analysis:</h4>
+              <div className="bg-gray-900 text-green-400 p-4 rounded text-sm">
+                <pre>
+{`{
+  "id": "verif_live123",
+  "status": "verified",
+  "type": "live_capture",
+  "user_id": "user-123",
+  "verification_id": "verif_abc123",
+  
+  // Liveness Detection Results
+  "liveness_score": 0.94,           // 0-1 confidence this is a live person
+  "liveness_details": {
+    "blink_detection": 0.89,
+    "head_movement": 0.91,
+    "texture_analysis": 0.96,
+    "challenge_passed": true
+  },
+  
+  // Face Matching Results
+  "face_match_score": 0.92,         // Similarity to document photo
+  "face_detected": true,
+  "multiple_faces": false,
+  
+  // Overall Assessment
+  "confidence_score": 0.93,
+  "manual_review_reason": null,
+  "created_at": "2024-01-01T12:00:30Z"
+}`}
+                </pre>
+              </div>
+            </div>
+          </div>
+
+          {/* Live Token Generation */}
+          <div className="mb-8 border border-gray-200 rounded-lg">
+            <div className="bg-cyan-50 p-4 border-b">
+              <h3 className="font-semibold text-lg">Generate Live Capture Token</h3>
+              <code className="text-sm text-cyan-700">POST /api/verify/generate-live-token</code>
+            </div>
+            <div className="p-6">
+              <p className="text-gray-700 mb-4">
+                Generate a secure token and challenge for live capture verification session.
+              </p>
+              
+              <h4 className="font-medium mb-2">Request Parameters:</h4>
+              <div className="bg-gray-50 p-4 rounded text-sm mb-4">
+                <pre>
+{`verification_id: string (existing verification with document)
+challenge_type: 'blink' | 'smile' | 'turn_head' | 'random' (optional)`}
+                </pre>
+              </div>
+
+              <h4 className="font-medium mb-2">Response:</h4>
+              <div className="bg-gray-900 text-green-400 p-4 rounded text-sm">
+                <pre>
+{`{
+  "token": "live_token_xyz789",
+  "challenge": "smile",
+  "expires_at": "2024-01-01T12:05:00Z",
+  "instructions": "Please smile naturally for the camera"
+}`}
+                </pre>
+              </div>
+            </div>
+          </div>
+
           {/* Status Check */}
           <div className="mb-8 border border-gray-200 rounded-lg">
             <div className="bg-blue-50 p-4 border-b">
@@ -332,15 +436,16 @@ metadata: object (optional)`}
             </div>
 
             <div className="border border-gray-200 rounded-lg p-6">
-              <h3 className="font-semibold text-lg mb-3 text-purple-600">Face Matching</h3>
+              <h3 className="font-semibold text-lg mb-3 text-purple-600">Face Matching & Live Capture</h3>
               <ul className="text-sm space-y-1 text-gray-600">
                 <li>• Facial similarity scoring (0-1)</li>
-                <li>• Liveness detection</li>
+                <li>• Real-time camera capture</li>
+                <li>• Advanced liveness detection</li>
+                <li>• Challenge-response verification</li>
                 <li>• Anti-spoofing measures</li>
                 <li>• Photo quality assessment</li>
                 <li>• Multiple face detection</li>
                 <li>• Manual review triggers</li>
-                <li>• Confidence thresholds</li>
               </ul>
             </div>
           </div>

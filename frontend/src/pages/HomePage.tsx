@@ -34,8 +34,8 @@ const features = [
     bgColor: 'bg-blue-100'
   },
   {
-    name: 'Face Matching & Liveness Detection',
-    description: 'State-of-the-art face matching with similarity scores and liveness detection to prevent spoofing attacks.',
+    name: 'Live Camera Capture & Face Matching',
+    description: 'Real-time camera capture with advanced liveness detection, challenge-response verification, and instant face matching against document photos.',
     icon: CameraIcon,
     color: 'text-purple-600',
     bgColor: 'bg-purple-100'
@@ -245,8 +245,8 @@ export function HomePage() {
             <div className={`transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
               {/* Badge */}
               <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600/10 to-purple-600/10 rounded-full border border-blue-200/50 mb-8">
-                <SparklesIcon className="w-4 h-4 text-blue-600 mr-2" />
-                <span className="text-sm font-medium text-blue-900">Now with AI-powered quality analysis</span>
+                <CameraIcon className="w-4 h-4 text-blue-600 mr-2" />
+                <span className="text-sm font-medium text-blue-900">New: Live camera capture with real-time verification</span>
               </div>
               
               <h1 className="text-6xl md:text-8xl font-bold text-gray-900 mb-8 leading-tight">
@@ -257,7 +257,7 @@ export function HomePage() {
               </h1>
               <p className="max-w-4xl mx-auto text-xl md:text-2xl text-gray-600 mb-12 leading-relaxed font-light">
                 The most <span className="font-semibold text-gray-900">developer-friendly</span> identity verification platform. 
-                Advanced document OCR, face recognition, and AI quality analysis in a single API call.
+                Advanced document OCR, live camera capture, face recognition, and AI quality analysis in a single API call.
                 <span className="block mt-4 text-lg text-gray-500">Open source • Privacy-first • Production-ready</span>
               </p>
             </div>
