@@ -53,7 +53,10 @@ export class VerificationService {
   
   async updateVerificationRequest(
     id: string, 
-    updates: Partial<VerificationRequest>
+    updates: Partial<VerificationRequest & {
+      liveness_score?: number;
+      live_capture_completed?: boolean;
+    }>
   ): Promise<VerificationRequest> {
     const { data: verification, error } = await supabase
       .from('verification_requests')
@@ -201,12 +204,16 @@ export class VerificationService {
     file_name: string;
     file_size: number;
     liveness_score?: number;
+    is_live_capture?: boolean;
+    challenge_response?: string;
   }): Promise<Selfie> {
     const { data: selfie, error } = await supabase
       .from('selfies')
       .insert({
         ...data,
-        face_detected: false // Will be updated by face recognition service
+        face_detected: false, // Will be updated by face recognition service
+        is_live_capture: data.is_live_capture || false,
+        challenge_response: data.challenge_response || undefined
       })
       .select('*')
       .single();

@@ -1,0 +1,579 @@
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../config/api';
+import {
+  CameraIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
+  ArrowPathIcon,
+  XMarkIcon,
+  EyeIcon,
+  FaceSmileIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon
+} from '@heroicons/react/24/outline';
+
+interface LiveCaptureChallenge {
+  type: string;
+  instruction: string;
+}
+
+interface LiveCaptureSession {
+  live_capture_token: string;
+  expires_at: string;
+  liveness_challenge: LiveCaptureChallenge;
+  user_id: string;
+  verification_id: string | null;
+  expires_in_seconds: number;
+}
+
+interface CaptureResult {
+  verification_id: string;
+  live_capture_id: string;
+  status: string;
+  message: string;
+  liveness_check_enabled: boolean;
+  face_matching_enabled: boolean;
+}
+
+export const LiveCapturePage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  const [sessionData, setSessionData] = useState<LiveCaptureSession | null>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [captureResult, setCaptureResult] = useState<CaptureResult | null>(null);
+  const [error, setError] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [permissionState, setPermissionState] = useState<'prompt' | 'granted' | 'denied'>('prompt');
+  const [challengeState, setChallengeState] = useState<'waiting' | 'active' | 'completed'>('waiting');
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [faceDetected, setFaceDetected] = useState(false);
+  const [captureAttempts, setCaptureAttempts] = useState(0);
+  const [sessionExpired, setSessionExpired] = useState(false);
+
+  const token = searchParams.get('token');
+  const verificationId = searchParams.get('verification_id');
+  const apiKey = searchParams.get('api_key');
+
+  useEffect(() => {
+    if (!token) {
+      setError('Invalid or missing live capture token');
+      return;
+    }
+
+    // Mock session data based on token (in production, this would validate the token)
+    const mockSession: LiveCaptureSession = {
+      live_capture_token: token,
+      expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      liveness_challenge: {
+        type: 'blink_twice',
+        instruction: 'Please blink twice slowly when prompted'
+      },
+      user_id: 'user-123',
+      verification_id: verificationId,
+      expires_in_seconds: 1800
+    };
+
+    setSessionData(mockSession);
+
+    // Set up session expiry timer
+    const expiryTimer = setTimeout(() => {
+      setSessionExpired(true);
+      stopCamera();
+    }, mockSession.expires_in_seconds * 1000);
+
+    return () => clearTimeout(expiryTimer);
+  }, [token, verificationId]);
+
+  const getChallengeIcon = (challengeType: string) => {
+    const icons = {
+      'blink_twice': EyeIcon,
+      'turn_head_left': ArrowLeftIcon,
+      'turn_head_right': ArrowRightIcon,
+      'smile': FaceSmileIcon,
+      'look_up': ArrowUpIcon,
+      'look_down': ArrowDownIcon
+    };
+    const IconComponent = icons[challengeType as keyof typeof icons] || EyeIcon;
+    return <IconComponent className="w-8 h-8" />;
+  };
+
+  const requestCameraPermission = async () => {
+    try {
+      setLoading(true);
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'user'
+        },
+        audio: false 
+      });
+      
+      setStream(mediaStream);
+      setPermissionState('granted');
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+
+      // Start basic face detection
+      startFaceDetection();
+      
+    } catch (error: any) {
+      console.error('Camera access denied:', error);
+      setPermissionState('denied');
+      setError('Camera access is required for live verification. Please enable camera permissions and try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startFaceDetection = useCallback(() => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+
+    if (!context) return;
+
+    const detectFace = () => {
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0);
+
+        // Simple face detection simulation (in production, use face-api.js or similar)
+        // For now, we'll simulate face detection with random success
+        const mockFaceDetected = Math.random() > 0.3; // 70% chance of face detection
+        setFaceDetected(mockFaceDetected);
+      }
+    };
+
+    const detectionInterval = setInterval(detectFace, 500);
+    
+    return () => clearInterval(detectionInterval);
+  }, []);
+
+  const startChallenge = () => {
+    if (challengeState !== 'waiting' || !faceDetected) return;
+
+    setChallengeState('active');
+    setCountdown(3);
+
+    const countdownTimer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev === null || prev <= 1) {
+          clearInterval(countdownTimer);
+          performCapture();
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const performCapture = async () => {
+    if (!videoRef.current || !canvasRef.current || !sessionData || !apiKey) {
+      setError('Missing required data for capture');
+      return;
+    }
+
+    setLoading(true);
+    setCaptureAttempts(prev => prev + 1);
+
+    try {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+
+      if (!context) {
+        throw new Error('Failed to get canvas context');
+      }
+
+      // Capture frame
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0);
+
+      // Convert to base64
+      const imageData = canvas.toDataURL('image/jpeg', 0.8);
+      const base64Data = imageData.split(',')[1];
+
+      // Send to API
+      const response = await fetch(`${API_BASE_URL}/api/verify/live-capture`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': apiKey,
+        },
+        body: JSON.stringify({
+          verification_id: sessionData.verification_id,
+          live_image_data: base64Data,
+          challenge_response: sessionData.liveness_challenge.type,
+          sandbox: true // Enable sandbox mode for testing
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Live capture failed');
+      }
+
+      const result: CaptureResult = await response.json();
+      setCaptureResult(result);
+      setChallengeState('completed');
+      stopCamera();
+
+    } catch (error: any) {
+      console.error('Capture failed:', error);
+      setError(error.message || 'Failed to capture image. Please try again.');
+      setChallengeState('waiting');
+      
+      // Allow retry up to 3 times
+      if (captureAttempts >= 3) {
+        setError('Maximum capture attempts exceeded. Please refresh and try again.');
+        stopCamera();
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  };
+
+  const retryCapture = () => {
+    setError('');
+    setCaptureResult(null);
+    setChallengeState('waiting');
+    setCaptureAttempts(0);
+    requestCameraPermission();
+  };
+
+  const goToResults = () => {
+    if (captureResult?.verification_id) {
+      navigate(`/verify?verification_id=${captureResult.verification_id}&api_key=${apiKey}`);
+    }
+  };
+
+  // Session expired view
+  if (sessionExpired) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-red-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-4">
+          <div className="text-center">
+            <ExclamationTriangleIcon className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Session Expired</h2>
+            <p className="text-gray-600 mb-6">
+              Your live capture session has expired. Please start a new verification process.
+            </p>
+            <button
+              onClick={() => navigate('/verify')}
+              className="w-full bg-blue-600 text-white py-3 px-6 rounded-xl hover:bg-blue-700 transition"
+            >
+              Start New Verification
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Success view
+  if (captureResult) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-4">
+          <div className="text-center">
+            <CheckCircleIcon className="w-16 h-16 text-green-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Live Capture Complete!</h2>
+            <p className="text-gray-600 mb-4">
+              Your live capture has been successfully processed.
+            </p>
+            
+            <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left">
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Status:</span>
+                  <span className="font-semibold text-blue-600">{captureResult.status}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Liveness Check:</span>
+                  <span className={`font-semibold ${captureResult.liveness_check_enabled ? 'text-green-600' : 'text-gray-600'}`}>
+                    {captureResult.liveness_check_enabled ? 'Enabled' : 'Disabled'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Face Matching:</span>
+                  <span className={`font-semibold ${captureResult.face_matching_enabled ? 'text-green-600' : 'text-gray-600'}`}>
+                    {captureResult.face_matching_enabled ? 'Enabled' : 'Disabled'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                onClick={goToResults}
+                className="w-full bg-blue-600 text-white py-3 px-6 rounded-xl hover:bg-blue-700 transition"
+              >
+                View Full Results
+              </button>
+              <button
+                onClick={() => navigate('/verify')}
+                className="w-full border border-gray-300 text-gray-700 py-3 px-6 rounded-xl hover:bg-gray-50 transition"
+              >
+                Start New Verification
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error view
+  if (error && permissionState !== 'denied') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-red-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-4">
+          <div className="text-center">
+            <XMarkIcon className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Capture Failed</h2>
+            <p className="text-gray-600 mb-6">{error}</p>
+            <div className="space-y-3">
+              <button
+                onClick={retryCapture}
+                className="w-full bg-blue-600 text-white py-3 px-6 rounded-xl hover:bg-blue-700 transition"
+              >
+                Try Again
+              </button>
+              <button
+                onClick={() => navigate('/verify')}
+                className="w-full border border-gray-300 text-gray-700 py-3 px-6 rounded-xl hover:bg-gray-50 transition"
+              >
+                Back to Verification
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      <div className="max-w-4xl mx-auto p-6">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">Live Identity Verification</h1>
+          <p className="text-xl text-gray-600">Complete your verification with live face capture</p>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+          {/* Camera Permission */}
+          {permissionState === 'prompt' && (
+            <div className="p-8 text-center">
+              <CameraIcon className="w-16 h-16 text-blue-500 mx-auto mb-6" />
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Camera Access Required</h2>
+              <p className="text-gray-600 mb-6">
+                We need access to your camera to capture a live photo for identity verification.
+                This ensures the highest level of security and prevents fraud.
+              </p>
+              <button
+                onClick={requestCameraPermission}
+                disabled={loading}
+                className="bg-blue-600 text-white py-4 px-8 rounded-xl hover:bg-blue-700 disabled:bg-gray-400 transition flex items-center justify-center mx-auto"
+              >
+                {loading ? (
+                  <>
+                    <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" />
+                    Requesting Access...
+                  </>
+                ) : (
+                  <>
+                    <CameraIcon className="w-5 h-5 mr-2" />
+                    Enable Camera
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* Camera Denied */}
+          {permissionState === 'denied' && (
+            <div className="p-8 text-center">
+              <ExclamationTriangleIcon className="w-16 h-16 text-red-500 mx-auto mb-6" />
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Camera Access Denied</h2>
+              <p className="text-gray-600 mb-6">
+                Camera access is required for live verification. Please:
+              </p>
+              <ul className="text-left text-gray-600 mb-6 space-y-2 max-w-md mx-auto">
+                <li>1. Click the camera icon in your browser's address bar</li>
+                <li>2. Select "Allow" for camera permissions</li>
+                <li>3. Refresh this page and try again</li>
+              </ul>
+              <button
+                onClick={() => window.location.reload()}
+                className="bg-blue-600 text-white py-3 px-6 rounded-xl hover:bg-blue-700 transition"
+              >
+                Refresh Page
+              </button>
+            </div>
+          )}
+
+          {/* Live Camera Feed */}
+          {permissionState === 'granted' && sessionData && (
+            <div className="relative">
+              {/* Challenge Info */}
+              <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white">
+                <div className="flex items-center justify-center space-x-4 mb-4">
+                  <div className="p-3 bg-white/20 rounded-full">
+                    {getChallengeIcon(sessionData.liveness_challenge.type)}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">Liveness Challenge</h3>
+                    <p className="text-blue-100">{sessionData.liveness_challenge.instruction}</p>
+                  </div>
+                </div>
+                
+                {countdown !== null && (
+                  <div className="text-center">
+                    <div className="text-4xl font-bold mb-2">{countdown}</div>
+                    <p className="text-blue-100">Get ready...</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Video Feed */}
+              <div className="relative bg-black">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-96 object-cover"
+                />
+                <canvas
+                  ref={canvasRef}
+                  className="hidden"
+                />
+                
+                {/* Face Detection Overlay */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className={`w-64 h-64 border-4 rounded-full transition-colors ${
+                    faceDetected 
+                      ? 'border-green-500 shadow-lg shadow-green-500/50' 
+                      : 'border-red-500 border-dashed animate-pulse'
+                  }`}>
+                    <div className="w-full h-full flex items-center justify-center">
+                      <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
+                        faceDetected 
+                          ? 'bg-green-500 text-white' 
+                          : 'bg-red-500 text-white'
+                      }`}>
+                        {faceDetected ? 'Face Detected' : 'Position Your Face'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Controls */}
+              <div className="p-6 bg-gray-50">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-sm text-gray-600">
+                    Attempts: {captureAttempts}/3
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    Session expires: {new Date(sessionData.expires_at).toLocaleTimeString()}
+                  </div>
+                </div>
+
+                <div className="text-center">
+                  {challengeState === 'waiting' && (
+                    <button
+                      onClick={startChallenge}
+                      disabled={!faceDetected || loading}
+                      className="bg-green-600 text-white py-4 px-8 rounded-xl hover:bg-green-700 disabled:bg-gray-400 transition flex items-center justify-center mx-auto"
+                    >
+                      {!faceDetected ? (
+                        <>
+                          <ExclamationTriangleIcon className="w-5 h-5 mr-2" />
+                          Position Your Face
+                        </>
+                      ) : loading ? (
+                        <>
+                          <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <CameraIcon className="w-5 h-5 mr-2" />
+                          Start Capture
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  {challengeState === 'active' && (
+                    <div className="text-center">
+                      <div className="text-lg font-semibold text-gray-900 mb-2">
+                        Performing challenge...
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {sessionData.liveness_challenge.instruction}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Instructions */}
+        <div className="mt-8 bg-blue-50 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-blue-900 mb-4">📋 Live Capture Instructions</h3>
+          <ul className="text-blue-800 space-y-2">
+            <li className="flex items-start">
+              <span className="text-blue-500 mr-2 mt-1">•</span>
+              <span>Ensure good lighting on your face</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-blue-500 mr-2 mt-1">•</span>
+              <span>Look directly at the camera</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-blue-500 mr-2 mt-1">•</span>
+              <span>Remove any face coverings or sunglasses</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-blue-500 mr-2 mt-1">•</span>
+              <span>Follow the liveness challenge instructions when prompted</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-blue-500 mr-2 mt-1">•</span>
+              <span>Stay still during capture for best results</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+};

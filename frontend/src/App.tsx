@@ -3,6 +3,7 @@ import { Layout } from './components/layout/Layout'
 import { HomePage } from './pages/HomePage'
 import { DeveloperPage } from './pages/DeveloperPage'
 import { VerificationPage } from './pages/VerificationPage'
+import { LiveCapturePage } from './pages/LiveCapturePage'
 import { AdminPage } from './pages/AdminPage'
 import { AdminLogin } from './pages/AdminLogin'
 import { DocsPage } from './pages/DocsPage'
@@ -15,6 +16,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/developer" element={<DeveloperPage />} />
         <Route path="/verify" element={<VerificationPage />} />
+        <Route path="/live-capture" element={<LiveCapturePage />} />
         <Route path="/docs" element={<DocsPage />} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/*" element={<AdminPage />} />

@@ -216,6 +216,45 @@ export const VerificationPage: React.FC = () => {
     }
   };
 
+  const handleLiveCapture = async () => {
+    if (!apiKey || !userId || !verificationResult?.verification_id) {
+      alert('Please complete document verification first');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Generate live capture token
+      const response = await fetch(`${API_BASE_URL}/api/verify/generate-live-token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': apiKey,
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          verification_id: verificationResult.verification_id
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        // Redirect to live capture page with token
+        const liveCaptureUrl = `/live-capture?token=${data.live_capture_token}&verification_id=${verificationResult.verification_id}&api_key=${apiKey}`;
+        window.location.href = liveCaptureUrl;
+      } else {
+        console.error('Live capture token generation failed:', data);
+        alert(data.message || 'Failed to start live capture. Please try again.');
+      }
+    } catch (error) {
+      console.error('Live capture initialization failed:', error);
+      alert('Failed to start live capture. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <div className="max-w-6xl mx-auto p-6">
@@ -530,23 +569,61 @@ export const VerificationPage: React.FC = () => {
                   </div>
 
                   {selfieUploaded && (
-                    <button
-                      onClick={handleSelfieVerification}
-                      disabled={loading || !selfieFile}
-                      className="w-full bg-purple-600 text-white py-4 px-6 rounded-lg hover:bg-purple-700 disabled:bg-gray-400 transition font-semibold flex items-center justify-center"
-                    >
-                      {loading ? (
-                        <>
-                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <div className="space-y-3">
+                      <button
+                        onClick={handleSelfieVerification}
+                        disabled={loading || !selfieFile}
+                        className="w-full bg-purple-600 text-white py-4 px-6 rounded-lg hover:bg-purple-700 disabled:bg-gray-400 transition font-semibold flex items-center justify-center"
+                      >
+                        {loading ? (
+                          <>
+                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Processing...
+                          </>
+                        ) : (
+                          'Verify Selfie'
+                        )}
+                      </button>
+                      
+                      <div className="text-center">
+                        <div className="text-sm text-gray-500 mb-2">or</div>
+                        <button
+                          onClick={handleLiveCapture}
+                          disabled={loading}
+                          className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-4 px-6 rounded-lg hover:from-green-700 hover:to-emerald-700 disabled:bg-gray-400 transition font-semibold flex items-center justify-center"
+                        >
+                          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                           </svg>
-                          Processing...
-                        </>
-                      ) : (
-                        'Verify Selfie'
-                      )}
-                    </button>
+                          Use Live Camera Verification
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {!selfieUploaded && verificationResult && (
+                    <div className="space-y-4">
+                      <div className="text-center">
+                        <button
+                          onClick={handleLiveCapture}
+                          disabled={loading}
+                          className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-4 px-6 rounded-lg hover:from-green-700 hover:to-emerald-700 disabled:bg-gray-400 transition font-semibold flex items-center justify-center"
+                        >
+                          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          Skip Upload - Use Live Camera
+                        </button>
+                        <p className="text-xs text-gray-500 mt-2">
+                          More secure with liveness detection
+                        </p>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}

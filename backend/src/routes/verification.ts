@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import multer from 'multer';
+import crypto from 'crypto';
 import { body, param, validationResult } from 'express-validator';
 import { authenticateAPIKey, authenticateUser, checkSandboxMode } from '@/middleware/auth.js';
 import { verificationRateLimit } from '@/middleware/rateLimit.js';
@@ -448,5 +449,249 @@ router.get('/history/:user_id',
     });
   })
 );
+
+// Route: POST /api/verify/live-capture
+router.post('/live-capture',
+  authenticateAPIKey,
+  checkSandboxMode,
+  verificationRateLimit,
+  [
+    body('verification_id')
+      .isUUID()
+      .withMessage('Verification ID must be a valid UUID'),
+    body('live_image_data')
+      .isBase64()
+      .withMessage('Live image data must be valid base64'),
+    body('challenge_response')
+      .optional()
+      .isString()
+      .withMessage('Challenge response must be a string'),
+    body('sandbox')
+      .optional()
+      .isBoolean()
+      .withMessage('Sandbox must be a boolean')
+  ],
+  catchAsync(async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      throw new ValidationError('Validation failed', 'multiple', errors.array());
+    }
+    
+    const { verification_id, live_image_data, challenge_response } = req.body;
+    
+    // Get verification request
+    const verificationRequest = await verificationService.getVerificationRequest(verification_id);
+    if (!verificationRequest) {
+      throw new ValidationError('Verification request not found', 'verification_id', verification_id);
+    }
+    
+    // Authenticate user
+    req.body.user_id = verificationRequest.user_id;
+    await new Promise((resolve, reject) => {
+      authenticateUser(req as any, res as any, (err: any) => {
+        if (err) reject(err);
+        else resolve(true);
+      });
+    });
+    
+    logVerificationEvent('live_capture_started', verification_id, {
+      userId: verificationRequest.user_id,
+      challengeProvided: !!challenge_response,
+      dataSize: live_image_data.length
+    });
+    
+    try {
+      // Convert base64 to buffer
+      const imageBuffer = Buffer.from(live_image_data, 'base64');
+      
+      // Store live capture image
+      const liveCaptureId = crypto.randomUUID();
+      const liveCaptureFilename = `live_${liveCaptureId}.jpg`;
+      const liveCapturePath = await storageService.storeSelfie(
+        imageBuffer,
+        liveCaptureFilename,
+        'image/jpeg',
+        verification_id
+      );
+      
+      // Create live capture record
+      const liveCapture = await verificationService.createSelfie({
+        verification_request_id: verification_id,
+        file_path: liveCapturePath,
+        file_name: liveCaptureFilename,
+        file_size: imageBuffer.length,
+        is_live_capture: true,
+        challenge_response: challenge_response || undefined
+      });
+      
+      // Update verification request with live capture ID
+      await verificationService.updateVerificationRequest(verification_id, {
+        selfie_id: liveCapture.id,
+        live_capture_completed: true
+      });
+      
+      // Process liveness detection and face matching
+      if (!req.isSandbox) {
+        try {
+          // Get document for face matching
+          const document = await verificationService.getDocumentByVerificationId(verification_id);
+          
+          if (document) {
+            // Run face recognition with liveness checks
+            const [matchScore, livenessScore] = await Promise.all([
+              faceRecognitionService.compareFaces(document.file_path, liveCapturePath),
+              faceRecognitionService.detectLiveness(liveCapturePath, challenge_response)
+            ]);
+            
+            // Determine final status based on both scores
+            const isLive = livenessScore > 0.7;
+            const faceMatch = matchScore > 0.8;
+            const finalStatus = isLive && faceMatch ? 'verified' : 'failed';
+            
+            await verificationService.updateVerificationRequest(verification_id, {
+              face_match_score: matchScore,
+              liveness_score: livenessScore,
+              status: finalStatus,
+              manual_review_reason: !isLive ? 'Liveness detection failed' : 
+                                   !faceMatch ? 'Face matching failed' : undefined
+            });
+            
+            logVerificationEvent('live_capture_processed', verification_id, {
+              liveCapture: liveCapture.id,
+              matchScore,
+              livenessScore,
+              finalStatus
+            });
+            
+          } else {
+            throw new ValidationError('Document not found for verification', 'document', 'missing');
+          }
+        } catch (error) {
+          logger.error('Live capture processing failed:', error);
+          await verificationService.updateVerificationRequest(verification_id, {
+            status: 'manual_review',
+            manual_review_reason: 'Live capture processing failed'
+          });
+        }
+      } else {
+        // Mock processing for sandbox
+        setTimeout(async () => {
+          const mockMatchScore = 0.92;
+          const mockLivenessScore = 0.88;
+          
+          await verificationService.updateVerificationRequest(verification_id, {
+            face_match_score: mockMatchScore,
+            liveness_score: mockLivenessScore,
+            status: 'verified'
+          });
+          
+          logVerificationEvent('mock_live_capture_processed', verification_id, {
+            liveCaptureId: liveCapture.id,
+            matchScore: mockMatchScore,
+            livenessScore: mockLivenessScore
+          });
+        }, 2000);
+      }
+      
+      res.status(201).json({
+        verification_id,
+        live_capture_id: liveCapture.id,
+        status: 'processing',
+        message: 'Live capture uploaded successfully. Processing liveness detection and face matching.',
+        next_steps: 'Check verification status with /api/verify/status/:user_id',
+        liveness_check_enabled: true,
+        face_matching_enabled: true
+      });
+      
+    } catch (error) {
+      logVerificationEvent('live_capture_failed', verification_id, {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      throw error;
+    }
+  })
+);
+
+// Route: POST /api/verify/generate-live-token
+router.post('/generate-live-token',
+  authenticateAPIKey,
+  [
+    body('user_id')
+      .isUUID()
+      .withMessage('User ID must be a valid UUID'),
+    body('verification_id')
+      .optional()
+      .isUUID()
+      .withMessage('Verification ID must be a valid UUID if provided')
+  ],
+  catchAsync(async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      throw new ValidationError('Validation failed', 'multiple', errors.array());
+    }
+    
+    const { user_id, verification_id } = req.body;
+    
+    // Authenticate user
+    await new Promise((resolve, reject) => {
+      authenticateUser(req as any, res as any, (err: any) => {
+        if (err) reject(err);
+        else resolve(true);
+      });
+    });
+    
+    // Generate secure token for live capture session
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 30); // 30 minute expiry
+    
+    // Generate challenge for liveness detection
+    const challenges = [
+      'blink_twice',
+      'turn_head_left',
+      'turn_head_right',
+      'smile',
+      'look_up',
+      'look_down'
+    ];
+    const selectedChallenge = challenges[Math.floor(Math.random() * challenges.length)];
+    
+    // Store token in database (you would need to create a live_capture_tokens table)
+    // For now, we'll return the token directly
+    
+    logVerificationEvent('live_capture_token_generated', verification_id || user_id, {
+      userId: user_id,
+      verificationId: verification_id,
+      challenge: selectedChallenge,
+      expiresAt: expiresAt.toISOString()
+    });
+    
+    res.json({
+      live_capture_token: token,
+      expires_at: expiresAt.toISOString(),
+      live_capture_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/live-capture?token=${token}`,
+      liveness_challenge: {
+        type: selectedChallenge,
+        instruction: getChallengeInstruction(selectedChallenge)
+      },
+      user_id,
+      verification_id: verification_id || null,
+      expires_in_seconds: 1800
+    });
+  })
+);
+
+// Helper function for challenge instructions
+function getChallengeInstruction(challenge: string): string {
+  const instructions = {
+    'blink_twice': 'Please blink twice slowly when prompted',
+    'turn_head_left': 'Please turn your head to the left when prompted',
+    'turn_head_right': 'Please turn your head to the right when prompted',
+    'smile': 'Please smile when prompted',
+    'look_up': 'Please look up when prompted',
+    'look_down': 'Please look down when prompted'
+  };
+  return instructions[challenge as keyof typeof instructions] || 'Follow the on-screen instructions';
+}
 
 export default router;

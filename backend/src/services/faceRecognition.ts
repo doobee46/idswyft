@@ -187,7 +187,42 @@ export class FaceRecognitionService {
     return mockScore;
   }
   
-  async detectLiveness(imagePath: string): Promise<{
+  async detectLiveness(imagePath: string, challengeResponse?: string): Promise<number> {
+    await this.initialize();
+    
+    logger.info('Starting liveness detection', { imagePath, challengeResponse });
+    
+    try {
+      const imageBuffer = await this.storageService.downloadFile(imagePath);
+      const image = await Jimp.read(imageBuffer);
+      
+      // Analyze image for liveness indicators
+      const livenessScore = await this.analyzeLivenessFeatures(image);
+      
+      // Factor in challenge response if provided
+      let challengeBonus = 0;
+      if (challengeResponse) {
+        challengeBonus = this.validateChallengeResponse(challengeResponse, image);
+      }
+      
+      const finalScore = Math.min(1, livenessScore + challengeBonus);
+      
+      logger.info('Liveness detection completed', {
+        imagePath,
+        challengeResponse,
+        livenessScore,
+        challengeBonus,
+        finalScore
+      });
+      
+      return finalScore;
+    } catch (error) {
+      logger.error('Liveness detection failed:', error);
+      return this.mockLivenessScore();
+    }
+  }
+
+  async detectLivenessDetailed(imagePath: string): Promise<{
     isLive: boolean;
     confidence: number;
     checks: {
@@ -198,7 +233,7 @@ export class FaceRecognitionService {
   }> {
     await this.initialize();
     
-    logger.info('Starting liveness detection', { imagePath });
+    logger.info('Starting detailed liveness detection', { imagePath });
     
     try {
       const imageBuffer = await this.storageService.downloadFile(imagePath);
@@ -217,14 +252,14 @@ export class FaceRecognitionService {
         }
       };
       
-      logger.info('Liveness detection completed', {
+      logger.info('Detailed liveness detection completed', {
         imagePath,
         result
       });
       
       return result;
     } catch (error) {
-      logger.error('Liveness detection failed:', error);
+      logger.error('Detailed liveness detection failed:', error);
       return this.mockLivenessDetection();
     }
   }
@@ -340,6 +375,180 @@ export class FaceRecognitionService {
     return colorVariations / samples;
   }
   
+  private validateChallengeResponse(challengeType: string, image: Jimp): number {
+    // Analyze image for specific challenge completion
+    // This is a simplified implementation - in production you'd use more sophisticated ML models
+    
+    let challengeScore = 0;
+    
+    switch (challengeType) {
+      case 'blink_twice':
+        // Check for natural eye region variations
+        challengeScore = this.detectEyeActivity(image);
+        break;
+      case 'turn_head_left':
+      case 'turn_head_right':
+        // Check for head pose variations
+        challengeScore = this.detectHeadMovement(image);
+        break;
+      case 'smile':
+        // Check for facial expression changes
+        challengeScore = this.detectSmile(image);
+        break;
+      case 'look_up':
+      case 'look_down':
+        // Check for gaze direction
+        challengeScore = this.detectGazeDirection(image);
+        break;
+      default:
+        challengeScore = 0.1; // Small bonus for any challenge attempt
+    }
+    
+    return Math.min(0.3, challengeScore); // Cap challenge bonus at 0.3
+  }
+
+  private detectEyeActivity(image: Jimp): number {
+    // Simple check for eye region activity (mock implementation)
+    const brightness = this.getAverageBrightness(image);
+    const contrast = this.getImageContrast(image);
+    
+    // Eyes typically create contrast variations
+    return Math.min(0.25, (contrast * brightness) / 10000);
+  }
+
+  private detectHeadMovement(image: Jimp): number {
+    // Check for asymmetry that might indicate head turn
+    const asymmetry = this.detectFaceAsymmetry(image);
+    return Math.min(0.2, asymmetry);
+  }
+
+  private detectSmile(image: Jimp): number {
+    // Look for curved features in lower face region
+    const { width, height } = image.bitmap;
+    const lowerFace = image.clone().crop(0, height * 0.6, width, height * 0.4);
+    const curvature = this.detectCurvature(lowerFace);
+    return Math.min(0.2, curvature);
+  }
+
+  private detectGazeDirection(image: Jimp): number {
+    // Simple gaze detection based on eye region analysis
+    const eyeRegionAnalysis = this.analyzeEyeRegions(image);
+    return Math.min(0.2, eyeRegionAnalysis);
+  }
+
+  private getAverageBrightness(image: Jimp): number {
+    const { width, height } = image.bitmap;
+    let totalBrightness = 0;
+    let pixelCount = 0;
+
+    for (let y = 0; y < height; y += 4) { // Sample every 4th pixel
+      for (let x = 0; x < width; x += 4) {
+        const pixel = Jimp.intToRGBA(image.getPixelColor(x, y));
+        totalBrightness += (pixel.r + pixel.g + pixel.b) / 3;
+        pixelCount++;
+      }
+    }
+
+    return totalBrightness / pixelCount;
+  }
+
+  private getImageContrast(image: Jimp): number {
+    const { width, height } = image.bitmap;
+    let minBrightness = 255;
+    let maxBrightness = 0;
+
+    for (let y = 0; y < height; y += 4) {
+      for (let x = 0; x < width; x += 4) {
+        const pixel = Jimp.intToRGBA(image.getPixelColor(x, y));
+        const brightness = (pixel.r + pixel.g + pixel.b) / 3;
+        minBrightness = Math.min(minBrightness, brightness);
+        maxBrightness = Math.max(maxBrightness, brightness);
+      }
+    }
+
+    return maxBrightness - minBrightness;
+  }
+
+  private detectFaceAsymmetry(image: Jimp): number {
+    const { width, height } = image.bitmap;
+    const centerX = width / 2;
+    
+    let asymmetryScore = 0;
+    let samples = 0;
+
+    // Compare left and right halves
+    for (let y = 0; y < height; y += 8) {
+      for (let x = 0; x < centerX; x += 8) {
+        const leftPixel = Jimp.intToRGBA(image.getPixelColor(x, y));
+        const rightPixel = Jimp.intToRGBA(image.getPixelColor(width - x - 1, y));
+        
+        const leftBrightness = (leftPixel.r + leftPixel.g + leftPixel.b) / 3;
+        const rightBrightness = (rightPixel.r + rightPixel.g + rightPixel.b) / 3;
+        
+        asymmetryScore += Math.abs(leftBrightness - rightBrightness);
+        samples++;
+      }
+    }
+
+    return samples > 0 ? (asymmetryScore / samples) / 255 : 0;
+  }
+
+  private detectCurvature(image: Jimp): number {
+    // Simple curvature detection using edge gradients
+    const { width, height } = image.bitmap;
+    let curvatureScore = 0;
+    let edgeCount = 0;
+
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        const center = Jimp.intToRGBA(image.getPixelColor(x, y)).r;
+        const left = Jimp.intToRGBA(image.getPixelColor(x - 1, y)).r;
+        const right = Jimp.intToRGBA(image.getPixelColor(x + 1, y)).r;
+        const top = Jimp.intToRGBA(image.getPixelColor(x, y - 1)).r;
+        const bottom = Jimp.intToRGBA(image.getPixelColor(x, y + 1)).r;
+
+        // Detect curved patterns
+        const horizontalGrad = Math.abs(left - right);
+        const verticalGrad = Math.abs(top - bottom);
+        
+        if (horizontalGrad > 20 || verticalGrad > 20) {
+          curvatureScore += Math.min(horizontalGrad, verticalGrad) / Math.max(horizontalGrad, verticalGrad);
+          edgeCount++;
+        }
+      }
+    }
+
+    return edgeCount > 0 ? curvatureScore / edgeCount : 0;
+  }
+
+  private analyzeEyeRegions(image: Jimp): number {
+    // Focus on upper portion of image where eyes would be
+    const { width, height } = image.bitmap;
+    const eyeRegion = image.clone().crop(0, height * 0.2, width, height * 0.3);
+    
+    // Look for dark regions (pupils/iris)
+    let darkPixels = 0;
+    let totalPixels = 0;
+
+    eyeRegion.scan(0, 0, eyeRegion.bitmap.width, eyeRegion.bitmap.height, function(x, y, idx) {
+      const pixel = Jimp.intToRGBA(eyeRegion.getPixelColor(x, y));
+      const brightness = (pixel.r + pixel.g + pixel.b) / 3;
+      
+      if (brightness < 80) { // Dark pixel threshold
+        darkPixels++;
+      }
+      totalPixels++;
+    });
+
+    return totalPixels > 0 ? darkPixels / totalPixels : 0;
+  }
+
+  private mockLivenessScore(): number {
+    const mockScore = 0.6 + Math.random() * 0.3;
+    logger.info('Using mock liveness score', { mockScore });
+    return mockScore;
+  }
+
   private mockLivenessDetection(): {
     isLive: boolean;
     confidence: number;

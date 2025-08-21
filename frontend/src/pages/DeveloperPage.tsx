@@ -993,6 +993,62 @@ export const DeveloperPage: React.FC = () => {
                   </pre>
                 </div>
               </div>
+              
+              <div className="mt-8">
+                <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                  Live Camera Verification
+                  <span className="ml-3 px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                    NEW
+                  </span>
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Enhanced security with real-time camera capture and liveness detection
+                </p>
+                
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-lg font-medium text-gray-900 mb-2">1. Generate Live Capture Token</h4>
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <pre className="text-sm overflow-x-auto">
+{`curl -X POST ${apiUrl}/v1/verify/generate-live-token \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "user_id": "user_123",
+    "verification_id": "ver_abc123"
+  }'`}
+                      </pre>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="text-lg font-medium text-gray-900 mb-2">2. Submit Live Capture</h4>
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <pre className="text-sm overflow-x-auto">
+{`curl -X POST ${apiUrl}/v1/verify/live-capture \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "verification_id": "ver_abc123",
+    "live_image_data": "base64_encoded_image",
+    "challenge_response": "blink_twice"
+  }'`}
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-4 bg-green-50 border border-green-200 rounded-xl p-4">
+                  <h5 className="font-semibold text-green-900 mb-2">✨ Live Capture Features</h5>
+                  <ul className="text-green-800 text-sm space-y-1">
+                    <li>• Real-time liveness detection with challenge-response</li>
+                    <li>• Enhanced security against spoofing attacks</li>
+                    <li>• Automatic face matching with uploaded documents</li>
+                    <li>• Support for multiple challenge types (blink, smile, head movement)</li>
+                    <li>• Secure token-based session management</li>
+                  </ul>
+                </div>
+              </div>
             </div>
             
             <div className="mt-8 pt-6 border-t border-gray-200">
