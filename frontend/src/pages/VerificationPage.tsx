@@ -256,20 +256,8 @@ export const VerificationPage: React.FC = () => {
   };
 
   const checkVerificationStatus = async () => {
-    if (!apiKey || !userId) return;
-    
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/verify/status/${userId}`, {
-        headers: {
-          'X-API-Key': apiKey,
-        },
-      });
-      
-      const data = await response.json();
-      setVerificationResult(data);
-    } catch (error) {
-      console.error('Status check failed:', error);
-    }
+    // Use the new results endpoint instead of legacy status
+    await getVerificationResults();
   };
 
   const handleLiveCapture = async () => {
@@ -695,11 +683,11 @@ export const VerificationPage: React.FC = () => {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
               <div className="space-y-3">
                 <button
-                  onClick={checkVerificationStatus}
-                  disabled={!apiKey || !userId}
+                  onClick={getVerificationResults}
+                  disabled={!apiKey || !verificationId}
                   className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400 transition duration-200 font-medium text-sm"
                 >
-                  Check Status
+                  Refresh Results
                 </button>
                 <button
                   onClick={() => {
@@ -770,10 +758,10 @@ export const VerificationPage: React.FC = () => {
           </button>
           <button
             onClick={checkVerificationStatus}
-            disabled={!apiKey || !userId}
+            disabled={!apiKey || !verificationId}
             className="bg-indigo-600 text-white py-3 px-8 rounded-lg hover:bg-indigo-700 disabled:bg-gray-400 transition duration-200 font-semibold"
           >
-            🔍 Check Status (Legacy)
+            🔄 Refresh Results
           </button>
         </div>
 
