@@ -268,70 +268,70 @@ export function HomePage() {
           <div className="absolute bottom-20 left-10 w-96 h-96 bg-gradient-to-r from-purple-400/10 to-pink-400/10 rounded-full blur-2xl"></div>
         </div>
         
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-40">
+        <div className="relative max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-12 sm:pt-20 pb-20 sm:pb-40">
           <div className="text-center">
             <div className={`transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-              {/* Badge */}
-              <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600/10 to-purple-600/10 rounded-full border border-blue-200/50 mb-8">
-                <CameraIcon className="w-4 h-4 text-blue-600 mr-2" />
-                <span className="text-sm font-medium text-blue-900">New: Live camera capture with real-time verification</span>
+              {/* Badge - Mobile optimized */}
+              <div className="inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-blue-600/10 to-purple-600/10 rounded-full border border-blue-200/50 mb-6 sm:mb-8">
+                <CameraIcon className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 mr-1 sm:mr-2" />
+                <span className="text-xs sm:text-sm font-medium text-blue-900">New: Live camera capture with real-time verification</span>
               </div>
               
-              <h1 className="text-6xl md:text-8xl font-bold text-gray-900 mb-8 leading-tight">
+              <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-8xl font-bold text-gray-900 mb-6 sm:mb-8 leading-tight px-2">
                 <span className="block">Identity Verification</span>
                 <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600">
                   For Developers
                 </span>
               </h1>
-              <p className="max-w-4xl mx-auto text-xl md:text-2xl text-gray-600 mb-12 leading-relaxed font-light">
+              <p className="max-w-4xl mx-auto text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 mb-8 sm:mb-12 leading-relaxed font-light px-3">
                 The most <span className="font-semibold text-gray-900">developer-friendly</span> identity verification platform. 
                 Advanced document OCR, live camera capture, face recognition, and AI quality analysis in a single API call.
-                <span className="block mt-4 text-lg text-gray-500">Open source • Privacy-first • Production-ready</span>
+                <span className="block mt-2 sm:mt-4 text-sm sm:text-base lg:text-lg text-gray-500">Open source • Privacy-first • Production-ready</span>
               </p>
             </div>
             
-            <div className={`flex flex-col sm:flex-row gap-6 justify-center items-center mb-20 transition-all duration-1000 delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+            <div className={`flex flex-col sm:flex-row gap-3 sm:gap-6 justify-center items-center mb-12 sm:mb-20 transition-all duration-1000 delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'} px-3`}>
               <Link
                 to="/developer"
-                className="group inline-flex items-center px-8 py-4 text-lg font-semibold bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:shadow-2xl hover:shadow-blue-500/25 transition-all duration-300 transform hover:scale-105"
+                className="group inline-flex items-center justify-center w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:shadow-2xl hover:shadow-blue-500/25 transition-all duration-300 transform hover:scale-105 touch-manipulation"
               >
-                <CommandLineIcon className="w-5 h-5 mr-2" />
+                <CommandLineIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                 Get API Key Free
-                <ArrowRightIcon className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                <ArrowRightIcon className="ml-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />
               </Link>
               <Link
                 to="/verify"
-                className="group inline-flex items-center px-8 py-4 text-lg font-semibold text-gray-700 bg-white border-2 border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                className="group inline-flex items-center justify-center w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold text-gray-700 bg-white border-2 border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-xl transition-all duration-300 transform hover:scale-105 touch-manipulation"
               >
-                <PlayIcon className="w-5 h-5 mr-2" />
+                <PlayIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                 Try Live Demo
-                <ArrowRightIcon className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                <ArrowRightIcon className="ml-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />
               </Link>
               <Link
                 to="/docs"
-                className="group inline-flex items-center px-6 py-4 text-base font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                className="group inline-flex items-center justify-center w-full sm:w-auto px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base font-medium text-gray-600 hover:text-gray-900 transition-colors touch-manipulation"
               >
-                <BookOpenIcon className="w-5 h-5 mr-2" />
+                <BookOpenIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                 View Docs
-                <ArrowRightIcon className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                <ArrowRightIcon className="ml-2 h-3 w-3 sm:h-4 sm:w-4 group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>
             
-            {/* Enhanced stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-5xl mx-auto">
+            {/* Enhanced stats - Mobile optimized */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 lg:gap-8 max-w-5xl mx-auto px-3">
               {stats.map((stat, index) => (
                 <div 
                   key={stat.name} 
                   className={`transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
                   style={{transitionDelay: `${(index + 1) * 200}ms`}}
                 >
-                  <div className="group bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-gray-200/50 hover:shadow-2xl hover:border-gray-300/50 transition-all duration-300 transform hover:scale-105">
+                  <div className="group bg-white/80 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-6 shadow-xl border border-gray-200/50 hover:shadow-2xl hover:border-gray-300/50 transition-all duration-300 transform hover:scale-105">
                     <div className="relative">
                       <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                      <stat.icon className="relative h-8 w-8 text-blue-600 mx-auto mb-3 group-hover:text-purple-600 transition-colors" />
+                      <stat.icon className="relative h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 text-blue-600 mx-auto mb-2 sm:mb-3 group-hover:text-purple-600 transition-colors" />
                     </div>
-                    <div className="text-3xl font-bold text-gray-900 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 transition-all">{stat.value}</div>
-                    <div className="text-sm text-gray-600 mt-1 group-hover:text-gray-700 transition-colors">{stat.name}</div>
+                    <div className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 transition-all">{stat.value}</div>
+                    <div className="text-xs sm:text-sm text-gray-600 mt-1 group-hover:text-gray-700 transition-colors">{stat.name}</div>
                   </div>
                 </div>
               ))}
@@ -340,59 +340,59 @@ export function HomePage() {
         </div>
       </div>
 
-      {/* Quick Integration Preview */}
-      <section className="py-24 bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+      {/* Quick Integration Preview - Mobile optimized */}
+      <section className="py-12 sm:py-16 lg:py-24 bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="text-center mb-8 sm:mb-12 lg:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 sm:mb-6 px-2">
               Start verifying in <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">5 minutes</span>
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-base sm:text-lg lg:text-xl text-gray-600 max-w-3xl mx-auto px-3">
               Simple REST API, comprehensive SDKs, and detailed documentation. 
               Get up and running faster than any other verification platform.
             </p>
           </div>
           
-          {/* Integration Steps */}
-          <div className="grid md:grid-cols-3 gap-8 mb-16">
+          {/* Integration Steps - Mobile optimized */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 mb-8 sm:mb-12 lg:mb-16">
             {integrationSteps.map((step, _) => (
               <div key={step.step} className="text-center group">
-                <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r ${step.color} text-white mb-6 group-hover:shadow-lg group-hover:shadow-blue-500/25 transition-all duration-300 transform group-hover:scale-110`}>
-                  <step.icon className="w-8 h-8" />
+                <div className={`inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-full bg-gradient-to-r ${step.color} text-white mb-4 sm:mb-6 group-hover:shadow-lg group-hover:shadow-blue-500/25 transition-all duration-300 transform group-hover:scale-110`}>
+                  <step.icon className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">{step.title}</h3>
-                <p className="text-gray-600">{step.description}</p>
-                <div className="text-sm font-mono text-blue-600 mt-2">Step {step.step}</div>
+                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">{step.title}</h3>
+                <p className="text-sm sm:text-base text-gray-600 px-2">{step.description}</p>
+                <div className="text-xs sm:text-sm font-mono text-blue-600 mt-2">Step {step.step}</div>
               </div>
             ))}
           </div>
           
-          {/* Code Example */}
-          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
-            <div className="bg-gray-900 px-6 py-4 flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+          {/* Code Example - Mobile optimized */}
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
+            <div className="bg-gray-900 px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+              <div className="flex items-center space-x-1 sm:space-x-2">
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-red-500 rounded-full"></div>
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-yellow-500 rounded-full"></div>
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full"></div>
               </div>
               <div className="flex space-x-1">
                 {Object.keys(codeExamples).slice(0, 3).map((lang) => (
                   <button
                     key={lang}
                     onClick={() => setActiveTab(lang)}
-                    className={`px-3 py-1 text-sm font-medium rounded transition-colors ${
+                    className={`px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium rounded transition-colors touch-manipulation ${
                       activeTab === lang 
                         ? 'bg-blue-600 text-white' 
                         : 'text-gray-400 hover:text-white'
                     }`}
                   >
-                    {lang === 'javascript' ? 'JavaScript' : lang === 'python' ? 'Python' : 'cURL'}
+                    {lang === 'javascript' ? 'JS' : lang === 'python' ? 'Python' : 'cURL'}
                   </button>
                 ))}
               </div>
             </div>
-            <div className="p-6">
-              <pre className="text-sm text-gray-800 overflow-x-auto">
+            <div className="p-3 sm:p-6">
+              <pre className="text-xs sm:text-sm text-gray-800 overflow-x-auto whitespace-pre-wrap sm:whitespace-pre">
                 <code>{codeExamples[activeTab as keyof typeof codeExamples]}</code>
               </pre>
             </div>

@@ -472,19 +472,48 @@ export const VerificationPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="max-w-6xl mx-auto p-6">
+      <div className="max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Identity Verification</h1>
-          <p className="text-xl text-gray-600">Secure, AI-powered document verification in just a few steps</p>
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2 sm:mb-4">Identity Verification</h1>
+          <p className="text-base sm:text-lg lg:text-xl text-gray-600 px-2">Secure, AI-powered document verification in just a few steps</p>
         </div>
 
-        {/* Progress Indicator */}
-        <div className="mb-8">
-          <div className="flex items-center justify-center space-x-4">
+        {/* Progress Indicator - Mobile Optimized */}
+        <div className="mb-6 sm:mb-8">
+          {/* Mobile: Vertical Progress */}
+          <div className="sm:hidden">
+            <div className="flex flex-col space-y-3">
+              {[1, 2, 3, 4, 5].map((step) => (
+                <div key={step} className="flex items-center">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold ${
+                    step <= currentStep 
+                      ? 'bg-blue-600 text-white' 
+                      : step === currentStep && loading
+                      ? 'bg-yellow-500 text-white animate-pulse'
+                      : 'bg-gray-200 text-gray-500'
+                  }`}>
+                    {step <= currentStep && !loading ? '✓' : step}
+                  </div>
+                  <div className={`ml-3 text-sm font-medium ${
+                    step <= currentStep ? 'text-blue-600' : 'text-gray-500'
+                  }`}>
+                    {step === 1 && 'Setup Session'}
+                    {step === 2 && 'Upload Document'}
+                    {step === 3 && 'AI Processing'}
+                    {step === 4 && 'Live Capture'}
+                    {step === 5 && 'Complete'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Desktop/Tablet: Horizontal Progress */}
+          <div className="hidden sm:flex items-center justify-center space-x-2 lg:space-x-4">
             {[1, 2, 3, 4, 5].map((step) => (
               <div key={step} className="flex items-center">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${
+                <div className={`w-8 h-8 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-xs lg:text-sm font-semibold ${
                   step <= currentStep 
                     ? 'bg-blue-600 text-white' 
                     : step === currentStep && loading
@@ -493,7 +522,7 @@ export const VerificationPage: React.FC = () => {
                 }`}>
                   {step <= currentStep && !loading ? '✓' : step}
                 </div>
-                <div className={`ml-2 text-sm font-medium ${
+                <div className={`ml-1 lg:ml-2 text-xs lg:text-sm font-medium ${
                   step <= currentStep ? 'text-blue-600' : 'text-gray-500'
                 }`}>
                   {step === 1 && 'Setup'}
@@ -503,7 +532,7 @@ export const VerificationPage: React.FC = () => {
                   {step === 5 && 'Complete'}
                 </div>
                 {step < 5 && (
-                  <div className={`ml-4 w-16 h-0.5 ${
+                  <div className={`ml-2 lg:ml-4 w-8 lg:w-16 h-0.5 ${
                     step < currentStep ? 'bg-blue-600' : 'bg-gray-200'
                   }`} />
                 )}
@@ -512,22 +541,22 @@ export const VerificationPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
+        <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 lg:gap-8">
           {/* Main Content Area */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-lg p-8">
+          <div className="order-1 lg:order-1 lg:col-span-2">
+            <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 lg:p-8">
               
               {/* Step 1: API Configuration */}
               {currentStep === 1 && (
-                <div className="space-y-6">
-                  <div className="text-center mb-6">
-                    <div className="inline-flex p-3 bg-blue-100 rounded-full mb-4">
-                      <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="text-center mb-4 sm:mb-6">
+                    <div className="inline-flex p-2 sm:p-3 bg-blue-100 rounded-full mb-3 sm:mb-4">
+                      <svg className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m-2-2l-2.5-2.5a2 2 0 00-2.83 0l-9.17 9.17a2 2 0 000 2.83L3 19l4-1 10.5-10.5z" />
                       </svg>
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Start New Verification</h2>
-                    <p className="text-gray-600">Enter your API credentials and start a verification session</p>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Start New Verification</h2>
+                    <p className="text-sm sm:text-base text-gray-600 px-2">Enter your API credentials and start a verification session</p>
                   </div>
 
                   <div className="space-y-4">
@@ -540,7 +569,7 @@ export const VerificationPage: React.FC = () => {
                         value={apiKey}
                         onChange={(e) => setApiKey(e.target.value)}
                         placeholder="Enter your API key"
-                        className="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                        className="w-full p-3 sm:p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm sm:text-base"
                       />
                       <p className="text-xs text-gray-500 mt-1">
                         Get your API key from the <a href="/developer" className="text-blue-600 underline">Developer Portal</a>
@@ -551,17 +580,17 @@ export const VerificationPage: React.FC = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         User ID (Auto-generated)
                       </label>
-                      <div className="flex gap-3">
+                      <div className="flex gap-2 sm:gap-3">
                         <input
                           type="text"
                           value={userId}
                           readOnly
-                          className="flex-1 p-4 bg-gray-50 border border-gray-300 rounded-lg text-gray-700 font-mono text-sm"
+                          className="flex-1 p-3 sm:p-4 bg-gray-50 border border-gray-300 rounded-lg text-gray-700 font-mono text-xs sm:text-sm min-w-0"
                         />
                         <button
                           type="button"
                           onClick={() => setUserId(generateUUID())}
-                          className="px-6 py-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-medium"
+                          className="px-3 sm:px-6 py-3 sm:py-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-medium text-sm sm:text-base"
                           title="Generate new user ID"
                         >
                           🔄
@@ -575,10 +604,10 @@ export const VerificationPage: React.FC = () => {
                     <button
                       onClick={startVerificationSession}
                       disabled={!apiKey || loading}
-                      className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition duration-200 font-semibold flex items-center justify-center"
+                      className="w-full bg-blue-600 text-white py-3 sm:py-4 px-4 sm:px-6 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition duration-200 font-semibold text-sm sm:text-base flex items-center justify-center touch-manipulation"
                     >
                       {loading ? (
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                        <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-b-2 border-white mr-2"></div>
                       ) : null}
                       Start Verification Session
                     </button>
@@ -588,22 +617,22 @@ export const VerificationPage: React.FC = () => {
 
               {/* Step 2: Document Upload */}
               {currentStep >= 2 && (
-                <div className="space-y-6">
-                  <div className="text-center mb-6">
-                    <div className="inline-flex p-3 bg-green-100 rounded-full mb-4">
-                      <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="text-center mb-4 sm:mb-6">
+                    <div className="inline-flex p-2 sm:p-3 bg-green-100 rounded-full mb-3 sm:mb-4">
+                      <svg className="w-6 h-6 sm:w-8 sm:h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Upload Your Document</h2>
-                    <p className="text-gray-600">Upload a clear photo of your ID, passport, or driver's license</p>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Upload Your Document</h2>
+                    <p className="text-sm sm:text-base text-gray-600 px-2">Upload a clear photo of your ID, passport, or driver's license</p>
                   </div>
 
                   <div 
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDocumentDrop}
-                    className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all ${
+                    className={`relative border-2 border-dashed rounded-xl p-4 sm:p-6 lg:p-8 text-center transition-all ${
                       dragOver 
                         ? 'border-blue-500 bg-blue-50' 
                         : documentUploaded 
@@ -612,16 +641,16 @@ export const VerificationPage: React.FC = () => {
                     }`}
                   >
                     {documentPreview ? (
-                      <div className="space-y-4">
+                      <div className="space-y-3 sm:space-y-4">
                         <div className="relative inline-block">
                           <img 
                             src={documentPreview} 
                             alt="Document preview" 
-                            className="max-w-sm max-h-48 rounded-lg shadow-md mx-auto"
+                            className="max-w-full max-h-32 sm:max-h-48 rounded-lg shadow-md mx-auto"
                           />
                           <button
                             onClick={() => handleDocumentFileChange(null)}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                            className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-red-500 text-white rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center hover:bg-red-600 text-xs sm:text-sm touch-manipulation"
                           >
                             ×
                           </button>
@@ -631,28 +660,30 @@ export const VerificationPage: React.FC = () => {
                         </p>
                         <button
                           onClick={() => documentInputRef.current?.click()}
-                          className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                          className="text-blue-600 hover:text-blue-700 text-sm font-medium touch-manipulation"
                         >
                           Choose a different file
                         </button>
                       </div>
                     ) : (
-                      <div className="space-y-4">
-                        <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="space-y-3 sm:space-y-4">
+                        <div className="mx-auto w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                          <svg className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                           </svg>
                         </div>
                         <div>
-                          <p className="text-lg font-medium text-gray-700 mb-1">
-                            Drag and drop your document here
+                          <p className="text-base sm:text-lg font-medium text-gray-700 mb-1">
+                            <span className="hidden sm:inline">Drag and drop your document here</span>
+                            <span className="sm:hidden">Tap to upload your document</span>
                           </p>
-                          <p className="text-sm text-gray-500 mb-4">
-                            or click to browse files
+                          <p className="text-sm text-gray-500 mb-3 sm:mb-4">
+                            <span className="hidden sm:inline">or click to browse files</span>
+                            <span className="sm:hidden">Choose a clear photo of your ID or passport</span>
                           </p>
                           <button
                             onClick={() => documentInputRef.current?.click()}
-                            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium"
+                            className="bg-blue-600 text-white px-4 py-2 sm:px-6 sm:py-3 rounded-lg hover:bg-blue-700 transition font-medium text-sm sm:text-base touch-manipulation"
                           >
                             Choose File
                           </button>
@@ -673,21 +704,21 @@ export const VerificationPage: React.FC = () => {
                   </div>
 
                   {documentUploaded && (
-                    <div className="flex justify-between">
+                    <div className="flex flex-col sm:flex-row gap-3 sm:justify-between">
                       <button
                         onClick={() => setCurrentStep(1)}
-                        className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
+                        className="order-2 sm:order-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium text-sm sm:text-base touch-manipulation"
                       >
                         Back
                       </button>
                       <button
                         onClick={handleDocumentVerification}
                         disabled={loading || !documentFile}
-                        className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition font-semibold flex items-center"
+                        className="order-1 sm:order-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition font-semibold flex items-center justify-center text-sm sm:text-base touch-manipulation"
                       >
                         {loading ? (
                           <>
-                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <svg className="animate-spin -ml-1 mr-3 h-4 w-4 sm:h-5 sm:w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
@@ -704,28 +735,28 @@ export const VerificationPage: React.FC = () => {
 
               {/* Step 3: Document Processing */}
               {currentStep === 3 && (
-                <div className="space-y-6">
-                  <div className="text-center mb-6">
-                    <div className="inline-flex p-3 bg-yellow-100 rounded-full mb-4">
-                      <svg className="w-8 h-8 text-yellow-600 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="text-center mb-4 sm:mb-6">
+                    <div className="inline-flex p-2 sm:p-3 bg-yellow-100 rounded-full mb-3 sm:mb-4">
+                      <svg className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-600 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                       </svg>
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Processing Document</h2>
-                    <p className="text-gray-600">AI is analyzing your document for authenticity and extracting information</p>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Processing Document</h2>
+                    <p className="text-sm sm:text-base text-gray-600 px-2">AI is analyzing your document for authenticity and extracting information</p>
                   </div>
 
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6">
-                    <div className="flex items-center justify-center mb-4">
-                      <div className="flex space-x-2">
-                        <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce"></div>
-                        <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                        <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-6">
+                    <div className="flex items-center justify-center mb-3 sm:mb-4">
+                      <div className="flex space-x-1 sm:space-x-2">
+                        <div className="w-2 h-2 sm:w-3 sm:h-3 bg-blue-500 rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 sm:w-3 sm:h-3 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                        <div className="w-2 h-2 sm:w-3 sm:h-3 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
                       </div>
                     </div>
                     <div className="text-center space-y-2">
-                      <p className="font-semibold text-gray-900">Verification in Progress</p>
-                      <div className="space-y-1 text-sm text-gray-600">
+                      <p className="font-semibold text-gray-900 text-sm sm:text-base">Verification in Progress</p>
+                      <div className="space-y-1 text-xs sm:text-sm text-gray-600">
                         <p>• Checking document authenticity</p>
                         <p>• Extracting personal information (OCR)</p>
                         <p>• Validating document quality</p>
@@ -738,22 +769,22 @@ export const VerificationPage: React.FC = () => {
 
               {/* Step 4: Live Capture Selection */}
               {currentStep === 4 && verificationResult && (
-                <div className="space-y-6">
-                  <div className="text-center mb-6">
-                    <div className="inline-flex p-3 bg-green-100 rounded-full mb-4">
-                      <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="text-center mb-4 sm:mb-6">
+                    <div className="inline-flex p-2 sm:p-3 bg-green-100 rounded-full mb-3 sm:mb-4">
+                      <svg className="w-6 h-6 sm:w-8 sm:h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Document Verified</h2>
-                    <p className="text-gray-600">Now complete verification with live capture or selfie</p>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Document Verified</h2>
+                    <p className="text-sm sm:text-base text-gray-600 px-2">Now complete verification with live capture</p>
                   </div>
 
                   {/* Show verification results so far */}
                   {verificationResult.ocr_data && (
-                    <div className="bg-green-50 rounded-xl p-4 mb-6">
-                      <h3 className="font-semibold text-green-900 mb-2">Document Information Extracted:</h3>
-                      <div className="text-sm text-green-800 space-y-1">
+                    <div className="bg-green-50 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
+                      <h3 className="font-semibold text-green-900 mb-2 text-sm sm:text-base">Document Information Extracted:</h3>
+                      <div className="text-xs sm:text-sm text-green-800 space-y-1">
                         {verificationResult.ocr_data.name && <p>Name: {verificationResult.ocr_data.name}</p>}
                         {verificationResult.ocr_data.document_number && <p>Document #: {verificationResult.ocr_data.document_number}</p>}
                         {verificationResult.ocr_data.date_of_birth && <p>DOB: {verificationResult.ocr_data.date_of_birth}</p>}
@@ -761,8 +792,8 @@ export const VerificationPage: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Live capture options */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Live capture options - Mobile optimized */}
+                  <div className="space-y-4 sm:grid sm:grid-cols-2 sm:gap-4 sm:space-y-0">
                     <button 
                       onClick={handleLiveCapture}
                       disabled={loading}
@@ -1105,16 +1136,16 @@ export const VerificationPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
+          {/* Sidebar - Mobile optimized */}
+          <div className="order-2 lg:order-2 space-y-4 sm:space-y-6">
             {/* Quick Actions */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-              <div className="space-y-3">
+            <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Quick Actions</h3>
+              <div className="space-y-2 sm:space-y-3">
                 <button
                   onClick={getVerificationResults}
                   disabled={!apiKey || !verificationId}
-                  className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400 transition duration-200 font-medium text-sm"
+                  className="w-full bg-gray-100 text-gray-700 py-2 sm:py-3 px-3 sm:px-4 rounded-lg hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400 transition duration-200 font-medium text-xs sm:text-sm touch-manipulation"
                 >
                   Refresh Results
                 </button>
@@ -1128,8 +1159,9 @@ export const VerificationPage: React.FC = () => {
                     setSelfiePreview(null);
                     setDocumentUploaded(false);
                     setSelfieUploaded(false);
+                    setVerificationId('');
                   }}
-                  className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition duration-200 font-medium text-sm"
+                  className="w-full bg-gray-100 text-gray-700 py-2 sm:py-3 px-3 sm:px-4 rounded-lg hover:bg-gray-200 transition duration-200 font-medium text-xs sm:text-sm touch-manipulation"
                 >
                   Start Over
                 </button>
@@ -1137,9 +1169,9 @@ export const VerificationPage: React.FC = () => {
             </div>
 
             {/* Help Section */}
-            <div className="bg-blue-50 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-blue-900 mb-4">📋 Verification Tips</h3>
-              <ul className="text-sm text-blue-800 space-y-2">
+            <div className="bg-blue-50 rounded-xl p-4 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold text-blue-900 mb-3 sm:mb-4">📋 Verification Tips</h3>
+              <ul className="text-xs sm:text-sm text-blue-800 space-y-1 sm:space-y-2">
                 <li className="flex items-start">
                   <span className="text-blue-500 mr-2">•</span>
                   Ensure good lighting for clear photos
@@ -1161,10 +1193,10 @@ export const VerificationPage: React.FC = () => {
 
             {/* AI Quality Indicator */}
             {verificationResult?.quality_analysis && (
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">🤖 AI Quality Check</h3>
+              <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">🤖 AI Quality Check</h3>
                 <div className="text-center">
-                  <div className={`inline-flex px-4 py-2 rounded-full text-sm font-semibold ${getQualityColor(verificationResult.quality_analysis.overall_quality)}`}>
+                  <div className={`inline-flex px-3 py-1 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-semibold ${getQualityColor(verificationResult.quality_analysis.overall_quality)}`}>
                     {verificationResult.quality_analysis.overall_quality.toUpperCase()}
                   </div>
                   <p className="text-xs text-gray-500 mt-2">
@@ -1176,19 +1208,19 @@ export const VerificationPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Status Check */}
-        <div className="mt-8 text-center space-x-4">
+        {/* Status Check - Mobile optimized */}
+        <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-3 sm:gap-4 sm:justify-center">
           <button
             onClick={getVerificationResults}
             disabled={!apiKey || !verificationId}
-            className="bg-blue-600 text-white py-3 px-8 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition duration-200 font-semibold"
+            className="bg-blue-600 text-white py-3 px-6 sm:px-8 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition duration-200 font-semibold text-sm sm:text-base touch-manipulation"
           >
             📊 Get Complete Results
           </button>
           <button
             onClick={checkVerificationStatus}
             disabled={!apiKey || !verificationId}
-            className="bg-indigo-600 text-white py-3 px-8 rounded-lg hover:bg-indigo-700 disabled:bg-gray-400 transition duration-200 font-semibold"
+            className="bg-indigo-600 text-white py-3 px-6 sm:px-8 rounded-lg hover:bg-indigo-700 disabled:bg-gray-400 transition duration-200 font-semibold text-sm sm:text-base touch-manipulation"
           >
             🔄 Refresh Results
           </button>
@@ -1344,10 +1376,10 @@ export const VerificationPage: React.FC = () => {
           </div>
         )}
 
-        {/* Help Text */}
-        <div className="mt-8 bg-blue-50 p-4 rounded-md">
-          <h3 className="font-semibold text-blue-900 mb-2">Real Verification Demo</h3>
-          <ol className="text-blue-800 text-sm space-y-1 list-decimal list-inside">
+        {/* Help Text - Mobile optimized */}
+        <div className="mt-6 sm:mt-8 bg-blue-50 p-3 sm:p-4 rounded-md">
+          <h3 className="font-semibold text-blue-900 mb-2 text-sm sm:text-base">Real Verification Demo</h3>
+          <ol className="text-blue-800 text-xs sm:text-sm space-y-1 list-decimal list-inside">
             <li>Enter your API key (get one from the <a href="/developer" className="underline">Developer Portal</a>)</li>
             <li>Start a verification session with auto-generated user ID</li>
             <li>Upload your real government-issued document (passport, driver's license, etc.)</li>
@@ -1355,13 +1387,13 @@ export const VerificationPage: React.FC = () => {
             <li>Complete live camera capture for face matching and liveness detection</li>
             <li>Review complete verification results with confidence scores</li>
           </ol>
-          <div className="mt-3 p-3 bg-white rounded border-l-4 border-blue-400">
-            <p className="text-blue-800 text-sm">
+          <div className="mt-3 p-2 sm:p-3 bg-white rounded border-l-4 border-blue-400">
+            <p className="text-blue-800 text-xs sm:text-sm">
               <strong>🎥 Live Verification:</strong> This demo uses your real camera and processes actual documents through our AI verification pipeline. Camera access is required for live capture and liveness detection.
             </p>
           </div>
-          <div className="mt-3 p-3 bg-white rounded border-l-4 border-green-400">
-            <p className="text-green-800 text-sm">
+          <div className="mt-3 p-2 sm:p-3 bg-white rounded border-l-4 border-green-400">
+            <p className="text-green-800 text-xs sm:text-sm">
               <strong>🔒 Privacy Note:</strong> All verification data is processed securely and can be deleted after testing. This is a real implementation of our identity verification API.
             </p>
           </div>
