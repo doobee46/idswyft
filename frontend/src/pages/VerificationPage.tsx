@@ -27,6 +27,22 @@ interface VerificationResult {
   user_id: string;
   message: string;
   quality_analysis?: QualityAnalysis;
+  ocr_data?: {
+    name?: string;
+    date_of_birth?: string;
+    document_number?: string;
+    expiration_date?: string;
+    issuing_authority?: string;
+    nationality?: string;
+    address?: string;
+    raw_text?: string;
+    confidence_scores?: Record<string, number>;
+  };
+  face_match_score?: number;
+  liveness_score?: number;
+  confidence_score?: number;
+  live_capture_completed?: boolean;
+  manual_review_reason?: string;
 }
 
 export const VerificationPage: React.FC = () => {
@@ -183,6 +199,8 @@ export const VerificationPage: React.FC = () => {
     }
     
     setLoading(true);
+    setCurrentStep(3); // Move to "Processing Document" step
+    
     try {
       const formData = new FormData();
       formData.append('document', documentFile);
@@ -199,16 +217,56 @@ export const VerificationPage: React.FC = () => {
       
       const data = await response.json();
       setDocumentUploaded(true);
-      setCurrentStep(3);
       
-      // Fetch updated results
-      await getVerificationResults();
+      // Simulate document processing time and poll for results
+      await pollForDocumentVerification();
+      
     } catch (error) {
       console.error('Document upload failed:', error);
       alert('Document upload failed. Please try again.');
+      setCurrentStep(2); // Go back to document upload
     } finally {
       setLoading(false);
     }
+  };
+
+  // Poll for document verification completion
+  const pollForDocumentVerification = async () => {
+    const maxAttempts = 60; // 60 seconds max for real processing
+    let attempts = 0;
+    
+    const pollInterval = setInterval(async () => {
+      attempts++;
+      
+      try {
+        await getVerificationResults();
+        
+        // Check if document processing is actually complete
+        if (verificationResult) {
+          const hasOcrData = verificationResult.ocr_data && Object.keys(verificationResult.ocr_data).length > 0;
+          const isProcessed = verificationResult.status !== 'pending' || hasOcrData;
+          
+          if (isProcessed) {
+            clearInterval(pollInterval);
+            setCurrentStep(4); // Move to live capture selection
+            return;
+          }
+        }
+        
+        // Timeout after max attempts
+        if (attempts >= maxAttempts) {
+          clearInterval(pollInterval);
+          console.warn('Document processing polling timed out');
+          setCurrentStep(4); // Move forward anyway, user can check status
+        }
+      } catch (error) {
+        console.error('Error polling verification results:', error);
+        if (attempts >= maxAttempts) {
+          clearInterval(pollInterval);
+          setCurrentStep(4);
+        }
+      }
+    }, 1000); // Poll every second
   };
 
   const handleSelfieVerification = async (e: React.FormEvent) => {
@@ -280,35 +338,136 @@ export const VerificationPage: React.FC = () => {
     }
 
     setLoading(true);
+    
     try {
-      // Generate live capture token
-      const response = await fetch(`${API_BASE_URL}/api/verify/generate-live-token`, {
+      // Step 1: Access user's camera
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: { ideal: 1280 }, 
+          height: { ideal: 720 },
+          facingMode: 'user' 
+        } 
+      });
+      
+      // Step 2: Create video element and capture frame
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.play();
+      
+      // Wait for video to be ready
+      await new Promise((resolve) => {
+        video.onloadedmetadata = () => resolve(true);
+      });
+      
+      // Step 3: Capture photo from video stream
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        throw new Error('Could not get canvas context');
+      }
+      
+      ctx.drawImage(video, 0, 0);
+      
+      // Stop the camera stream
+      stream.getTracks().forEach(track => track.stop());
+      
+      // Step 4: Convert canvas to blob
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Failed to create blob from canvas'));
+          }
+        }, 'image/jpeg', 0.9);
+      });
+      
+      // Step 5: Submit live capture to API
+      const formData = new FormData();
+      formData.append('live_capture', blob, 'live_capture.jpg');
+      formData.append('verification_id', verificationId);
+      
+      const response = await fetch(`${API_BASE_URL}/api/verify/live-capture`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'X-API-Key': apiKey,
         },
-        body: JSON.stringify({
-          verification_id: verificationId
-        }),
+        body: formData,
       });
-
-      const data = await response.json();
       
-      if (response.ok) {
-        // Redirect to live capture page with token
-        const liveCaptureUrl = `/live-capture?token=${data.token}&verification_id=${verificationId}&api_key=${apiKey}`;
-        window.location.href = liveCaptureUrl;
-      } else {
-        console.error('Live capture token generation failed:', data);
-        alert(data.message || 'Failed to start live capture. Please try again.');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        throw new Error(`Live capture failed: ${errorData.message || response.statusText}`);
       }
+      
+      const data = await response.json();
+      console.log('Live capture submitted:', data);
+      
+      // Step 6: Move to final results and poll for completion
+      setCurrentStep(5);
+      await pollForLiveCaptureCompletion();
+      
     } catch (error) {
-      console.error('Live capture initialization failed:', error);
-      alert('Failed to start live capture. Please check your connection and try again.');
+      console.error('Live capture failed:', error);
+      
+      // Handle specific camera errors
+      if (error instanceof DOMException) {
+        if (error.name === 'NotAllowedError') {
+          alert('Camera access denied. Please allow camera access and try again.');
+        } else if (error.name === 'NotFoundError') {
+          alert('No camera found. Please connect a camera and try again.');
+        } else {
+          alert(`Camera error: ${error.message}`);
+        }
+      } else {
+        alert(`Live capture failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+      
+      setCurrentStep(4); // Go back to selection
     } finally {
       setLoading(false);
     }
+  };
+
+  // Poll for live capture completion
+  const pollForLiveCaptureCompletion = async () => {
+    const maxAttempts = 60; // 60 seconds max for real processing
+    let attempts = 0;
+    
+    const pollInterval = setInterval(async () => {
+      attempts++;
+      
+      try {
+        await getVerificationResults();
+        
+        // Check if live capture processing is complete
+        if (verificationResult) {
+          const isComplete = verificationResult.live_capture_completed || 
+                            verificationResult.status === 'verified' || 
+                            verificationResult.status === 'failed' ||
+                            (verificationResult.liveness_score !== undefined && verificationResult.face_match_score !== undefined);
+          
+          if (isComplete) {
+            clearInterval(pollInterval);
+            return;
+          }
+        }
+        
+        // Timeout after max attempts
+        if (attempts >= maxAttempts) {
+          clearInterval(pollInterval);
+          console.warn('Live capture processing polling timed out');
+        }
+      } catch (error) {
+        console.error('Error polling live capture results:', error);
+        if (attempts >= maxAttempts) {
+          clearInterval(pollInterval);
+        }
+      }
+    }, 1000); // Poll every second
   };
 
   return (
@@ -323,24 +482,27 @@ export const VerificationPage: React.FC = () => {
         {/* Progress Indicator */}
         <div className="mb-8">
           <div className="flex items-center justify-center space-x-4">
-            {[1, 2, 3, 4].map((step) => (
+            {[1, 2, 3, 4, 5].map((step) => (
               <div key={step} className="flex items-center">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${
                   step <= currentStep 
                     ? 'bg-blue-600 text-white' 
+                    : step === currentStep && loading
+                    ? 'bg-yellow-500 text-white animate-pulse'
                     : 'bg-gray-200 text-gray-500'
                 }`}>
-                  {step}
+                  {step <= currentStep && !loading ? '✓' : step}
                 </div>
                 <div className={`ml-2 text-sm font-medium ${
                   step <= currentStep ? 'text-blue-600' : 'text-gray-500'
                 }`}>
                   {step === 1 && 'Setup'}
-                  {step === 2 && 'Document'}
-                  {step === 3 && 'Selfie'}
-                  {step === 4 && 'Complete'}
+                  {step === 2 && 'Upload'}
+                  {step === 3 && 'Processing'}
+                  {step === 4 && 'Live Capture'}
+                  {step === 5 && 'Complete'}
                 </div>
-                {step < 4 && (
+                {step < 5 && (
                   <div className={`ml-4 w-16 h-0.5 ${
                     step < currentStep ? 'bg-blue-600' : 'bg-gray-200'
                   }`} />
@@ -540,8 +702,262 @@ export const VerificationPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Step 3: Selfie Upload */}
-              {currentStep >= 3 && verificationResult && (
+              {/* Step 3: Document Processing */}
+              {currentStep === 3 && (
+                <div className="space-y-6">
+                  <div className="text-center mb-6">
+                    <div className="inline-flex p-3 bg-yellow-100 rounded-full mb-4">
+                      <svg className="w-8 h-8 text-yellow-600 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Processing Document</h2>
+                    <p className="text-gray-600">AI is analyzing your document for authenticity and extracting information</p>
+                  </div>
+
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6">
+                    <div className="flex items-center justify-center mb-4">
+                      <div className="flex space-x-2">
+                        <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce"></div>
+                        <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                        <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                      </div>
+                    </div>
+                    <div className="text-center space-y-2">
+                      <p className="font-semibold text-gray-900">Verification in Progress</p>
+                      <div className="space-y-1 text-sm text-gray-600">
+                        <p>• Checking document authenticity</p>
+                        <p>• Extracting personal information (OCR)</p>
+                        <p>• Validating document quality</p>
+                        <p>• Preparing for live capture</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 4: Live Capture Selection */}
+              {currentStep === 4 && verificationResult && (
+                <div className="space-y-6">
+                  <div className="text-center mb-6">
+                    <div className="inline-flex p-3 bg-green-100 rounded-full mb-4">
+                      <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Document Verified</h2>
+                    <p className="text-gray-600">Now complete verification with live capture or selfie</p>
+                  </div>
+
+                  {/* Show verification results so far */}
+                  {verificationResult.ocr_data && (
+                    <div className="bg-green-50 rounded-xl p-4 mb-6">
+                      <h3 className="font-semibold text-green-900 mb-2">Document Information Extracted:</h3>
+                      <div className="text-sm text-green-800 space-y-1">
+                        {verificationResult.ocr_data.name && <p>Name: {verificationResult.ocr_data.name}</p>}
+                        {verificationResult.ocr_data.document_number && <p>Document #: {verificationResult.ocr_data.document_number}</p>}
+                        {verificationResult.ocr_data.date_of_birth && <p>DOB: {verificationResult.ocr_data.date_of_birth}</p>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Live capture options */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button 
+                      onClick={handleLiveCapture}
+                      disabled={loading}
+                      className="p-6 border-2 border-blue-300 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <div className="text-center">
+                        <div className="inline-flex p-3 bg-blue-100 rounded-full mb-3 group-hover:bg-blue-200">
+                          <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 002 2v8a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <h3 className="font-semibold text-gray-900 mb-1">Live Camera Capture</h3>
+                        <p className="text-sm text-gray-600">Real-time liveness detection with face matching</p>
+                        {loading && <p className="text-xs text-blue-600 mt-2">Starting camera...</p>}
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => alert('Selfie upload is not implemented in this demo. Please use Live Camera Capture.')}
+                      className="p-6 border-2 border-gray-300 rounded-xl hover:border-gray-400 transition-all opacity-75"
+                    >
+                      <div className="text-center">
+                        <div className="inline-flex p-3 bg-gray-100 rounded-full mb-3">
+                          <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        </div>
+                        <h3 className="font-semibold text-gray-900 mb-1">Upload Selfie</h3>
+                        <p className="text-sm text-gray-600">Alternative method (use live capture instead)</p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 5: Final Results */}
+              {currentStep >= 5 && verificationResult && (
+                <div className="space-y-6">
+                  <div className="text-center mb-6">
+                    <div className={`inline-flex p-3 rounded-full mb-4 ${
+                      verificationResult.status === 'verified' 
+                        ? 'bg-green-100' 
+                        : 'bg-red-100'
+                    }`}>
+                      {verificationResult.status === 'verified' ? (
+                        <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      )}
+                    </div>
+                    <h2 className={`text-2xl font-bold mb-2 ${
+                      verificationResult.status === 'verified' 
+                        ? 'text-green-900' 
+                        : 'text-red-900'
+                    }`}>
+                      Verification {verificationResult.status === 'verified' ? 'Complete' : 'Failed'}
+                    </h2>
+                    <p className="text-gray-600">
+                      {verificationResult.status === 'verified' 
+                        ? 'Identity successfully verified with AI analysis'
+                        : 'Verification could not be completed'
+                      }
+                    </p>
+                  </div>
+
+                  {/* Complete Verification Analysis */}
+                  <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-xl p-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">🎉 Complete Verification Analysis</h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                      {/* OCR Data */}
+                      {verificationResult.ocr_data && (
+                        <div className="bg-white rounded-lg p-4">
+                          <h4 className="font-semibold text-gray-900 mb-3">📄 Document Information</h4>
+                          <div className="space-y-2 text-sm">
+                            {verificationResult.ocr_data.name && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Name:</span>
+                                <span className="font-semibold">{verificationResult.ocr_data.name}</span>
+                              </div>
+                            )}
+                            {verificationResult.ocr_data.document_number && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Document #:</span>
+                                <span className="font-mono text-sm">{verificationResult.ocr_data.document_number}</span>
+                              </div>
+                            )}
+                            {verificationResult.ocr_data.date_of_birth && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Date of Birth:</span>
+                                <span className="font-semibold">{verificationResult.ocr_data.date_of_birth}</span>
+                              </div>
+                            )}
+                            {verificationResult.ocr_data.expiration_date && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Expires:</span>
+                                <span className="font-semibold">{verificationResult.ocr_data.expiration_date}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Verification Scores */}
+                      <div className="bg-white rounded-lg p-4">
+                        <h4 className="font-semibold text-gray-900 mb-3">🎯 Verification Scores</h4>
+                        <div className="space-y-3">
+                          {verificationResult.face_match_score && (
+                            <div>
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-gray-600 text-sm">Face Match</span>
+                                <span className="font-bold text-green-600">{(verificationResult.face_match_score * 100).toFixed(1)}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div 
+                                  className="bg-green-600 h-2 rounded-full" 
+                                  style={{width: `${verificationResult.face_match_score * 100}%`}}
+                                ></div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {verificationResult.liveness_score && (
+                            <div>
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-gray-600 text-sm">Liveness Detection</span>
+                                <span className="font-bold text-blue-600">{(verificationResult.liveness_score * 100).toFixed(1)}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div 
+                                  className="bg-blue-600 h-2 rounded-full" 
+                                  style={{width: `${verificationResult.liveness_score * 100}%`}}
+                                ></div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {verificationResult.confidence_score && (
+                            <div>
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-gray-600 text-sm">Overall Confidence</span>
+                                <span className="font-bold text-purple-600">{(verificationResult.confidence_score * 100).toFixed(1)}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div 
+                                  className="bg-purple-600 h-2 rounded-full" 
+                                  style={{width: `${verificationResult.confidence_score * 100}%`}}
+                                ></div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex flex-wrap gap-3 justify-center">
+                      <button
+                        onClick={() => {
+                          setCurrentStep(1);
+                          setVerificationResult(null);
+                          setDocumentFile(null);
+                          setSelfieFile(null);
+                          setDocumentPreview(null);
+                          setSelfiePreview(null);
+                          setDocumentUploaded(false);
+                          setSelfieUploaded(false);
+                          setVerificationId('');
+                        }}
+                        className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-semibold flex items-center"
+                      >
+                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        Start New Verification
+                      </button>
+                      
+                      <button
+                        onClick={() => setShowRawData(!showRawData)}
+                        className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition font-semibold"
+                      >
+                        {showRawData ? 'Hide' : 'View'} Technical Details
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Legacy Step 3: Selfie Upload (keeping for backward compatibility, but hiding) */}
+              {false && currentStep >= 3 && verificationResult && (
                 <div className="space-y-6 mt-8 pt-8 border-t">
                   <div className="text-center mb-6">
                     <div className="inline-flex p-3 bg-purple-100 rounded-full mb-4">
@@ -930,17 +1346,23 @@ export const VerificationPage: React.FC = () => {
 
         {/* Help Text */}
         <div className="mt-8 bg-blue-50 p-4 rounded-md">
-          <h3 className="font-semibold text-blue-900 mb-2">How it Works</h3>
+          <h3 className="font-semibold text-blue-900 mb-2">Real Verification Demo</h3>
           <ol className="text-blue-800 text-sm space-y-1 list-decimal list-inside">
             <li>Enter your API key (get one from the <a href="/developer" className="underline">Developer Portal</a>)</li>
-            <li>Generate a unique user ID or enter your own UUID</li>
-            <li>Upload a document file and click "Verify Document" - our AI will analyze image quality</li>
-            <li>Upload a selfie file and click "Verify Selfie" (requires completed document verification)</li>
-            <li>Check the verification status to see final results and AI quality analysis</li>
+            <li>Start a verification session with auto-generated user ID</li>
+            <li>Upload your real government-issued document (passport, driver's license, etc.)</li>
+            <li>Wait for AI document processing (OCR extraction and quality analysis)</li>
+            <li>Complete live camera capture for face matching and liveness detection</li>
+            <li>Review complete verification results with confidence scores</li>
           </ol>
           <div className="mt-3 p-3 bg-white rounded border-l-4 border-blue-400">
             <p className="text-blue-800 text-sm">
-              <strong>🤖 AI Quality Analysis:</strong> Our system automatically analyzes document images for sharpness, brightness, resolution, and other quality factors to provide instant feedback and recommendations.
+              <strong>🎥 Live Verification:</strong> This demo uses your real camera and processes actual documents through our AI verification pipeline. Camera access is required for live capture and liveness detection.
+            </p>
+          </div>
+          <div className="mt-3 p-3 bg-white rounded border-l-4 border-green-400">
+            <p className="text-green-800 text-sm">
+              <strong>🔒 Privacy Note:</strong> All verification data is processed securely and can be deleted after testing. This is a real implementation of our identity verification API.
             </p>
           </div>
         </div>
