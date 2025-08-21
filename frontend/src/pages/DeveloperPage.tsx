@@ -64,15 +64,25 @@ export const DeveloperPage: React.FC = () => {
     name: '',
     isSandbox: false
   });
+  const [isLoginMode, setIsLoginMode] = useState<boolean>(false);
+  const [developerToken, setDeveloperToken] = useState<string>('');
 
   useEffect(() => {
-    // Check if developer is already registered (could use localStorage or session)
+    // Check if developer token exists
+    const storedToken = localStorage.getItem('developer_token');
     const storedEmail = localStorage.getItem('developer_email');
-    if (storedEmail) {
-      setDeveloperInfo(prev => ({ ...prev, email: storedEmail }));
+    const storedName = localStorage.getItem('developer_name');
+    
+    if (storedToken && storedEmail) {
+      setDeveloperToken(storedToken);
+      setDeveloperInfo(prev => ({ 
+        ...prev, 
+        email: storedEmail,
+        name: storedName || ''
+      }));
       setIsRegistered(true);
-      loadApiKeys(storedEmail);
-      loadStats(storedEmail);
+      loadApiKeys();
+      loadStats();
     }
   }, []);
 
@@ -125,10 +135,29 @@ export const DeveloperPage: React.FC = () => {
       if (response.ok && data.api_key && data.api_key.key) {
         setCurrentApiKey(data.api_key.key);
         setIsRegistered(true);
+        
+        // Store developer info and token (we'll get token from a separate login call)
         localStorage.setItem('developer_email', developerInfo.email);
+        localStorage.setItem('developer_name', developerInfo.name);
+        
+        // Login to get token
+        const loginResponse = await fetch(`${API_BASE_URL}/api/auth/developer/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email: developerInfo.email }),
+        });
+        
+        const loginData = await loginResponse.json();
+        if (loginResponse.ok && loginData.token) {
+          setDeveloperToken(loginData.token);
+          localStorage.setItem('developer_token', loginData.token);
+        }
+        
         toast.success('🎉 Developer account created successfully!');
-        await loadApiKeys(developerInfo.email);
-        await loadStats(developerInfo.email);
+        await loadApiKeys();
+        await loadStats();
       } else {
         // Handle validation errors
         if (data.code === 'multiple' && data.details) {
@@ -148,9 +177,82 @@ export const DeveloperPage: React.FC = () => {
     }
   };
 
-  const loadApiKeys = async (email: string) => {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    // Basic client-side validation
+    if (!developerInfo.email.trim()) {
+      toast.error('Email address is required');
+      setLoading(false);
+      return;
+    }
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(developerInfo.email)) {
+      toast.error('Please enter a valid email address');
+      setLoading(false);
+      return;
+    }
+    
     try {
-      const response = await fetch(`${API_BASE_URL}/api/developer/api-keys?developer_email=${email}`);
+      console.log('Sending login request:', { email: developerInfo.email });
+      
+      const response = await fetch(`${API_BASE_URL}/api/auth/developer/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: developerInfo.email.trim() }),
+      });
+      
+      const data = await response.json();
+      console.log('Login response:', data);
+      
+      if (response.ok && data.token && data.developer) {
+        setDeveloperToken(data.token);
+        setDeveloperInfo(prev => ({
+          ...prev,
+          name: data.developer.name,
+          company: data.developer.company || '',
+          email: data.developer.email
+        }));
+        setIsRegistered(true);
+        
+        // Store in localStorage
+        localStorage.setItem('developer_token', data.token);
+        localStorage.setItem('developer_email', data.developer.email);
+        localStorage.setItem('developer_name', data.developer.name);
+        
+        toast.success('🎉 Welcome back!');
+        await loadApiKeys();
+        await loadStats();
+      } else {
+        if (response.status === 401) {
+          toast.error('❌ Account not found. Please register first or check your email.');
+        } else {
+          toast.error(data.message || 'Login failed. Please try again.');
+        }
+      }
+    } catch (error) {
+      console.error('Login failed:', error);
+      toast.error('Login failed. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadApiKeys = async () => {
+    if (!developerToken) return;
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/developer/api-keys`, {
+        headers: {
+          'Authorization': `Bearer ${developerToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
       const data = await response.json();
       console.log('Load API Keys Response:', data);
       
@@ -160,10 +262,8 @@ export const DeveloperPage: React.FC = () => {
       } else {
         console.error('Failed to load API keys:', data);
         if (response.status === 401) {
-          console.log('Developer not authenticated, redirecting to registration');
-          setIsRegistered(false);
-          localStorage.removeItem('developer_email');
-          toast.error('❌ Authentication failed. Please register as a developer first.');
+          console.log('Developer token expired or invalid');
+          handleTokenExpired();
         }
       }
     } catch (error) {
@@ -171,9 +271,29 @@ export const DeveloperPage: React.FC = () => {
     }
   };
 
-  const loadStats = async (email: string) => {
+  const handleTokenExpired = () => {
+    toast.error('🔐 Session expired. Please log in again.');
+    localStorage.removeItem('developer_token');
+    localStorage.removeItem('developer_email');
+    localStorage.removeItem('developer_name');
+    setIsRegistered(false);
+    setDeveloperToken('');
+    setDeveloperInfo({ name: '', email: '', company: '', webhookUrl: '' });
+    setApiKeys([]);
+    setStats(null);
+    setCurrentApiKey('');
+  };
+
+  const loadStats = async () => {
+    if (!developerToken) return;
+    
     try {
-      const response = await fetch(`${API_BASE_URL}/api/developer/stats?developer_email=${email}`);
+      const response = await fetch(`${API_BASE_URL}/api/developer/stats`, {
+        headers: {
+          'Authorization': `Bearer ${developerToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
       const data = await response.json();
       if (response.ok) {
         setStats({
@@ -184,6 +304,10 @@ export const DeveloperPage: React.FC = () => {
           monthly_limit: data.monthly_limit
         });
       } else {
+        if (response.status === 401) {
+          handleTokenExpired();
+          return;
+        }
         // Fallback to mock data if API fails
         setStats({
           total_requests: 1247,
@@ -207,15 +331,17 @@ export const DeveloperPage: React.FC = () => {
   };
 
   const generateApiKey = async (name: string, isSandbox: boolean = false): Promise<boolean> => {
+    if (!developerToken) return false;
+    
     setLoading(true);
     try {
       const response = await fetch(`${API_BASE_URL}/api/developer/api-key`, {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${developerToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          developer_email: developerInfo.email,
           name,
           is_sandbox: isSandbox
         }),
@@ -228,15 +354,12 @@ export const DeveloperPage: React.FC = () => {
         console.log('Setting current API key:', data.api_key);
         setCurrentApiKey(data.api_key);
         toast.success('🔑 New API key generated successfully!');
-        await loadApiKeys(developerInfo.email);
+        await loadApiKeys();
         return true; // Success
       } else {
         console.error('API Key generation failed:', data);
         if (response.status === 401) {
-          toast.error('❌ Authentication failed. Please make sure you are registered as a developer.');
-          // Reset the registration state if authentication fails
-          setIsRegistered(false);
-          localStorage.removeItem('developer_email');
+          handleTokenExpired();
         } else {
           toast.error(data.message || 'Failed to generate API key');
         }
@@ -285,24 +408,28 @@ export const DeveloperPage: React.FC = () => {
 
     if (!confirmed) return;
 
+    if (!developerToken) return;
+    
     setLoading(true);
     try {
       const response = await fetch(`${API_BASE_URL}/api/developer/api-key/${keyId}`, {
         method: 'DELETE',
         headers: {
+          'Authorization': `Bearer ${developerToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          developer_email: developerInfo.email
-        }),
       });
       
       if (response.ok) {
         toast.success('🗑️ API key revoked successfully');
-        await loadApiKeys(developerInfo.email);
+        await loadApiKeys();
       } else {
-        const data = await response.json();
-        toast.error(data.message || 'Failed to revoke API key');
+        if (response.status === 401) {
+          handleTokenExpired();
+        } else {
+          const data = await response.json();
+          toast.error(data.message || 'Failed to revoke API key');
+        }
       }
     } catch (error) {
       console.error('Failed to revoke API key:', error);
@@ -321,13 +448,17 @@ export const DeveloperPage: React.FC = () => {
   };
 
   const handleLogout = () => {
+    localStorage.removeItem('developer_token');
     localStorage.removeItem('developer_email');
+    localStorage.removeItem('developer_name');
     setIsRegistered(false);
+    setDeveloperToken('');
     setDeveloperInfo({ name: '', email: '', company: '', webhookUrl: '' });
     setApiKeys([]);
     setStats(null);
     setCurrentApiKey('');
     setActiveTab('overview');
+    setIsLoginMode(false);
     toast.success('👋 Logged out successfully');
   };
 
@@ -360,24 +491,56 @@ export const DeveloperPage: React.FC = () => {
               <p className="text-xl text-gray-600">Get instant access to our identity verification APIs</p>
             </div>
             
+            {/* Login/Register Toggle */}
+            <div className="flex justify-center mb-8">
+              <div className="bg-gray-100 rounded-xl p-1 flex">
+                <button
+                  type="button"
+                  onClick={() => setIsLoginMode(false)}
+                  className={`px-6 py-2 rounded-lg font-medium transition-all ${
+                    !isLoginMode 
+                      ? 'bg-white text-blue-600 shadow-md' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Register
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsLoginMode(true)}
+                  className={`px-6 py-2 rounded-lg font-medium transition-all ${
+                    isLoginMode 
+                      ? 'bg-white text-blue-600 shadow-md' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Login
+                </button>
+              </div>
+            </div>
+
             <div className="grid lg:grid-cols-2 gap-12">
-              {/* Registration Form */}
+              {/* Registration/Login Form */}
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Create Your Account</h2>
-                <form onSubmit={handleRegister} className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Developer Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={developerInfo.name}
-                      onChange={(e) => setDeveloperInfo({...developerInfo, name: e.target.value})}
-                      className="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                      placeholder="Your full name"
-                      required
-                    />
-                  </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                  {isLoginMode ? 'Welcome Back' : 'Create Your Account'}
+                </h2>
+                <form onSubmit={isLoginMode ? handleLogin : handleRegister} className="space-y-6">
+                  {!isLoginMode && (
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Developer Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={developerInfo.name}
+                        onChange={(e) => setDeveloperInfo({...developerInfo, name: e.target.value})}
+                        className="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                        placeholder="Your full name"
+                        required
+                      />
+                    </div>
+                  )}
                   
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -393,34 +556,38 @@ export const DeveloperPage: React.FC = () => {
                     />
                   </div>
                   
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Company / Organization
-                    </label>
-                    <input
-                      type="text"
-                      value={developerInfo.company}
-                      onChange={(e) => setDeveloperInfo({...developerInfo, company: e.target.value})}
-                      className="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                      placeholder="Your Company Ltd."
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Webhook URL (Optional)
-                    </label>
-                    <input
-                      type="url"
-                      value={developerInfo.webhookUrl}
-                      onChange={(e) => setDeveloperInfo({...developerInfo, webhookUrl: e.target.value})}
-                      className="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                      placeholder="https://yourapp.com/webhook"
-                    />
-                    <p className="text-sm text-gray-500 mt-1">
-                      Receive real-time verification status updates
-                    </p>
-                  </div>
+                  {!isLoginMode && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Company / Organization
+                        </label>
+                        <input
+                          type="text"
+                          value={developerInfo.company}
+                          onChange={(e) => setDeveloperInfo({...developerInfo, company: e.target.value})}
+                          className="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                          placeholder="Your Company Ltd."
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Webhook URL (Optional)
+                        </label>
+                        <input
+                          type="url"
+                          value={developerInfo.webhookUrl}
+                          onChange={(e) => setDeveloperInfo({...developerInfo, webhookUrl: e.target.value})}
+                          className="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                          placeholder="https://yourapp.com/webhook"
+                        />
+                        <p className="text-sm text-gray-500 mt-1">
+                          Receive real-time verification status updates
+                        </p>
+                      </div>
+                    </>
+                  )}
                   
                   <button
                     type="submit"
@@ -432,12 +599,30 @@ export const DeveloperPage: React.FC = () => {
                     ) : (
                       <KeyIcon className="w-5 h-5 mr-2" />
                     )}
-                    {loading ? 'Creating Account...' : 'Create Account & Get API Key'}
+                    {loading 
+                      ? (isLoginMode ? 'Logging in...' : 'Creating Account...') 
+                      : (isLoginMode ? 'Login to Dashboard' : 'Create Account & Get API Key')
+                    }
                   </button>
                   
-                  <p className="text-sm text-gray-500 text-center">
-                    By registering, you agree to our Terms of Service and Privacy Policy
-                  </p>
+                  {!isLoginMode && (
+                    <p className="text-sm text-gray-500 text-center">
+                      By registering, you agree to our Terms of Service and Privacy Policy
+                    </p>
+                  )}
+                  
+                  {isLoginMode && (
+                    <p className="text-sm text-gray-500 text-center">
+                      Don't have an account?{' '}
+                      <button
+                        type="button"
+                        onClick={() => setIsLoginMode(false)}
+                        className="text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        Register here
+                      </button>
+                    </p>
+                  )}
                 </form>
               </div>
 

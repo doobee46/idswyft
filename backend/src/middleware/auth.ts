@@ -246,6 +246,64 @@ export const generateAdminToken = (adminUser: AdminUser): string => {
   );
 };
 
+// Generate JWT token for developers
+export const generateDeveloperToken = (developer: Developer): string => {
+  return jwt.sign(
+    {
+      id: developer.id,
+      email: developer.email,
+      type: 'developer'
+    },
+    config.jwtSecret,
+    {
+      expiresIn: '7d',
+      issuer: 'idswyft-api',
+      audience: 'idswyft-developer'
+    }
+  );
+};
+
+// JWT authentication for developers
+export const authenticateDeveloperJWT = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  
+  if (!token) {
+    throw new AuthenticationError('Access token is required');
+  }
+  
+  try {
+    const decoded = jwt.verify(token, config.jwtSecret) as any;
+    
+    // Verify it's a developer token
+    if (decoded.type !== 'developer') {
+      throw new AuthenticationError('Invalid developer token');
+    }
+    
+    // Get developer from database
+    const { data: developer, error } = await supabase
+      .from('developers')
+      .select('*')
+      .eq('id', decoded.id)
+      .eq('is_verified', true)
+      .single();
+    
+    if (error || !developer) {
+      throw new AuthenticationError('Invalid token or developer not found');
+    }
+    
+    req.developer = developer as Developer;
+    next();
+  } catch (error) {
+    if (error instanceof jwt.JsonWebTokenError) {
+      throw new AuthenticationError('Invalid token');
+    }
+    if (error instanceof jwt.TokenExpiredError) {
+      throw new AuthenticationError('Token has expired');
+    }
+    throw error;
+  }
+});
+
 // Generate API key
 export const generateAPIKey = (): { key: string; hash: string; prefix: string } => {
   const key = `ik_${crypto.randomBytes(32).toString('hex')}`;
@@ -284,11 +342,13 @@ declare global {
 export default {
   authenticateAPIKey,
   authenticateJWT,
+  authenticateDeveloperJWT,
   authenticateUser,
   requireAdminRole,
   checkSandboxMode,
   checkPremiumAccess,
   generateAdminToken,
+  generateDeveloperToken,
   generateAPIKey,
   logAuthEvent
 };

@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import { body, param, validationResult } from 'express-validator';
 import validator from 'validator';
 import { supabase } from '@/config/database.js';
-import { generateAPIKey } from '@/middleware/auth.js';
+import { generateAPIKey, authenticateDeveloperJWT } from '@/middleware/auth.js';
 import { catchAsync, ValidationError, NotFoundError, AuthenticationError } from '@/middleware/errorHandler.js';
 import { logger } from '@/utils/logger.js';
 import rateLimit from 'express-rate-limit';
@@ -33,36 +33,6 @@ const apiKeyRateLimit = rateLimit({
   legacyHeaders: false
 });
 
-// Simple developer authentication middleware
-const authenticateDeveloper = catchAsync(async (req: any, res: any, next: any) => {
-  const { developer_email } = req.body.developer_email ? req.body : req.query;
-  
-  if (!developer_email) {
-    throw new AuthenticationError('Developer email is required for authentication');
-  }
-
-  // Apply the same email normalization as during registration
-  const normalizedEmail = validator.normalizeEmail(developer_email);
-
-  const { data: developer, error } = await supabase
-    .from('developers')
-    .select('*')
-    .eq('email', normalizedEmail)
-    .eq('is_verified', true)
-    .single();
-
-  if (error || !developer) {
-    logger.warn('Invalid developer authentication attempt', {
-      email: developer_email,
-      normalizedEmail,
-      ip: req.ip
-    });
-    throw new AuthenticationError('Invalid developer credentials');
-  }
-
-  req.developer = developer;
-  next();
-});
 
 // Register as developer
 router.post('/register',
@@ -211,10 +181,6 @@ router.post('/register',
 router.post('/api-key',
   apiKeyRateLimit,
   [
-    body('developer_email')
-      .isEmail()
-      .normalizeEmail()
-      .withMessage('Developer email is required'),
     body('name')
       .trim()
       .escape()
@@ -229,7 +195,7 @@ router.post('/api-key',
       .isInt({ min: 1, max: 365 })
       .withMessage('expires_in_days must be between 1 and 365')
   ],
-  authenticateDeveloper,
+  authenticateDeveloperJWT,
   catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -323,7 +289,7 @@ router.post('/api-key',
 // List API keys for developer
 router.get('/api-keys',
   apiKeyRateLimit,
-  authenticateDeveloper,
+  authenticateDeveloperJWT,
   catchAsync(async (req: Request, res: Response) => {
     const developer = req.developer;
     if (!developer) {
@@ -383,13 +349,9 @@ router.delete('/api-key/:keyId',
   [
     param('keyId')
       .isUUID()
-      .withMessage('Invalid API key ID format'),
-    body('developer_email')
-      .isEmail()
-      .normalizeEmail()
-      .withMessage('Developer email is required')
+      .withMessage('Invalid API key ID format')
   ],
-  authenticateDeveloper,
+  authenticateDeveloperJWT,
   catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -444,7 +406,7 @@ router.delete('/api-key/:keyId',
 // Get developer usage statistics
 router.get('/stats',
   apiKeyRateLimit,
-  authenticateDeveloper,
+  authenticateDeveloperJWT,
   catchAsync(async (req: Request, res: Response) => {
     const developer = req.developer;
     if (!developer) {
