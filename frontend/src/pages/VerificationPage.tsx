@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { API_BASE_URL } from '../config/api';
 
 interface QualityAnalysis {
@@ -47,6 +47,13 @@ export const VerificationPage: React.FC = () => {
   const documentInputRef = useRef<HTMLInputElement>(null);
   const selfieInputRef = useRef<HTMLInputElement>(null);
 
+  // Auto-generate user ID on component mount
+  useEffect(() => {
+    if (!userId) {
+      setUserId(generateUUID());
+    }
+  }, []);
+
   const generateUUID = () => {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
       const r = Math.random() * 16 | 0;
@@ -57,9 +64,15 @@ export const VerificationPage: React.FC = () => {
 
   // Step 1: Start verification session
   const startVerificationSession = async () => {
-    if (!apiKey || !userId) {
-      alert('Please enter API key and user ID first');
+    if (!apiKey) {
+      alert('Please enter API key first');
       return;
+    }
+
+    // Ensure we have a user ID (generate one if somehow missing)
+    const currentUserId = userId || generateUUID();
+    if (currentUserId !== userId) {
+      setUserId(currentUserId);
     }
 
     setLoading(true);
@@ -71,7 +84,7 @@ export const VerificationPage: React.FC = () => {
           'X-API-Key': apiKey,
         },
         body: JSON.stringify({
-          user_id: userId
+          user_id: currentUserId
         }),
       });
       
@@ -374,32 +387,32 @@ export const VerificationPage: React.FC = () => {
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        User ID *
+                        User ID (Auto-generated)
                       </label>
                       <div className="flex gap-3">
                         <input
                           type="text"
                           value={userId}
-                          onChange={(e) => setUserId(e.target.value)}
-                          placeholder="Enter user ID (UUID format)"
-                          className="flex-1 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                          readOnly
+                          className="flex-1 p-4 bg-gray-50 border border-gray-300 rounded-lg text-gray-700 font-mono text-sm"
                         />
                         <button
                           type="button"
                           onClick={() => setUserId(generateUUID())}
                           className="px-6 py-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-medium"
+                          title="Generate new user ID"
                         >
-                          Generate
+                          🔄
                         </button>
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
-                        A unique identifier for this verification session
+                        In real applications, this would come from your user authentication system
                       </p>
                     </div>
                     
                     <button
                       onClick={startVerificationSession}
-                      disabled={!apiKey || !userId || loading}
+                      disabled={!apiKey || loading}
                       className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition duration-200 font-semibold flex items-center justify-center"
                     >
                       {loading ? (
