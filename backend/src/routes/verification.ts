@@ -72,26 +72,27 @@ const storageService = new StorageService();
 const ocrService = new OCRService();
 const faceRecognitionService = new FaceRecognitionService();
 
-// Route: POST /api/verify/document
-router.post('/document',
+// Route: POST /api/verify/start - Start a new verification session
+router.post('/start',
   authenticateAPIKey,
   checkSandboxMode,
   verificationRateLimit,
-  upload.single('document'),
-  validateDocumentUpload,
+  [
+    body('user_id')
+      .isUUID()
+      .withMessage('User ID must be a valid UUID'),
+    body('sandbox')
+      .optional()
+      .isBoolean()
+      .withMessage('Sandbox must be a boolean')
+  ],
   catchAsync(async (req: Request, res: Response) => {
-    // Check validation results
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       throw new ValidationError('Validation failed', 'multiple', errors.array());
     }
     
-    const { user_id, document_type } = req.body;
-    const file = req.file;
-    
-    if (!file) {
-      throw new FileUploadError('Document file is required');
-    }
+    const { user_id } = req.body;
     
     // Authenticate user
     req.body.user_id = user_id;
@@ -102,21 +103,89 @@ router.post('/document',
       });
     });
     
-    logVerificationEvent('document_upload_started', `${user_id}_${Date.now()}`, {
+    // Create verification request
+    const verificationRequest = await verificationService.createVerificationRequest({
+      user_id,
+      developer_id: (req as any).developer.id,
+      is_sandbox: req.isSandbox
+    });
+    
+    logVerificationEvent('verification_started', verificationRequest.id, {
       userId: user_id,
+      developerId: (req as any).developer.id,
+      sandbox: req.isSandbox
+    });
+    
+    res.status(201).json({
+      verification_id: verificationRequest.id,
+      status: 'started',
+      user_id,
+      next_steps: [
+        'Upload document with POST /api/verify/document',
+        'Complete live capture with POST /api/verify/live-capture',
+        'Check results with GET /api/verify/results/:verification_id'
+      ],
+      created_at: verificationRequest.created_at
+    });
+  })
+);
+
+// Route: POST /api/verify/document - Upload document to existing verification
+router.post('/document',
+  authenticateAPIKey,
+  checkSandboxMode,
+  verificationRateLimit,
+  upload.single('document'),
+  [
+    body('verification_id')
+      .isUUID()
+      .withMessage('Verification ID must be a valid UUID'),
+    body('document_type')
+      .isIn(['passport', 'drivers_license', 'national_id', 'other'])
+      .withMessage('Document type must be one of: passport, drivers_license, national_id, other'),
+    body('sandbox')
+      .optional()
+      .isBoolean()
+      .withMessage('Sandbox must be a boolean')
+  ],
+  catchAsync(async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      throw new ValidationError('Validation failed', 'multiple', errors.array());
+    }
+    
+    const { verification_id, document_type } = req.body;
+    const file = req.file;
+    
+    if (!file) {
+      throw new FileUploadError('Document file is required');
+    }
+    
+    // Get verification request
+    const verificationRequest = await verificationService.getVerificationRequest(verification_id);
+    if (!verificationRequest) {
+      throw new ValidationError('Verification request not found', 'verification_id', verification_id);
+    }
+    
+    // Authenticate user
+    req.body.user_id = verificationRequest.user_id;
+    await new Promise((resolve, reject) => {
+      authenticateUser(req as any, res as any, (err: any) => {
+        if (err) reject(err);
+        else resolve(true);
+      });
+    });
+    
+    logVerificationEvent('document_upload_started', verification_id, {
+      userId: verificationRequest.user_id,
       documentType: document_type,
       fileSize: file.size,
       mimeType: file.mimetype,
-      developerId: req.developer?.id,
+      developerId: (req as any).developer?.id,
       isSandbox: req.isSandbox
     });
     
     try {
-      // Create verification request
-      const verificationRequest = await verificationService.createVerificationRequest({
-        user_id,
-        developer_id: req.developer!.id
-      });
       
       // Store document file
       const documentPath = await storageService.storeDocument(
@@ -236,7 +305,7 @@ router.post('/document',
       res.status(201).json(response);
       
     } catch (error) {
-      logVerificationEvent('document_upload_failed', `${user_id}_${Date.now()}`, {
+      logVerificationEvent('document_upload_failed', verification_id, {
         error: error instanceof Error ? error.message : 'Unknown error'
       });
       throw error;
@@ -364,8 +433,128 @@ router.post('/selfie',
   })
 );
 
-// Route: GET /api/verify/status/:user_id
+// Route: GET /api/verify/results/:verification_id - Get complete verification results
+router.get('/results/:verification_id',
+  authenticateAPIKey,
+  [
+    param('verification_id')
+      .isUUID()
+      .withMessage('Verification ID must be a valid UUID')
+  ],
+  catchAsync(async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      throw new ValidationError('Validation failed', 'multiple', errors.array());
+    }
+    
+    const { verification_id } = req.params;
+    
+    // Get verification request
+    const verificationRequest = await verificationService.getVerificationRequest(verification_id);
+    
+    if (!verificationRequest) {
+      return res.status(404).json({
+        status: 'not_found',
+        message: 'Verification not found',
+        verification_id
+      });
+    }
+    
+    // Get associated document and selfie data
+    const document = await verificationService.getDocumentByVerificationId(verification_id);
+    
+    // Build comprehensive response
+    const responseData: any = {
+      verification_id,
+      user_id: verificationRequest.user_id,
+      status: verificationRequest.status,
+      created_at: verificationRequest.created_at,
+      updated_at: verificationRequest.updated_at,
+      
+      // Document verification results
+      document_uploaded: !!document,
+      document_type: document?.document_type || null,
+      ocr_data: verificationRequest.ocr_data || null,
+      quality_analysis: document?.quality_analysis || null,
+      
+      // Live capture results
+      live_capture_completed: verificationRequest.live_capture_completed || false,
+      liveness_score: verificationRequest.liveness_score || null,
+      face_match_score: verificationRequest.face_match_score || null,
+      
+      // Overall assessment
+      confidence_score: verificationRequest.confidence_score || null,
+      manual_review_reason: verificationRequest.manual_review_reason || null,
+      
+      // Next steps based on current state
+      next_steps: getNextSteps(verificationRequest, document)
+    };
+    
+    res.json(responseData);
+  })
+);
+
+// Helper function to determine next steps
+function getNextSteps(verification: any, document: any) {
+  const steps = [];
+  
+  if (!document) {
+    steps.push('Upload document with POST /api/verify/document');
+  }
+  
+  if (!verification.live_capture_completed) {
+    steps.push('Complete live capture with POST /api/verify/live-capture');
+  }
+  
+  if (verification.status === 'pending' && document && verification.live_capture_completed) {
+    steps.push('Verification processing - check again in a few moments');
+  }
+  
+  if (verification.status === 'manual_review') {
+    steps.push('Manual review required - results will be updated when review is complete');
+  }
+  
+  if (verification.status === 'verified' || verification.status === 'failed') {
+    steps.push('Verification complete');
+  }
+  
+  return steps;
+}
+
+// Route: GET /api/verify/status/:user_id - Get latest verification for user (deprecated but kept for backward compatibility)
 router.get('/status/:user_id',
+  authenticateAPIKey,
+  validateStatusQuery,
+  catchAsync(async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      throw new ValidationError('Validation failed', 'multiple', errors.array());
+    }
+    
+    const { user_id } = req.params;
+    
+    // Get latest verification request for user
+    const verificationRequest = await verificationService.getLatestVerificationByUserId(user_id);
+    
+    if (!verificationRequest) {
+      return res.status(404).json({
+        status: 'not_verified',
+        message: 'No verification found for this user',
+        user_id
+      });
+    }
+    
+    // Redirect to new results endpoint
+    return res.json({
+      message: 'This endpoint is deprecated. Use GET /api/verify/results/:verification_id instead.',
+      verification_id: verificationRequest.id,
+      redirect_url: `/api/verify/results/${verificationRequest.id}`
+    });
+  })
+);
+
+// Route: GET /api/verify/status-legacy/:user_id - Legacy status check
+router.get('/status-legacy/:user_id',
   authenticateAPIKey,
   validateStatusQuery,
   catchAsync(async (req: Request, res: Response) => {
@@ -598,9 +787,13 @@ router.post('/live-capture',
         live_capture_id: liveCapture.id,
         status: 'processing',
         message: 'Live capture uploaded successfully. Processing liveness detection and face matching.',
-        next_steps: 'Check verification status with /api/verify/status/:user_id',
+        next_steps: [
+          'Processing liveness detection and face matching',
+          `Check results with GET /api/verify/results/${verification_id}`
+        ],
         liveness_check_enabled: true,
-        face_matching_enabled: true
+        face_matching_enabled: true,
+        results_url: `/api/verify/results/${verification_id}`
       });
       
     } catch (error) {

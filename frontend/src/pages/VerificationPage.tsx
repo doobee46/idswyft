@@ -32,6 +32,7 @@ interface VerificationResult {
 export const VerificationPage: React.FC = () => {
   const [apiKey, setApiKey] = useState('');
   const [userId, setUserId] = useState('');
+  const [verificationId, setVerificationId] = useState('');
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [documentFile, setDocumentFile] = useState<File | null>(null);
@@ -52,6 +53,42 @@ export const VerificationPage: React.FC = () => {
       const v = c == 'x' ? r : (r & 0x3 | 0x8);
       return v.toString(16);
     });
+  };
+
+  // Step 1: Start verification session
+  const startVerificationSession = async () => {
+    if (!apiKey || !userId) {
+      alert('Please enter API key and user ID first');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/verify/start`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': apiKey,
+        },
+        body: JSON.stringify({
+          user_id: userId
+        }),
+      });
+      
+      const data = await response.json();
+      if (data.verification_id) {
+        setVerificationId(data.verification_id);
+        setCurrentStep(2);
+        setVerificationResult(data);
+      } else {
+        alert('Failed to start verification session');
+      }
+    } catch (error) {
+      console.error('Failed to start verification:', error);
+      alert('Failed to start verification session');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getQualityColor = (quality: string) => {
@@ -127,8 +164,8 @@ export const VerificationPage: React.FC = () => {
 
   const handleDocumentVerification = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!apiKey || !userId || !documentFile) {
-      alert('Please provide API key, user ID, and document file');
+    if (!apiKey || !verificationId || !documentFile) {
+      alert('Please start verification session first and provide document file');
       return;
     }
     
@@ -136,7 +173,7 @@ export const VerificationPage: React.FC = () => {
     try {
       const formData = new FormData();
       formData.append('document', documentFile);
-      formData.append('user_id', userId);
+      formData.append('verification_id', verificationId);
       formData.append('document_type', 'passport');
       
       const response = await fetch(`${API_BASE_URL}/api/verify/document`, {
@@ -148,16 +185,14 @@ export const VerificationPage: React.FC = () => {
       });
       
       const data = await response.json();
-      setVerificationResult(data);
+      setDocumentUploaded(true);
       setCurrentStep(3);
+      
+      // Fetch updated results
+      await getVerificationResults();
     } catch (error) {
-      console.error('Verification failed:', error);
-      setVerificationResult({
-        verification_id: 'error',
-        status: 'failed',
-        user_id: userId,
-        message: 'Verification request failed'
-      });
+      console.error('Document upload failed:', error);
+      alert('Document upload failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -199,6 +234,27 @@ export const VerificationPage: React.FC = () => {
     }
   };
 
+  // Get complete verification results
+  const getVerificationResults = async () => {
+    if (!apiKey || !verificationId) {
+      alert('Please start verification session first');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/verify/results/${verificationId}`, {
+        headers: {
+          'X-API-Key': apiKey,
+        },
+      });
+      
+      const data = await response.json();
+      setVerificationResult(data);
+    } catch (error) {
+      console.error('Failed to get verification results:', error);
+    }
+  };
+
   const checkVerificationStatus = async () => {
     if (!apiKey || !userId) return;
     
@@ -217,8 +273,8 @@ export const VerificationPage: React.FC = () => {
   };
 
   const handleLiveCapture = async () => {
-    if (!apiKey || !userId || !verificationResult?.verification_id) {
-      alert('Please complete document verification first');
+    if (!apiKey || !verificationId) {
+      alert('Please start verification session and upload document first');
       return;
     }
 
@@ -232,8 +288,7 @@ export const VerificationPage: React.FC = () => {
           'X-API-Key': apiKey,
         },
         body: JSON.stringify({
-          user_id: userId,
-          verification_id: verificationResult.verification_id
+          verification_id: verificationId
         }),
       });
 
@@ -241,7 +296,7 @@ export const VerificationPage: React.FC = () => {
       
       if (response.ok) {
         // Redirect to live capture page with token
-        const liveCaptureUrl = `/live-capture?token=${data.live_capture_token}&verification_id=${verificationResult.verification_id}&api_key=${apiKey}`;
+        const liveCaptureUrl = `/live-capture?token=${data.token}&verification_id=${verificationId}&api_key=${apiKey}`;
         window.location.href = liveCaptureUrl;
       } else {
         console.error('Live capture token generation failed:', data);
@@ -308,8 +363,8 @@ export const VerificationPage: React.FC = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m-2-2l-2.5-2.5a2 2 0 00-2.83 0l-9.17 9.17a2 2 0 000 2.83L3 19l4-1 10.5-10.5z" />
                       </svg>
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Setup Your Verification</h2>
-                    <p className="text-gray-600">Enter your API credentials to get started</p>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Start New Verification</h2>
+                    <p className="text-gray-600">Enter your API credentials and start a verification session</p>
                   </div>
 
                   <div className="space-y-4">
@@ -355,11 +410,14 @@ export const VerificationPage: React.FC = () => {
                     </div>
                     
                     <button
-                      onClick={() => apiKey && userId && setCurrentStep(2)}
-                      disabled={!apiKey || !userId}
-                      className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition duration-200 font-semibold"
+                      onClick={startVerificationSession}
+                      disabled={!apiKey || !userId || loading}
+                      className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition duration-200 font-semibold flex items-center justify-center"
                     >
-                      Continue to Document Upload
+                      {loading ? (
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      ) : null}
+                      Start Verification Session
                     </button>
                   </div>
                 </div>
@@ -702,13 +760,20 @@ export const VerificationPage: React.FC = () => {
         </div>
 
         {/* Status Check */}
-        <div className="mt-8 text-center">
+        <div className="mt-8 text-center space-x-4">
+          <button
+            onClick={getVerificationResults}
+            disabled={!apiKey || !verificationId}
+            className="bg-blue-600 text-white py-3 px-8 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition duration-200 font-semibold"
+          >
+            📊 Get Complete Results
+          </button>
           <button
             onClick={checkVerificationStatus}
             disabled={!apiKey || !userId}
             className="bg-indigo-600 text-white py-3 px-8 rounded-lg hover:bg-indigo-700 disabled:bg-gray-400 transition duration-200 font-semibold"
           >
-            🔍 Check Verification Status
+            🔍 Check Status (Legacy)
           </button>
         </div>
 
@@ -719,6 +784,11 @@ export const VerificationPage: React.FC = () => {
               <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white">
                 <h3 className="text-2xl font-bold mb-2">🎉 Verification Results</h3>
                 <p className="text-blue-100">Here's what our AI found</p>
+                {verificationId && (
+                  <p className="text-blue-200 text-sm mt-2">
+                    Session ID: {verificationId}
+                  </p>
+                )}
               </div>
               
               <div className="p-6 space-y-6">

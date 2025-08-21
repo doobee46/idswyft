@@ -78,12 +78,25 @@ const stats = [
 ]
 
 const getCodeExamples = (apiUrl: string) => ({
-  curl: `curl -X POST ${apiUrl}/api/verify/document \
+  curl: `# Complete verification flow
+curl -X POST ${apiUrl}/api/verify/start \
   -H "X-API-Key: YOUR_API_KEY" \
-  -H "Content-Type: multipart/form-data" \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": "user_123"}'
+
+curl -X POST ${apiUrl}/api/verify/document \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -F "verification_id=verif_abc123" \
   -F "document=@passport.jpg" \
-  -F "user_id=user_123" \
-  -F "document_type=passport"`,
+  -F "document_type=passport"
+
+curl -X POST ${apiUrl}/api/verify/live-capture \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"verification_id": "verif_abc123", "live_image_data": "base64..."}'
+
+curl -X GET ${apiUrl}/api/verify/results/verif_abc123 \
+  -H "X-API-Key: YOUR_API_KEY"`,
   javascript: `import { IdswyftSDK } from '@idswyft/sdk';
 
 const client = new IdswyftSDK({
@@ -91,17 +104,26 @@ const client = new IdswyftSDK({
   sandbox: false
 });
 
-const result = await client.verifyDocument({
-  document_type: 'passport',
-  document_file: documentFile,
-  user_id: 'user_123',
-  metadata: { source: 'web_app' }
+// Complete verification flow
+const session = await client.startVerification({
+  user_id: 'user_123'
 });
 
-// Access AI analysis results
-console.log(result.status); // 'verified'
-console.log(result.ocr_data.name); // 'John Doe'
-console.log(result.quality_analysis.overallQuality); // 'excellent'`,
+await client.uploadDocument({
+  verification_id: session.verification_id,
+  document_type: 'passport',
+  document_file: documentFile
+});
+
+await client.liveCapture({
+  verification_id: session.verification_id,
+  live_image_data: capturedImageBase64
+});
+
+const results = await client.getResults(session.verification_id);
+console.log(results.status); // 'verified'
+console.log(results.ocr_data.name); // 'John Doe'
+console.log(results.liveness_score); // 0.94`,
   python: `import idswyft
 
 client = idswyft.IdswyftClient(
@@ -109,18 +131,24 @@ client = idswyft.IdswyftClient(
     sandbox=False
 )
 
-result = client.verify_document(
+# Complete verification flow
+session = client.start_verification(user_id="user_123")
+
+client.upload_document(
+    verification_id=session["verification_id"],
     document_type="passport",
-    document_file="passport.jpg",
-    user_id="user_123",
-    metadata={"source": "python_app"}
+    document_file="passport.jpg"
 )
 
-# Access AI analysis results
-print(f"Status: {result['status']}")
-print(f"Name: {result['ocr_data']['name']}")
-print(f"Quality: {result['quality_analysis']['overallQuality']}")
-print(f"Confidence: {result['ocr_data']['confidence_scores']}")`,
+client.live_capture(
+    verification_id=session["verification_id"],
+    live_image_data=captured_image_base64
+)
+
+results = client.get_results(session["verification_id"])
+print(f"Status: {results['status']}")
+print(f"Name: {results['ocr_data']['name']}")
+print(f"Liveness: {results['liveness_score']}")`,
   response: `{
   "id": "verif_abc123",
   "status": "verified",
@@ -174,15 +202,15 @@ const integrationSteps = [
   },
   {
     step: '2', 
-    title: 'Install SDK',
-    description: 'npm install @idswyft/sdk or pip install idswyft',
+    title: 'Start Session',
+    description: 'Create verification session with user ID',
     icon: CubeIcon,
     color: 'from-purple-500 to-purple-600'
   },
   {
     step: '3',
-    title: 'Start Verifying',
-    description: 'Send documents and get instant AI-powered results',
+    title: 'Verify & Capture',
+    description: 'Upload documents + live capture for complete verification',
     icon: RocketLaunchIcon,
     color: 'from-green-500 to-green-600'
   }

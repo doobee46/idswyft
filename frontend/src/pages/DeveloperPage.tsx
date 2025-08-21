@@ -48,97 +48,88 @@ export const DeveloperPage: React.FC = () => {
     console.log('currentApiKey state changed:', currentApiKey);
   }, [currentApiKey]);
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
-  const [showApiKey, setShowApiKey] = useState<boolean>(false);
-  const [isRegistered, setIsRegistered] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [stats, setStats] = useState<DeveloperStats | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'keys' | 'docs'>('overview');
-  const [developerInfo, setDeveloperInfo] = useState({
+  const [stats, setStats] = useState<DeveloperStats>({
+    total_requests: 0,
+    successful_requests: 0,
+    failed_requests: 0,
+    monthly_usage: 0,
+    monthly_limit: 1000
+  });
+  const [activeTab, setActiveTab] = useState<'overview' | 'keys' | 'docs' | 'security'>('overview');
+  const [showKeyModal, setShowKeyModal] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [newKeyName, setNewKeyName] = useState('');
+  const [newKeyIsSandbox, setNewKeyIsSandbox] = useState(false);
+  const [registrationMode, setRegistrationMode] = useState(true);
+  const [formData, setFormData] = useState({
     name: '',
     email: '',
     company: '',
-    webhookUrl: ''
+    password: '',
+    webhook_url: '',
+    confirmPassword: ''
   });
-  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
-  const [newApiKeyForm, setNewApiKeyForm] = useState({
-    name: '',
-    isSandbox: false
-  });
-  const [isLoginMode, setIsLoginMode] = useState<boolean>(false);
-  const [developerToken, setDeveloperToken] = useState<string>('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [developerToken, setDeveloperToken] = useState<string | null>(null);
 
   useEffect(() => {
     // Check if developer token exists
-    const storedToken = localStorage.getItem('developer_token');
-    const storedEmail = localStorage.getItem('developer_email');
-    const storedName = localStorage.getItem('developer_name');
-    
-    if (storedToken && storedEmail) {
-      setDeveloperToken(storedToken);
-      setDeveloperInfo(prev => ({ 
-        ...prev, 
-        email: storedEmail,
-        name: storedName || ''
-      }));
-      setIsRegistered(true);
-      loadApiKeys();
-      loadStats();
+    const token = localStorage.getItem('developer_token');
+    if (token) {
+      setDeveloperToken(token);
+      setIsAuthenticated(true);
+      fetchApiKeys();
+      fetchStats();
     }
   }, []);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    
-    // Basic client-side validation
-    if (!developerInfo.name.trim()) {
-      toast.error('Developer name is required');
-      setLoading(false);
-      return;
-    }
-    
-    if (!developerInfo.email.trim()) {
-      toast.error('Email address is required');
-      setLoading(false);
-      return;
-    }
-    
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(developerInfo.email)) {
-      toast.error('Please enter a valid email address');
-      setLoading(false);
-      return;
-    }
     
     try {
-      const requestData = {
-        name: developerInfo.name.trim(),
-        email: developerInfo.email.trim(),
-        company: developerInfo.company.trim() || undefined,
-        webhook_url: developerInfo.webhookUrl.trim() || undefined
-      };
-      
-      console.log('Sending registration request:', requestData);
-      
+      // Basic client-side validation
+      if (!formData.name || !formData.email || !formData.password) {
+        toast.error('Please fill in all required fields');
+        return;
+      }
+
+      if (formData.password !== formData.confirmPassword) {
+        toast.error('Passwords do not match');
+        return;
+      }
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        toast.error('Please enter a valid email address');
+        return;
+      }
+
+      if (formData.password.length < 8) {
+        toast.error('Password must be at least 8 characters long');
+        return;
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/developer/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestData),
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          company: formData.company || undefined,
+          password: formData.password,
+          webhook_url: formData.webhook_url || undefined
+        }),
       });
-      
+
       const data = await response.json();
-      console.log('Registration response:', data);
-      
-      if (response.ok && data.api_key && data.api_key.key) {
-        setCurrentApiKey(data.api_key.key);
-        setIsRegistered(true);
-        
+
+      if (response.ok) {
+        toast.success('Registration successful! Logging you in...');
         // Store developer info and token (we'll get token from a separate login call)
-        localStorage.setItem('developer_email', developerInfo.email);
-        localStorage.setItem('developer_name', developerInfo.name);
+        localStorage.setItem('developer_email', formData.email);
         
         // Login to get token
         const loginResponse = await fetch(`${API_BASE_URL}/api/auth/developer/login`, {
@@ -146,545 +137,416 @@ export const DeveloperPage: React.FC = () => {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ email: developerInfo.email }),
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password
+          }),
         });
-        
+
         const loginData = await loginResponse.json();
+
         if (loginResponse.ok && loginData.token) {
-          setDeveloperToken(loginData.token);
           localStorage.setItem('developer_token', loginData.token);
+          setDeveloperToken(loginData.token);
+          setIsAuthenticated(true);
+          await fetchApiKeys();
+          await fetchStats();
+        } else {
+          toast.error('Registration successful but login failed. Please try logging in manually.');
         }
-        
-        toast.success('🎉 Developer account created successfully!');
-        await loadApiKeys();
-        await loadStats();
       } else {
         // Handle validation errors
-        if (data.code === 'multiple' && data.details) {
+        if (data.errors && Array.isArray(data.errors)) {
           // Multiple validation errors
-          data.details.forEach((error: any) => {
-            toast.error(error.msg || error.message);
+          data.errors.forEach((error: any) => {
+            toast.error(error.message || error);
           });
         } else {
-          toast.error(data.message || 'Registration failed. Please try again.');
+          toast.error(data.message || 'Registration failed');
         }
       }
     } catch (error) {
-      console.error('Registration failed:', error);
-      toast.error('Registration failed. Please check your connection and try again.');
-    } finally {
-      setLoading(false);
+      console.error('Registration error:', error);
+      toast.error('Registration failed. Please try again.');
     }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    
-    // Basic client-side validation
-    if (!developerInfo.email.trim()) {
-      toast.error('Email address is required');
-      setLoading(false);
-      return;
-    }
-    
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(developerInfo.email)) {
-      toast.error('Please enter a valid email address');
-      setLoading(false);
-      return;
-    }
     
     try {
-      console.log('Sending login request:', { email: developerInfo.email });
-      
+      // Basic client-side validation
+      if (!formData.email || !formData.password) {
+        toast.error('Please enter both email and password');
+        return;
+      }
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        toast.error('Please enter a valid email address');
+        return;
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/auth/developer/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email: developerInfo.email.trim() }),
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password
+        }),
       });
-      
+
       const data = await response.json();
-      console.log('Login response:', data);
-      
-      if (response.ok && data.token && data.developer) {
-        setDeveloperToken(data.token);
-        setDeveloperInfo(prev => ({
-          ...prev,
-          name: data.developer.name,
-          company: data.developer.company || '',
-          email: data.developer.email
-        }));
-        setIsRegistered(true);
+
+      if (response.ok && data.token) {
+        toast.success('Login successful!');
         
         // Store in localStorage
         localStorage.setItem('developer_token', data.token);
-        localStorage.setItem('developer_email', data.developer.email);
-        localStorage.setItem('developer_name', data.developer.name);
+        localStorage.setItem('developer_email', formData.email);
         
-        toast.success('🎉 Welcome back!');
-        await loadApiKeys();
-        await loadStats();
+        setDeveloperToken(data.token);
+        setIsAuthenticated(true);
+        
+        // Fetch user data
+        await fetchApiKeys();
+        await fetchStats();
       } else {
-        if (response.status === 401) {
-          toast.error('❌ Account not found. Please register first or check your email.');
-        } else {
-          toast.error(data.message || 'Login failed. Please try again.');
-        }
+        toast.error(data.message || 'Login failed');
       }
     } catch (error) {
-      console.error('Login failed:', error);
-      toast.error('Login failed. Please check your connection and try again.');
-    } finally {
-      setLoading(false);
+      console.error('Login error:', error);
+      toast.error('Login failed. Please try again.');
     }
   };
 
-  const loadApiKeys = async () => {
-    if (!developerToken) return;
-    
+  const fetchApiKeys = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/developer/api-keys`, {
         headers: {
-          'Authorization': `Bearer ${developerToken}`,
-          'Content-Type': 'application/json'
-        }
+          'Authorization': `Bearer ${localStorage.getItem('developer_token')}`,
+        },
       });
-      const data = await response.json();
-      console.log('Load API Keys Response:', data);
-      
+
       if (response.ok) {
-        console.log('Setting API keys:', data.api_keys);
-        setApiKeys(data.api_keys);
+        const data = await response.json();
+        setApiKeys(data.api_keys || []);
       } else {
-        console.error('Failed to load API keys:', data);
-        if (response.status === 401) {
-          console.log('Developer token expired or invalid');
-          handleTokenExpired();
-        }
+        const errorData = await response.json();
+        toast.error(errorData.message || 'Failed to fetch API keys');
       }
     } catch (error) {
-      console.error('Failed to load API keys:', error);
+      console.error('Error fetching API keys:', error);
+      // Don't show error toast here, as it might be due to no keys existing yet
     }
   };
 
-  const handleTokenExpired = () => {
-    toast.error('🔐 Session expired. Please log in again.');
-    localStorage.removeItem('developer_token');
-    localStorage.removeItem('developer_email');
-    localStorage.removeItem('developer_name');
-    setIsRegistered(false);
-    setDeveloperToken('');
-    setDeveloperInfo({ name: '', email: '', company: '', webhookUrl: '' });
-    setApiKeys([]);
-    setStats(null);
-    setCurrentApiKey('');
-  };
-
-  const loadStats = async () => {
-    if (!developerToken) return;
-    
+  const fetchStats = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/developer/stats`, {
         headers: {
-          'Authorization': `Bearer ${developerToken}`,
-          'Content-Type': 'application/json'
-        }
+          'Authorization': `Bearer ${localStorage.getItem('developer_token')}`,
+        },
       });
-      const data = await response.json();
+
       if (response.ok) {
+        const data = await response.json();
         setStats({
-          total_requests: data.total_requests,
-          successful_requests: data.successful_requests,
-          failed_requests: data.failed_requests,
-          monthly_usage: data.monthly_usage,
-          monthly_limit: data.monthly_limit
+          total_requests: data.total_requests || 0,
+          successful_requests: data.successful_requests || 0,
+          failed_requests: data.failed_requests || 0,
+          monthly_usage: data.monthly_usage || 0,
+          monthly_limit: data.monthly_limit || 1000
         });
       } else {
-        if (response.status === 401) {
-          handleTokenExpired();
-          return;
-        }
         // Fallback to mock data if API fails
         setStats({
-          total_requests: 1247,
-          successful_requests: 1198,
-          failed_requests: 49,
-          monthly_usage: 847,
+          total_requests: 142,
+          successful_requests: 138,
+          failed_requests: 4,
+          monthly_usage: 89,
           monthly_limit: 1000
         });
       }
     } catch (error) {
-      console.error('Failed to load stats:', error);
       // Fallback to mock data on error
       setStats({
-        total_requests: 1247,
-        successful_requests: 1198,
-        failed_requests: 49,
-        monthly_usage: 847,
+        total_requests: 142,
+        successful_requests: 138,
+        failed_requests: 4,
+        monthly_usage: 89,
         monthly_limit: 1000
       });
     }
   };
 
-  const generateApiKey = async (name: string, isSandbox: boolean = false): Promise<boolean> => {
-    if (!developerToken) return false;
-    
-    setLoading(true);
+  const createApiKey = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/developer/api-key`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${developerToken}`,
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('developer_token')}`,
         },
         body: JSON.stringify({
-          name,
-          is_sandbox: isSandbox
+          name: newKeyName,
+          is_sandbox: newKeyIsSandbox,
         }),
       });
-      
+
       const data = await response.json();
-      console.log('API Key Generation Response:', data);
-      
+
       if (response.ok) {
-        console.log('Setting current API key:', data.api_key);
+        toast.success('API key created successfully!');
         setCurrentApiKey(data.api_key);
-        toast.success('🔑 New API key generated successfully!');
-        await loadApiKeys();
+        setShowApiKey(true);
+        setShowKeyModal(false);
+        setNewKeyName('');
+        setNewKeyIsSandbox(false);
+        await fetchApiKeys();
         return true; // Success
       } else {
-        console.error('API Key generation failed:', data);
-        if (response.status === 401) {
-          handleTokenExpired();
-        } else {
-          toast.error(data.message || 'Failed to generate API key');
-        }
+        toast.error(data.message || 'Failed to create API key');
         return false; // Failure
       }
     } catch (error) {
-      console.error('API key generation failed:', error);
-      toast.error('Failed to generate API key. Please try again.');
+      console.error('Error creating API key:', error);
+      toast.error('Failed to create API key');
       return false; // Failure
-    } finally {
-      setLoading(false);
     }
   };
 
-  const revokeApiKey = async (keyId: string) => {
-    const confirmed = await new Promise((resolve) => {
-      toast((t) => (
-        <div className="flex flex-col space-y-3">
-          <div className="font-medium">Revoke API Key</div>
-          <div className="text-sm text-gray-600">
-            Are you sure you want to revoke this API key? This action cannot be undone.
-          </div>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => {
-                toast.dismiss(t.id);
-                resolve(true);
-              }}
-              className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
-            >
-              Revoke
-            </button>
-            <button
-              onClick={() => {
-                toast.dismiss(t.id);
-                resolve(false);
-              }}
-              className="px-3 py-1 bg-gray-300 text-gray-700 text-sm rounded hover:bg-gray-400"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ), { duration: Infinity });
-    });
+  const deleteApiKey = async (keyId: string) => {
+    if (!confirm('Are you sure you want to delete this API key? This action cannot be undone.')) {
+      return;
+    }
 
-    if (!confirmed) return;
-
-    if (!developerToken) return;
-    
-    setLoading(true);
     try {
       const response = await fetch(`${API_BASE_URL}/api/developer/api-key/${keyId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${developerToken}`,
-          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('developer_token')}`,
         },
       });
-      
+
       if (response.ok) {
-        toast.success('🗑️ API key revoked successfully');
-        await loadApiKeys();
+        toast.success('API key deleted successfully!');
+        await fetchApiKeys();
       } else {
-        if (response.status === 401) {
-          handleTokenExpired();
-        } else {
-          const data = await response.json();
-          toast.error(data.message || 'Failed to revoke API key');
-        }
+        const data = await response.json();
+        toast.error(data.message || 'Failed to delete API key');
       }
     } catch (error) {
-      console.error('Failed to revoke API key:', error);
-      toast.error('Failed to revoke API key. Please try again.');
-    } finally {
-      setLoading(false);
+      console.error('Error deleting API key:', error);
+      toast.error('Failed to delete API key');
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      toast.success('📋 Copied to clipboard!');
-    }).catch(() => {
-      toast.error('Failed to copy to clipboard');
-    });
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('developer_token');
-    localStorage.removeItem('developer_email');
-    localStorage.removeItem('developer_name');
-    setIsRegistered(false);
-    setDeveloperToken('');
-    setDeveloperInfo({ name: '', email: '', company: '', webhookUrl: '' });
-    setApiKeys([]);
-    setStats(null);
-    setCurrentApiKey('');
-    setActiveTab('overview');
-    setIsLoginMode(false);
-    toast.success('👋 Logged out successfully');
-  };
-
-  const handleCreateApiKey = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newApiKeyForm.name.trim()) {
-      toast.error('API key name is required');
+  const handleKeyCreation = async () => {
+    if (!newKeyName.trim()) {
+      toast.error('Please enter a name for your API key');
       return;
     }
+
+    const success = await createApiKey();
     
-    const success = await generateApiKey(newApiKeyForm.name.trim(), newApiKeyForm.isSandbox);
     if (success) {
-      setShowApiKeyModal(false);
-      setNewApiKeyForm({ name: '', isSandbox: false });
       setActiveTab('overview'); // Switch to overview tab to show the new key
     }
     // If not successful, keep modal open so user can try again
   };
 
-  if (!isRegistered) {
+  const logout = () => {
+    localStorage.removeItem('developer_token');
+    localStorage.removeItem('developer_email');
+    setDeveloperToken(null);
+    setIsAuthenticated(false);
+    setApiKeys([]);
+    setFormData({
+      name: '',
+      email: '',
+      company: '',
+      password: '',
+      webhook_url: '',
+      confirmPassword: ''
+    });
+  };
+
+  if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-        <div className="max-w-4xl mx-auto p-6">
-          <div className="bg-white rounded-2xl shadow-xl p-8">
-            <div className="text-center mb-8">
-              <div className="inline-flex p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full mb-4">
-                <CpuChipIcon className="w-8 h-8 text-white" />
-              </div>
-              <h1 className="text-4xl font-bold text-gray-900 mb-4">Join the Developer Program</h1>
-              <p className="text-xl text-gray-600">Get instant access to our identity verification APIs</p>
-            </div>
-            
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+        <div className="min-h-screen flex items-center justify-center px-4">
+          <div className="max-w-md w-full">
             {/* Login/Register Toggle */}
-            <div className="flex justify-center mb-8">
-              <div className="bg-gray-100 rounded-xl p-1 flex">
+            <div className="text-center mb-8">
+              <div className="flex items-center justify-center mb-4">
+                <div className="bg-blue-600 p-3 rounded-xl">
+                  <CpuChipIcon className="w-8 h-8 text-white" />
+                </div>
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Idswyft Developer Portal</h1>
+              <p className="text-gray-600">Access your API keys and documentation</p>
+              
+              <div className="flex bg-gray-100 p-1 rounded-lg mt-6">
                 <button
                   type="button"
-                  onClick={() => setIsLoginMode(false)}
-                  className={`px-6 py-2 rounded-lg font-medium transition-all ${
-                    !isLoginMode 
-                      ? 'bg-white text-blue-600 shadow-md' 
+                  onClick={() => setRegistrationMode(false)}
+                  className={`flex-1 py-2 px-4 rounded-md font-medium text-sm transition-all ${
+                    !registrationMode 
+                      ? 'bg-white text-gray-900 shadow-sm' 
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
-                  Register
+                  Sign In
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsLoginMode(true)}
-                  className={`px-6 py-2 rounded-lg font-medium transition-all ${
-                    isLoginMode 
-                      ? 'bg-white text-blue-600 shadow-md' 
+                  onClick={() => setRegistrationMode(true)}
+                  className={`flex-1 py-2 px-4 rounded-md font-medium text-sm transition-all ${
+                    registrationMode 
+                      ? 'bg-white text-gray-900 shadow-sm' 
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
-                  Login
+                  Sign Up
                 </button>
               </div>
             </div>
 
-            <div className="grid lg:grid-cols-2 gap-12">
+            <div className="bg-white rounded-xl shadow-lg p-6">
               {/* Registration/Login Form */}
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  {isLoginMode ? 'Welcome Back' : 'Create Your Account'}
-                </h2>
-                <form onSubmit={isLoginMode ? handleLogin : handleRegister} className="space-y-6">
-                  {!isLoginMode && (
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Developer Name *
-                      </label>
-                      <input
-                        type="text"
-                        value={developerInfo.name}
-                        onChange={(e) => setDeveloperInfo({...developerInfo, name: e.target.value})}
-                        className="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                        placeholder="Your full name"
-                        required
-                      />
-                    </div>
-                  )}
-                  
+              <form onSubmit={registrationMode ? handleRegister : handleLogin} className="space-y-4">
+                {registrationMode && (
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Email Address *
+                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                      Full Name *
                     </label>
                     <input
-                      type="email"
-                      value={developerInfo.email}
-                      onChange={(e) => setDeveloperInfo({...developerInfo, email: e.target.value})}
-                      className="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                      placeholder="developer@company.com"
-                      required
+                      type="text"
+                      id="name"
+                      required={registrationMode}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      value={formData.name}
+                      onChange={(e) => setFormData({...formData, name: e.target.value})}
+                      placeholder="John Doe"
                     />
                   </div>
-                  
-                  {!isLoginMode && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Company / Organization
-                        </label>
-                        <input
-                          type="text"
-                          value={developerInfo.company}
-                          onChange={(e) => setDeveloperInfo({...developerInfo, company: e.target.value})}
-                          className="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                          placeholder="Your Company Ltd."
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Webhook URL (Optional)
-                        </label>
-                        <input
-                          type="url"
-                          value={developerInfo.webhookUrl}
-                          onChange={(e) => setDeveloperInfo({...developerInfo, webhookUrl: e.target.value})}
-                          className="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                          placeholder="https://yourapp.com/webhook"
-                        />
-                        <p className="text-sm text-gray-500 mt-1">
-                          Receive real-time verification status updates
-                        </p>
-                      </div>
-                    </>
-                  )}
-                  
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 px-6 rounded-xl hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 transition duration-200 font-semibold text-lg flex items-center justify-center"
-                  >
-                    {loading ? (
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    ) : (
-                      <KeyIcon className="w-5 h-5 mr-2" />
-                    )}
-                    {loading 
-                      ? (isLoginMode ? 'Logging in...' : 'Creating Account...') 
-                      : (isLoginMode ? 'Login to Dashboard' : 'Create Account & Get API Key')
-                    }
-                  </button>
-                  
-                  {!isLoginMode && (
-                    <p className="text-sm text-gray-500 text-center">
-                      By registering, you agree to our Terms of Service and Privacy Policy
-                    </p>
-                  )}
-                  
-                  {isLoginMode && (
-                    <p className="text-sm text-gray-500 text-center">
-                      Don't have an account?{' '}
-                      <button
-                        type="button"
-                        onClick={() => setIsLoginMode(false)}
-                        className="text-blue-600 hover:text-blue-800 font-medium"
-                      >
-                        Register here
-                      </button>
-                    </p>
-                  )}
-                </form>
+                )}
+
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                    Email Address *
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.email}
+                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    placeholder="john@company.com"
+                  />
+                </div>
+
+                {registrationMode && (
+                  <div>
+                    <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-2">
+                      Company (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      id="company"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      value={formData.company}
+                      onChange={(e) => setFormData({...formData, company: e.target.value})}
+                      placeholder="Acme Inc."
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                    Password *
+                  </label>
+                  <input
+                    type="password"
+                    id="password"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={formData.password}
+                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    placeholder={registrationMode ? "At least 8 characters" : "Your password"}
+                  />
+                </div>
+
+                {registrationMode && (
+                  <>
+                    <div>
+                      <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                        Confirm Password *
+                      </label>
+                      <input
+                        type="password"
+                        id="confirmPassword"
+                        required={registrationMode}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        value={formData.confirmPassword}
+                        onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+                        placeholder="Confirm your password"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="webhook_url" className="block text-sm font-medium text-gray-700 mb-2">
+                        Webhook URL (Optional)
+                      </label>
+                      <input
+                        type="url"
+                        id="webhook_url"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        value={formData.webhook_url}
+                        onChange={(e) => setFormData({...formData, webhook_url: e.target.value})}
+                        placeholder="https://yourapp.com/webhook"
+                      />
+                    </div>
+                  </>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  {registrationMode ? 'Create Account' : 'Sign In'}
+                </button>
+              </form>
+            </div>
+
+            {/* Benefits */}
+            <div className="mt-8 text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Why choose Idswyft?</h3>
+              <div className="grid grid-cols-1 gap-4 text-sm">
+                <div className="flex items-center justify-center space-x-2">
+                  <ShieldCheckIcon className="w-5 h-5 text-blue-600" />
+                  <span className="text-gray-700">Bank-grade security</span>
+                </div>
+                <div className="flex items-center justify-center space-x-2">
+                  <GlobeAltIcon className="w-5 h-5 text-blue-600" />
+                  <span className="text-gray-700">Global document support</span>
+                </div>
+                <div className="flex items-center justify-center space-x-2">
+                  <ChartBarIcon className="w-5 h-5 text-blue-600" />
+                  <span className="text-gray-700">Real-time analytics</span>
+                </div>
               </div>
 
-              {/* Benefits */}
-              <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-8">
-                <h3 className="text-2xl font-bold text-gray-900 mb-6">What you get</h3>
-                <div className="space-y-6">
-                  <div className="flex items-start space-x-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center">
-                        <CheckCircleIcon className="w-6 h-6 text-white" />
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">1,000 Free Verifications</h4>
-                      <p className="text-gray-600 text-sm">Monthly quota to get started - no credit card required</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start space-x-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
-                        <CpuChipIcon className="w-6 h-6 text-white" />
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">AI-Powered Quality Analysis</h4>
-                      <p className="text-gray-600 text-sm">Advanced document quality assessment with recommendations</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start space-x-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full flex items-center justify-center">
-                        <ShieldCheckIcon className="w-6 h-6 text-white" />
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">Enterprise Security</h4>
-                      <p className="text-gray-600 text-sm">SOC2 compliant with end-to-end encryption</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start space-x-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center">
-                        <GlobeAltIcon className="w-6 h-6 text-white" />
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">Global Coverage</h4>
-                      <p className="text-gray-600 text-sm">Support for 150+ countries and document types</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="mt-8 p-4 bg-white/50 rounded-xl border border-white/20">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900">&lt; 200ms</div>
-                    <div className="text-sm text-gray-600">Average API Response Time</div>
-                  </div>
-                </div>
+              <div className="mt-8 p-4 bg-white/50 rounded-xl border border-white/20">
+                <p className="text-xs text-gray-500">
+                  By creating an account, you agree to our Terms of Service and Privacy Policy.
+                  Start with 1,000 free verification requests per month.
+                </p>
               </div>
             </div>
           </div>
@@ -694,470 +556,447 @@ export const DeveloperPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="max-w-7xl mx-auto p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
-          <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-3">
+            <div className="bg-blue-600 p-2 rounded-lg">
+              <CpuChipIcon className="w-6 h-6 text-white" />
+            </div>
             <div>
-              <h1 className="text-4xl font-bold text-gray-900 mb-2">Developer Dashboard</h1>
-              <p className="text-gray-600">Welcome back, {developerInfo.name || 'Developer'}</p>
+              <h1 className="text-2xl font-bold text-gray-900">Developer Portal</h1>
+              <p className="text-gray-600">Manage your API keys and monitor usage</p>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <div className="text-sm text-gray-500">API Status</div>
-                <div className="flex items-center text-green-600">
-                  <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
-                  <span className="font-semibold">Operational</span>
-                </div>
-              </div>
+          </div>
+          <button
+            onClick={logout}
+            className="flex items-center space-x-2 px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors"
+          >
+            <ArrowRightOnRectangleIcon className="w-5 h-5" />
+            <span>Logout</span>
+          </button>
+        </div>
+
+        {/* Navigation Tabs */}
+        <div className="border-b border-gray-200 mb-6">
+          <nav className="-mb-px flex space-x-8">
+            {[
+              { id: 'overview', label: 'Overview', icon: ChartBarIcon },
+              { id: 'keys', label: 'API Keys', icon: KeyIcon },
+              { id: 'docs', label: 'Documentation', icon: ClipboardDocumentIcon },
+              { id: 'security', label: 'Security', icon: LockClosedIcon },
+            ].map((tab) => (
               <button
-                onClick={handleLogout}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === tab.id
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
               >
-                <ArrowRightOnRectangleIcon className="w-4 h-4 mr-2" />
-                Logout
+                <tab.icon className="w-5 h-5 mr-2" />
+                {tab.label}
               </button>
-            </div>
-          </div>
-          
-          {/* Navigation Tabs */}
-          <div className="border-b border-gray-200">
-            <nav className="flex space-x-8">
-              {[
-                { key: 'overview', label: 'Overview', icon: ChartBarIcon },
-                { key: 'keys', label: 'API Keys', icon: KeyIcon },
-                { key: 'docs', label: 'Documentation', icon: ClipboardDocumentIcon }
-              ].map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key as any)}
-                  className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                    activeTab === tab.key
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <tab.icon className="w-5 h-5 mr-2" />
-                  {tab.label}
-                </button>
-              ))}
-            </nav>
-          </div>
+            ))}
+          </nav>
         </div>
 
         {/* Content based on active tab */}
         {activeTab === 'overview' && (
-          <div className="space-y-8">
+          <div className="space-y-6">
             {/* Usage Statistics */}
-            {stats && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Monthly Usage</p>
-                      <p className="text-3xl font-bold text-gray-900">{stats.monthly_usage}</p>
-                      <p className="text-sm text-gray-500">of {stats.monthly_limit} limit</p>
-                    </div>
-                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
-                      <ChartBarIcon className="w-6 h-6 text-white" />
-                    </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Requests</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.total_requests.toLocaleString()}</p>
                   </div>
-                  <div className="mt-4">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${(stats.monthly_usage / stats.monthly_limit) * 100}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Success Rate</p>
-                      <p className="text-3xl font-bold text-green-600">{((stats.successful_requests / stats.total_requests) * 100).toFixed(1)}%</p>
-                      <p className="text-sm text-gray-500">{stats.successful_requests} successful</p>
-                    </div>
-                    <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center">
-                      <CheckCircleIcon className="w-6 h-6 text-white" />
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Total Requests</p>
-                      <p className="text-3xl font-bold text-gray-900">{stats.total_requests.toLocaleString()}</p>
-                      <p className="text-sm text-gray-500">all time</p>
-                    </div>
-                    <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full flex items-center justify-center">
-                      <CpuChipIcon className="w-6 h-6 text-white" />
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Failed Requests</p>
-                      <p className="text-3xl font-bold text-red-600">{stats.failed_requests}</p>
-                      <p className="text-sm text-gray-500">{((stats.failed_requests / stats.total_requests) * 100).toFixed(1)}% error rate</p>
-                    </div>
-                    <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-red-600 rounded-full flex items-center justify-center">
-                      <ExclamationTriangleIcon className="w-6 h-6 text-white" />
-                    </div>
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <GlobeAltIcon className="w-6 h-6 text-blue-600" />
                   </div>
                 </div>
               </div>
-            )}
-            
-            {/* New API Key Display */}
-            {currentApiKey && (
-              <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-200">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center">
-                    <CheckCircleIcon className="w-8 h-8 text-green-600 mr-3" />
-                    <div>
-                      <h3 className="text-lg font-bold text-green-900">New API Key Generated!</h3>
-                      <p className="text-green-700">Copy and store this key securely - it won't be shown again.</p>
-                    </div>
+              
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Success Rate</p>
+                    <p className="text-3xl font-bold text-green-600">{((stats.successful_requests / stats.total_requests) * 100).toFixed(1)}%</p>
+                  </div>
+                  <div className="bg-green-50 p-3 rounded-lg">
+                    <CheckCircleIcon className="w-6 h-6 text-green-600" />
                   </div>
                 </div>
-                <div className="mt-4 flex items-center space-x-3">
+                <div className="mt-2">
+                  <div className="flex items-center text-sm text-gray-600">
+                    <span>{stats.successful_requests} successful</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">This Month</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.monthly_usage}</p>
+                    <p className="text-sm text-gray-500">{((stats.failed_requests / stats.total_requests) * 100).toFixed(1)}% error rate</p>
+                  </div>
+                  <div className="bg-orange-50 p-3 rounded-lg">
+                    <ChartBarIcon className="w-6 h-6 text-orange-600" />
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <div className="bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-orange-600 h-2 rounded-full" 
+                      style={{width: `${(stats.monthly_usage / stats.monthly_limit) * 100}%`}}
+                    ></div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">{stats.monthly_usage} of {stats.monthly_limit} requests</p>
+                </div>
+              </div>
+            </div>
+
+            {/* New API Key Display */}
+            {currentApiKey && showApiKey && (
+              <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6 border border-green-200">
+                <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="relative">
-                      <input
-                        type={showApiKey ? 'text' : 'password'}
-                        value={currentApiKey}
-                        readOnly
-                        className="w-full p-4 pr-20 bg-white border border-green-300 rounded-xl font-mono text-sm"
-                      />
-                      <div className="absolute inset-y-0 right-0 flex items-center space-x-1 pr-3">
-                        <button
-                          onClick={() => setShowApiKey(!showApiKey)}
-                          className="p-1 text-gray-500 hover:text-gray-700"
-                        >
-                          {showApiKey ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
-                        </button>
-                        <button
-                          onClick={() => copyToClipboard(currentApiKey)}
-                          className="p-1 text-gray-500 hover:text-gray-700"
-                        >
-                          <ClipboardDocumentIcon className="w-5 h-5" />
-                        </button>
+                    <div className="flex items-center space-x-2 mb-2">
+                      <CheckCircleIcon className="w-5 h-5 text-green-600" />
+                      <h3 className="font-semibold text-gray-900">New API Key Created!</h3>
+                    </div>
+                    <p className="text-gray-600 mb-4">
+                      Your new API key has been generated. Copy it now as it won't be shown again.
+                    </p>
+                    
+                    <div className="bg-white rounded-lg p-3 font-mono text-sm border">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-900 break-all mr-2">{currentApiKey}</span>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => navigator.clipboard.writeText(currentApiKey)}
+                            className="p-2 text-gray-500 hover:text-gray-700 rounded"
+                            title="Copy to clipboard"
+                          >
+                            <ClipboardDocumentIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setShowApiKey(false)}
+                            className="p-2 text-gray-500 hover:text-gray-700 rounded"
+                            title="Hide key"
+                          >
+                            {showApiKey ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
                   <button
-                    onClick={() => setCurrentApiKey('')}
-                    className="px-4 py-2 text-green-700 border border-green-300 rounded-lg hover:bg-green-100 transition-colors"
+                    onClick={() => {setShowApiKey(false); setCurrentApiKey('');}}
+                    className="ml-4 p-1 text-gray-400 hover:text-gray-600"
                   >
-                    Got it
+                    <XMarkIcon className="w-5 h-5" />
                   </button>
                 </div>
               </div>
             )}
           </div>
         )}
-        
+
         {activeTab === 'keys' && (
-          <div className="space-y-8">
+          <div className="space-y-6">
             {/* API Keys Management */}
-            <div className="bg-white rounded-2xl shadow-xl p-8">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">API Key Management</h2>
-                  <p className="text-gray-600">Create, view, and manage your API keys</p>
-                </div>
-                <button
-                  onClick={() => setShowApiKeyModal(true)}
-                  disabled={loading}
-                  className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 transition-all duration-200"
-                >
-                  <PlusIcon className="w-5 h-5 mr-2" />
-                  Generate New Key
-                </button>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">API Keys</h2>
+                <p className="text-gray-600">Manage your API keys for development and production</p>
               </div>
-              
-              <div className="space-y-4">
-                {apiKeys.length === 0 ? (
-                  <div className="text-center py-12">
-                    <KeyIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No API Keys</h3>
-                    <p className="text-gray-600 mb-6">Generate your first API key to start using our verification APIs</p>
-                    <button
-                      onClick={() => setShowApiKeyModal(true)}
-                      className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors"
-                    >
-                      <PlusIcon className="w-5 h-5 mr-2" />
-                      Generate First API Key
-                    </button>
-                  </div>
-                ) : (
-                  apiKeys.map((key) => (
-                    <div key={key.id} className="border border-gray-200 rounded-xl p-6 hover:border-gray-300 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <h3 className="text-lg font-semibold text-gray-900">{key.name}</h3>
-                            {key.is_sandbox && (
-                              <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
-                                Sandbox
-                              </span>
-                            )}
+              <button
+                onClick={() => setShowKeyModal(true)}
+                className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <PlusIcon className="w-5 h-5" />
+                <span>New API Key</span>
+              </button>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              {apiKeys.length === 0 ? (
+                <div className="p-8 text-center">
+                  <KeyIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No API Keys Yet</h3>
+                  <p className="text-gray-600 mb-4">Create your first API key to start integrating with Idswyft</p>
+                  <button
+                    onClick={() => setShowKeyModal(true)}
+                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Create API Key
+                  </button>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-200">
+                  {apiKeys.map((key) => (
+                    <div key={key.id} className="p-6 flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="bg-gray-100 p-2 rounded-lg">
+                          <KeyIcon className="w-5 h-5 text-gray-600" />
+                        </div>
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <h3 className="font-medium text-gray-900">{key.name}</h3>
                             <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              key.status === 'active' 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-red-100 text-red-800'
+                              key.is_sandbox 
+                                ? 'bg-yellow-100 text-yellow-800' 
+                                : 'bg-green-100 text-green-800'
                             }`}>
-                              {key.status === 'active' ? 'Active' : 'Expired'}
+                              {key.is_sandbox ? 'Sandbox' : 'Production'}
                             </span>
                           </div>
-                          <div className="flex items-center space-x-4 text-sm text-gray-600">
-                            <span className="font-mono">{key.key_preview}</span>
-                            <span>Created {new Date(key.created_at).toLocaleDateString()}</span>
+                          <div className="flex items-center space-x-4 mt-1 text-sm text-gray-500">
+                            <span>Key: {key.key_preview}</span>
+                            <span>Created: {new Date(key.created_at).toLocaleDateString()}</span>
                             {key.last_used_at && (
-                              <span>Last used {new Date(key.last_used_at).toLocaleDateString()}</span>
+                              <span>Last used: {new Date(key.last_used_at).toLocaleDateString()}</span>
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          {key.is_active && (
-                            <button
-                              onClick={() => revokeApiKey(key.id)}
-                              disabled={loading}
-                              className="inline-flex items-center px-4 py-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
-                            >
-                              <TrashIcon className="w-4 h-4 mr-1" />
-                              Revoke
-                            </button>
-                          )}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadge(key.status)}`}>
+                          {key.status}
                         </div>
+                        <button
+                          onClick={() => deleteApiKey(key.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete API key"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
-                  ))
-                )}
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'docs' && (
+          <div className="space-y-6">
+            {/* Documentation */}
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">API Documentation</h2>
+              
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Complete Verification Flow</h3>
+                <p className="text-gray-600 mb-6">
+                  Our new verification API provides a streamlined 4-step process for document verification with live camera capture.
+                </p>
+                
+                <div className="space-y-6">
+                  <div>
+                    <h4 className="text-lg font-medium text-gray-900 mb-2">1. Start Verification Session</h4>
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <pre className="text-sm overflow-x-auto">
+{`curl -X POST ${apiUrl}/api/verify/start \\
+  -H "X-API-Key: YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "user_id": "user_123"
+  }'`}</pre>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="text-lg font-medium text-gray-900 mb-2">2. Upload Document</h4>
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <pre className="text-sm overflow-x-auto">
+{`curl -X POST ${apiUrl}/api/verify/document \\
+  -H "X-API-Key: YOUR_API_KEY" \\
+  -H "Content-Type: multipart/form-data" \\
+  -F "verification_id=verif_abc123" \\
+  -F "document_type=passport" \\
+  -F "document=@passport.jpg"`}</pre>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="text-lg font-medium text-gray-900 mb-2">3. Live Camera Capture</h4>
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <pre className="text-sm overflow-x-auto">
+{`curl -X POST ${apiUrl}/api/verify/live-capture \\
+  -H "X-API-Key: YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "verification_id": "verif_abc123",
+    "live_image_data": "base64_encoded_image",
+    "challenge_response": "smile"
+  }'`}</pre>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="text-lg font-medium text-gray-900 mb-2">4. Get Verification Results</h4>
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <pre className="text-sm overflow-x-auto">
+{`curl -X GET ${apiUrl}/api/verify/results/verif_abc123 \\
+  -H "X-API-Key: YOUR_API_KEY"`}</pre>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">Response Example</h3>
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <pre className="text-sm overflow-x-auto">
+{`{
+  "verification_id": "verif_abc123",
+  "user_id": "user_123",
+  "status": "verified",
+  "document_uploaded": true,
+  "document_type": "passport",
+  "live_capture_completed": true,
+  "ocr_data": {
+    "name": "John Doe",
+    "date_of_birth": "1990-01-01",
+    "document_number": "P123456789"
+  },
+  "liveness_score": 0.94,
+  "face_match_score": 0.92,
+  "confidence_score": 0.93,
+  "next_steps": ["Verification complete"]
+}`}</pre>
+                </div>
               </div>
             </div>
-            
+          </div>
+        )}
+
+        {activeTab === 'security' && (
+          <div className="space-y-6">
             {/* Security Information */}
-            <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-200">
-              <div className="flex items-start space-x-3">
-                <LockClosedIcon className="w-6 h-6 text-amber-600 mt-0.5" />
-                <div>
-                  <h3 className="text-lg font-bold text-amber-900 mb-2">API Key Security</h3>
-                  <ul className="text-amber-800 text-sm space-y-1">
-                    <li>• Never share your API keys publicly or commit them to version control</li>
-                    <li>• Use environment variables to store API keys in production</li>
-                    <li>• Regularly rotate your API keys for enhanced security</li>
-                    <li>• Use sandbox keys for testing and development</li>
-                    <li>• Monitor API key usage and revoke unused keys</li>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Security & Best Practices</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white rounded-xl shadow-sm p-6">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="bg-green-100 p-2 rounded-lg">
+                      <ShieldCheckIcon className="w-6 h-6 text-green-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">API Key Security</h3>
+                  </div>
+                  <ul className="space-y-2 text-sm text-gray-600">
+                    <li>• Keep your API keys confidential</li>
+                    <li>• Use environment variables, never hardcode keys</li>
+                    <li>• Rotate keys regularly</li>
+                    <li>• Use different keys for different environments</li>
+                    <li>• Monitor usage for unexpected activity</li>
+                  </ul>
+                </div>
+                
+                <div className="bg-white rounded-xl shadow-sm p-6">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="bg-blue-100 p-2 rounded-lg">
+                      <LockClosedIcon className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">Data Protection</h3>
+                  </div>
+                  <ul className="space-y-2 text-sm text-gray-600">
+                    <li>• All data is encrypted in transit and at rest</li>
+                    <li>• Documents are automatically deleted after 30 days</li>
+                    <li>• GDPR and CCPA compliant</li>
+                    <li>• No data is shared with third parties</li>
+                    <li>• SOC 2 Type II certified infrastructure</li>
                   </ul>
                 </div>
               </div>
             </div>
           </div>
         )}
-        
-        {activeTab === 'docs' && (
-          <div className="bg-white rounded-2xl shadow-xl p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Quick Start Guide</h2>
-            
-            <div className="grid lg:grid-cols-2 gap-8">
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">Document Verification</h3>
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <pre className="text-sm overflow-x-auto">
-{`curl -X POST ${apiUrl}/v1/verify/document \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
-  -H "Content-Type: multipart/form-data" \\
-  -F "document=@passport.jpg" \\
-  -F "user_id=user_123" \\
-  -F "document_type=passport"`}
-                  </pre>
-                </div>
+
+        {/* API Key Creation Modal */}
+        {showKeyModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Create New API Key</h3>
+                <button
+                  onClick={() => setShowKeyModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
               </div>
               
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">Selfie Verification</h3>
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <pre className="text-sm overflow-x-auto">
-{`curl -X POST ${apiUrl}/v1/verify/selfie \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
-  -H "Content-Type: multipart/form-data" \\
-  -F "selfie=@selfie.jpg" \\
-  -F "verification_id=ver_abc123"`}
-                  </pre>
-                </div>
-              </div>
-              
-              <div className="mt-8">
-                <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                  Live Camera Verification
-                  <span className="ml-3 px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
-                    NEW
-                  </span>
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  Enhanced security with real-time camera capture and liveness detection
-                </p>
-                
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="text-lg font-medium text-gray-900 mb-2">1. Generate Live Capture Token</h4>
-                    <div className="bg-gray-50 rounded-xl p-4">
-                      <pre className="text-sm overflow-x-auto">
-{`curl -X POST ${apiUrl}/v1/verify/generate-live-token \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "user_id": "user_123",
-    "verification_id": "ver_abc123"
-  }'`}
-                      </pre>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h4 className="text-lg font-medium text-gray-900 mb-2">2. Submit Live Capture</h4>
-                    <div className="bg-gray-50 rounded-xl p-4">
-                      <pre className="text-sm overflow-x-auto">
-{`curl -X POST ${apiUrl}/v1/verify/live-capture \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "verification_id": "ver_abc123",
-    "live_image_data": "base64_encoded_image",
-    "challenge_response": "blink_twice"
-  }'`}
-                      </pre>
-                    </div>
-                  </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Key Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newKeyName}
+                    onChange={(e) => setNewKeyName(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="My App Key"
+                  />
                 </div>
                 
-                <div className="mt-4 bg-green-50 border border-green-200 rounded-xl p-4">
-                  <h5 className="font-semibold text-green-900 mb-2">✨ Live Capture Features</h5>
-                  <ul className="text-green-800 text-sm space-y-1">
-                    <li>• Real-time liveness detection with challenge-response</li>
-                    <li>• Enhanced security against spoofing attacks</li>
-                    <li>• Automatic face matching with uploaded documents</li>
-                    <li>• Support for multiple challenge types (blink, smile, head movement)</li>
-                    <li>• Secure token-based session management</li>
-                  </ul>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="sandbox"
+                    checked={newKeyIsSandbox}
+                    onChange={(e) => setNewKeyIsSandbox(e.target.checked)}
+                    className="rounded border-gray-300"
+                  />
+                  <label htmlFor="sandbox" className="text-sm text-gray-700">
+                    Sandbox Environment
+                  </label>
                 </div>
-              </div>
-            </div>
-            
-            <div className="mt-8 pt-6 border-t border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Next Steps</h3>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <a href="/docs" className="block p-6 border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-lg transition-all">
-                  <ClipboardDocumentIcon className="w-8 h-8 text-blue-600 mb-3" />
-                  <h4 className="font-semibold text-gray-900 mb-2">Full Documentation</h4>
-                  <p className="text-gray-600 text-sm">Complete API reference and integration guides</p>
-                </a>
                 
-                <a href="/verify" className="block p-6 border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-lg transition-all">
-                  <CpuChipIcon className="w-8 h-8 text-purple-600 mb-3" />
-                  <h4 className="font-semibold text-gray-900 mb-2">Try Live Demo</h4>
-                  <p className="text-gray-600 text-sm">Test our verification flow with real documents</p>
-                </a>
-                
-                <div className="p-6 border border-gray-200 rounded-xl bg-gray-50">
-                  <ChartBarIcon className="w-8 h-8 text-green-600 mb-3" />
-                  <h4 className="font-semibold text-gray-900 mb-2">Usage Analytics</h4>
-                  <p className="text-gray-600 text-sm">Monitor your API usage and performance metrics</p>
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    onClick={() => setShowKeyModal(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleKeyCreation}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Create Key
+                  </button>
                 </div>
               </div>
             </div>
           </div>
         )}
       </div>
-
-      {/* API Key Creation Modal */}
-      {showApiKeyModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-gray-900">Create New API Key</h3>
-              <button
-                onClick={() => {
-                  setShowApiKeyModal(false);
-                  setNewApiKeyForm({ name: '', isSandbox: false });
-                }}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <XMarkIcon className="w-6 h-6" />
-              </button>
-            </div>
-            
-            <form onSubmit={handleCreateApiKey} className="space-y-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  API Key Name *
-                </label>
-                <input
-                  type="text"
-                  value={newApiKeyForm.name}
-                  onChange={(e) => setNewApiKeyForm({ ...newApiKeyForm, name: e.target.value })}
-                  className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                  placeholder="e.g., Production API Key, Development Key"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Choose a descriptive name to help identify this key
-                </p>
-              </div>
-              
-              <div className="flex items-center space-x-3">
-                <input
-                  type="checkbox"
-                  id="isSandbox"
-                  checked={newApiKeyForm.isSandbox}
-                  onChange={(e) => setNewApiKeyForm({ ...newApiKeyForm, isSandbox: e.target.checked })}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <label htmlFor="isSandbox" className="text-sm font-medium text-gray-700">
-                  Sandbox Key
-                </label>
-              </div>
-              <p className="text-xs text-gray-500 -mt-2">
-                Sandbox keys are for testing and have higher rate limits but process test data only
-              </p>
-              
-              <div className="flex space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowApiKeyModal(false);
-                    setNewApiKeyForm({ name: '', isSandbox: false });
-                  }}
-                  className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading || !newApiKeyForm.name.trim()}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 transition-all font-medium"
-                >
-                  {loading ? (
-                    <div className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Creating...
-                    </div>
-                  ) : (
-                    'Create API Key'
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
+
+function getStatusBadge(status: string) {
+  const baseClasses = "px-3 py-1 rounded-full text-sm font-medium";
+  
+  switch (status) {
+    case 'verified':
+      return `${baseClasses} bg-green-100 text-green-800`;
+    case 'failed':
+      return `${baseClasses} bg-red-100 text-red-800`;
+    case 'pending':
+      return `${baseClasses} bg-yellow-100 text-yellow-800`;
+    case 'manual_review':
+      return `${baseClasses} bg-blue-100 text-blue-800`;
+    default:
+      return `${baseClasses} bg-gray-100 text-gray-800`;
+  }
+}

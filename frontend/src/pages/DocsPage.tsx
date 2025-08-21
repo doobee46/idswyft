@@ -103,40 +103,98 @@ Content-Type: application/json (for other requests)`}
         <section className="mb-10">
           <h2 className="text-3xl font-semibold mb-6 flex items-center">
             <DocumentCheckIcon className="h-8 w-8 text-green-500 mr-2" />
-            Core Endpoints
+            Complete Verification Flow
           </h2>
+          
+          <div className="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <h4 className="font-semibold text-blue-900 mb-2">🔄 New Cohesive API Flow</h4>
+            <p className="text-blue-800 text-sm">
+              Our verification API now follows a session-based approach where you start a verification, 
+              upload documents, perform live capture, and get unified results.
+            </p>
+          </div>
 
-          {/* Document Verification */}
+          {/* Start Verification */}
+          <div className="mb-8 border border-gray-200 rounded-lg">
+            <div className="bg-blue-50 p-4 border-b">
+              <h3 className="font-semibold text-lg">1. Start Verification Session</h3>
+              <code className="text-sm text-blue-700">POST /api/verify/start</code>
+            </div>
+            <div className="p-6">
+              <p className="text-gray-700 mb-4">
+                Initialize a new verification session for a user. This creates a unique verification ID 
+                that will be used for all subsequent operations.
+              </p>
+              
+              <h4 className="font-medium mb-2">Request Parameters:</h4>
+              <div className="bg-gray-50 p-4 rounded text-sm mb-4">
+                <pre>
+{`user_id: string (UUID - unique identifier for the user)
+sandbox: boolean (optional - defaults to false)`}
+                </pre>
+              </div>
+
+              <h4 className="font-medium mb-2">Example Request:</h4>
+              <div className="bg-gray-900 text-green-400 p-4 rounded text-sm mb-4">
+                <pre>
+{`curl -X POST ${apiUrl}/api/verify/start \\
+  -H "X-API-Key: your-api-key" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "user_id": "user_123"
+  }'`}
+                </pre>
+              </div>
+
+              <h4 className="font-medium mb-2">Response:</h4>
+              <div className="bg-gray-900 text-green-400 p-4 rounded text-sm">
+                <pre>
+{`{
+  "verification_id": "verif_abc123",
+  "status": "started",
+  "user_id": "user_123",
+  "next_steps": [
+    "Upload document with POST /api/verify/document",
+    "Complete live capture with POST /api/verify/live-capture",
+    "Check results with GET /api/verify/results/:verification_id"
+  ],
+  "created_at": "2024-01-01T12:00:00Z"
+}`}
+                </pre>
+              </div>
+            </div>
+          </div>
+
+          {/* Document Upload */}
           <div className="mb-8 border border-gray-200 rounded-lg">
             <div className="bg-green-50 p-4 border-b">
-              <h3 className="font-semibold text-lg">Document Verification with AI Analysis</h3>
+              <h3 className="font-semibold text-lg">2. Upload Document to Verification</h3>
               <code className="text-sm text-green-700">POST /api/verify/document</code>
             </div>
             <div className="p-6">
               <p className="text-gray-700 mb-4">
-                Upload and verify identity documents with comprehensive AI analysis including OCR extraction, 
+                Upload an identity document to an existing verification session. This performs OCR extraction, 
                 quality assessment, and authenticity checks.
               </p>
               
               <h4 className="font-medium mb-2">Request Parameters:</h4>
               <div className="bg-gray-50 p-4 rounded text-sm mb-4">
                 <pre>
-{`document_type: 'passport' | 'drivers_license' | 'national_id' | 'other'
+{`verification_id: string (UUID from step 1)
+document_type: 'passport' | 'drivers_license' | 'national_id' | 'other'
 document: File (image/jpeg, image/png, image/webp, application/pdf)
-user_id: string (optional)
-webhook_url: string (optional)
 metadata: object (optional)`}
                 </pre>
               </div>
 
-              <h4 className="font-medium mb-2">Example with cURL:</h4>
+              <h4 className="font-medium mb-2">Example Request:</h4>
               <div className="bg-gray-900 text-green-400 p-4 rounded text-sm mb-4">
                 <pre>
 {`curl -X POST ${apiUrl}/api/verify/document \\
   -H "X-API-Key: your-api-key" \\
+  -F "verification_id=verif_abc123" \\
   -F "document_type=passport" \\
-  -F "document=@passport.jpg" \\
-  -F "user_id=user-123"`}
+  -F "document=@passport.jpg"`}
                 </pre>
               </div>
 
@@ -236,13 +294,13 @@ metadata: object (optional)`}
           {/* Live Camera Capture */}
           <div className="mb-8 border border-gray-200 rounded-lg">
             <div className="bg-orange-50 p-4 border-b">
-              <h3 className="font-semibold text-lg">Live Camera Capture with Liveness Detection</h3>
+              <h3 className="font-semibold text-lg">3. Live Camera Capture with Liveness Detection</h3>
               <code className="text-sm text-orange-700">POST /api/verify/live-capture</code>
             </div>
             <div className="p-6">
               <p className="text-gray-700 mb-4">
-                Real-time camera capture with advanced liveness detection, challenge-response verification, 
-                and instant face matching against uploaded document photos.
+                Perform real-time camera capture for an existing verification session. This includes advanced 
+                liveness detection, challenge-response verification, and instant face matching against the uploaded document.
               </p>
               
               <h4 className="font-medium mb-2">Request Parameters:</h4>
@@ -337,23 +395,64 @@ challenge_type: 'blink' | 'smile' | 'turn_head' | 'random' (optional)`}
             </div>
           </div>
 
-          {/* Status Check */}
+          {/* Complete Results */}
           <div className="mb-8 border border-gray-200 rounded-lg">
-            <div className="bg-blue-50 p-4 border-b">
-              <h3 className="font-semibold text-lg">Verification Status</h3>
-              <code className="text-sm text-blue-700">GET /api/verify/status/:verification_id</code>
+            <div className="bg-purple-50 p-4 border-b">
+              <h3 className="font-semibold text-lg">4. Get Complete Verification Results</h3>
+              <code className="text-sm text-purple-700">GET /api/verify/results/:verification_id</code>
             </div>
             <div className="p-6">
               <p className="text-gray-700 mb-4">
-                Check the current status and get complete analysis results for any verification.
+                Get comprehensive verification results including document analysis, live capture results, 
+                and overall verification status. This is your one-stop endpoint for all verification data.
               </p>
               
+              <h4 className="font-medium mb-2">Example Request:</h4>
+              <div className="bg-gray-900 text-green-400 p-4 rounded text-sm mb-4">
+                <pre>
+{`curl -X GET ${apiUrl}/api/verify/results/verif_abc123 \\
+  -H "X-API-Key: your-api-key"`}
+                </pre>
+              </div>
+
+              <h4 className="font-medium mb-2">Complete Response:</h4>
               <div className="bg-gray-900 text-green-400 p-4 rounded text-sm">
                 <pre>
-{`curl -X GET ${apiUrl}/api/verify/status/verif_abc123 \\
-  -H "X-API-Key: your-api-key"
-
-// Returns the same detailed response as the original verification`}
+{`{
+  "verification_id": "verif_abc123",
+  "user_id": "user_123",
+  "status": "verified",
+  "created_at": "2024-01-01T12:00:00Z",
+  "updated_at": "2024-01-01T12:05:30Z",
+  
+  // Document Results
+  "document_uploaded": true,
+  "document_type": "passport",
+  "ocr_data": {
+    "name": "John Doe",
+    "date_of_birth": "1990-01-01",
+    "document_number": "P123456789",
+    "expiration_date": "2030-01-01",
+    "nationality": "US"
+  },
+  "quality_analysis": {
+    "overallQuality": "excellent",
+    "isBlurry": false,
+    "blurScore": 342.5,
+    "brightness": 128,
+    "resolution": {"width": 1920, "height": 1080}
+  },
+  
+  // Live Capture Results
+  "live_capture_completed": true,
+  "liveness_score": 0.94,
+  "face_match_score": 0.92,
+  
+  // Overall Assessment
+  "confidence_score": 0.93,
+  "manual_review_reason": null,
+  "next_steps": ["Verification complete"]
+}`}
                 </pre>
               </div>
             </div>
