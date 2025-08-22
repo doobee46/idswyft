@@ -227,11 +227,17 @@ router.post('/document',
         });
       }
       
-      // Update verification request with document ID and quality analysis
+      // Update verification request with document ID
       await verificationService.updateVerificationRequest(verificationRequest.id, {
-        document_id: document.id,
-        quality_analysis: qualityAnalysis
+        document_id: document.id
       });
+      
+      // Update document with quality analysis if available
+      if (qualityAnalysis) {
+        await verificationService.updateDocument(document.id, {
+          quality_analysis: qualityAnalysis
+        });
+      }
       
       // Start OCR processing asynchronously - always use real OCR
       console.log('🔄 Starting real OCR processing...', {

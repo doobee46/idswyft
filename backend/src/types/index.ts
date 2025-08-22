@@ -11,14 +11,12 @@ export interface VerificationRequest {
   status: VerificationStatus;
   document_id?: string;
   selfie_id?: string;
-  ocr_data?: OCRData;
   face_match_score?: number;
   liveness_score?: number;
   confidence_score?: number;
   live_capture_completed?: boolean;
   manual_review_reason?: string;
   external_verification_id?: string;
-  quality_analysis?: any; // Quality analysis data from document processing
   created_at: Date;
   updated_at: Date;
 }
@@ -33,7 +31,8 @@ export interface Document {
   file_size: number;
   mime_type: string;
   document_type: DocumentType;
-  ocr_extracted: boolean;
+  ocr_data?: OCRData;
+  ocr_extracted?: boolean;
   quality_score?: number;
   quality_analysis?: any;
   authenticity_score?: number;
@@ -50,8 +49,6 @@ export interface Selfie {
   file_size: number;
   liveness_score?: number;
   face_detected: boolean;
-  is_live_capture?: boolean;
-  challenge_response?: string;
   created_at: Date;
 }
 
