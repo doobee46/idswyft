@@ -199,14 +199,23 @@ export const checkSandboxMode = (req: Request, res: Response, next: NextFunction
   if (req.apiKey) {
     const isSandboxKey = req.apiKey.is_sandbox;
     
+    // Environment-based key validation
+    if (isProductionEnv && isSandboxKey) {
+      throw new AuthorizationError('Sandbox API keys cannot be used in production environment');
+    }
+    
+    if (!isProductionEnv && !isSandboxKey) {
+      throw new AuthorizationError('Production API keys cannot be used in development environment');
+    }
+    
     // Sandbox keys can only make sandbox requests
     if (isSandboxKey && !isSandboxRequest) {
       throw new AuthorizationError('Sandbox API keys can only make sandbox requests');
     }
     
-    // Production keys cannot make sandbox requests in production
-    if (!isSandboxKey && isSandboxRequest && isProductionEnv) {
-      throw new AuthorizationError('Sandbox requests not allowed with production API keys');
+    // Production keys cannot make sandbox requests
+    if (!isSandboxKey && isSandboxRequest) {
+      throw new AuthorizationError('Production API keys cannot make sandbox requests');
     }
   }
   

@@ -115,6 +115,10 @@ router.post('/register',
     const { key, hash, prefix } = generateAPIKey();
     console.log('🔑 Generated API key parts:', { keyLength: key.length, prefix, hashLength: hash.length });
     
+    // Set appropriate sandbox mode based on environment
+    const isProductionEnv = process.env.NODE_ENV === 'production';
+    const defaultIsSandbox = !isProductionEnv; // Sandbox in dev, production in prod
+    
     console.log('🔑 Inserting API key into database...');
     const { data: apiKey, error: keyError } = await supabase
       .from('api_keys')
@@ -123,7 +127,7 @@ router.post('/register',
         key_hash: hash,
         key_prefix: prefix,
         name: 'Default API Key',
-        is_sandbox: false
+        is_sandbox: defaultIsSandbox
       })
       .select('id, name, is_sandbox, created_at')
       .single();
@@ -217,12 +221,23 @@ router.post('/api-key',
       requestBody: req.body
     });
     
-    // Check for environment-based restrictions
+    // Environment-based API key restrictions
     const isProductionEnv = process.env.NODE_ENV === 'production';
-    if (isProductionEnv && !is_sandbox) {
-      console.log('⚠️ Production API key requested in production environment');
-      // You can add logic here to force sandbox if needed
-      // For now, just log but allow it
+    
+    if (isProductionEnv && is_sandbox) {
+      throw new ValidationError(
+        'Sandbox API keys cannot be created in production environment. Use production keys only.',
+        'is_sandbox',
+        'Production environment requires production keys only'
+      );
+    }
+    
+    if (!isProductionEnv && !is_sandbox) {
+      throw new ValidationError(
+        'Production API keys cannot be created in development/local environment. Use sandbox keys only.',
+        'is_sandbox',
+        'Development environment requires sandbox keys only'
+      );
     }
     
     // Check if developer has reached API key limit
