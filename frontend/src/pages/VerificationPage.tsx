@@ -98,12 +98,18 @@ export const VerificationPage: React.FC = () => {
         // Check if we can enumerate devices (optional, for better UX)
         try {
           const devices = await navigator.mediaDevices.enumerateDevices();
-          const hasVideoInput = devices.some(device => device.kind === 'videoinput');
-          if (!hasVideoInput) {
-            console.warn('No video input devices found');
+          console.log('Available devices:', devices.map(d => ({kind: d.kind, label: d.label})));
+          
+          const videoInputs = devices.filter(device => device.kind === 'videoinput');
+          console.log('Video input devices found:', videoInputs.length);
+          
+          if (videoInputs.length === 0) {
+            console.warn('No video input devices found during enumeration');
+            // Don't disable camera yet - enumeration might fail due to permissions
           }
         } catch (err) {
-          console.warn('Could not enumerate devices:', err);
+          console.warn('Could not enumerate devices (this is normal before permission grant):', err);
+          // Don't disable camera - enumeration often fails before permissions are granted
         }
       } catch (error) {
         console.error('Camera support check failed:', error);
@@ -113,6 +119,19 @@ export const VerificationPage: React.FC = () => {
 
     checkCameraSupport();
   }, []);
+
+  // Helper function for mobile camera troubleshooting
+  const logUserAgentInfo = () => {
+    console.log('User Agent Info:', {
+      userAgent: navigator.userAgent,
+      platform: navigator.platform,
+      isMobile: isMobileDevice,
+      cameraSupported: cameraSupported,
+      isHTTPS: location.protocol === 'https:',
+      hasMediaDevices: !!navigator.mediaDevices,
+      hasGetUserMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+    });
+  };
 
   const generateUUID = () => {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -385,11 +404,36 @@ export const VerificationPage: React.FC = () => {
 
     setLoading(true);
     
+    // Re-check device capabilities after user interaction
+    console.log('Re-checking camera capabilities after user interaction...');
+    logUserAgentInfo();
+    
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoInputs = devices.filter(device => device.kind === 'videoinput');
+      console.log('Camera devices after permission check:', videoInputs.map(d => ({
+        deviceId: d.deviceId, 
+        label: d.label || 'Unlabeled camera',
+        kind: d.kind
+      })));
+      
+      if (videoInputs.length === 0) {
+        console.error('No video input devices found after user interaction');
+        toast.error('No camera detected. Please check if your device has a camera and it\'s not being used by another app.');
+        setLoading(false);
+        return;
+      }
+    } catch (enumError) {
+      console.warn('Could not re-enumerate devices:', enumError);
+    }
+    
     try {
       // Step 1: Access user's camera with mobile-optimized constraints
       let stream;
       
       try {
+        console.log('Attempting camera access with ideal constraints...');
+        
         // Try with ideal constraints first
         stream = await navigator.mediaDevices.getUserMedia({ 
           video: { 
@@ -399,42 +443,107 @@ export const VerificationPage: React.FC = () => {
             frameRate: { ideal: 30, max: 30 }
           } 
         });
+        
+        console.log('Camera access successful with ideal constraints');
+        console.log('Stream info:', {
+          active: stream.active,
+          tracks: stream.getVideoTracks().map(track => ({
+            kind: track.kind,
+            label: track.label,
+            enabled: track.enabled,
+            readyState: track.readyState,
+            settings: track.getSettings ? track.getSettings() : 'N/A'
+          }))
+        });
       } catch (constraintError) {
         console.warn('Ideal constraints failed, trying basic constraints:', constraintError);
         
-        // Fallback to basic constraints for older mobile devices
-        stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { 
-            facingMode: 'user'
-          } 
-        });
+        try {
+          // Fallback to basic constraints for older mobile devices
+          stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+              facingMode: 'user'
+            } 
+          });
+          
+          console.log('Camera access successful with basic constraints');
+          console.log('Stream info (basic):', {
+            active: stream.active,
+            tracks: stream.getVideoTracks().map(track => ({
+              kind: track.kind,
+              label: track.label,
+              enabled: track.enabled,
+              readyState: track.readyState
+            }))
+          });
+        } catch (basicError) {
+          console.warn('Basic constraints failed, trying minimal constraints:', basicError);
+          
+          // Last resort - try with just video: true
+          stream = await navigator.mediaDevices.getUserMedia({ 
+            video: true
+          });
+          
+          console.log('Camera access successful with minimal constraints');
+          console.log('Stream info (minimal):', {
+            active: stream.active,
+            tracks: stream.getVideoTracks().map(track => ({
+              kind: track.kind,
+              label: track.label,
+              enabled: track.enabled,
+              readyState: track.readyState
+            }))
+          });
+        }
       }
       
       // Step 2: Create video element and capture frame
+      console.log('Creating video element and setting up stream...');
       const video = document.createElement('video');
       video.srcObject = stream;
       video.autoplay = true;
       video.playsInline = true; // Critical for iOS Safari
       video.muted = true; // Required for autoplay on mobile
       
+      console.log('Video element created, waiting for metadata...');
+      
       // Wait for video to be ready with timeout
       await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
-          reject(new Error('Video loading timeout'));
+          console.error('Video loading timeout after 10 seconds');
+          reject(new Error('Video loading timeout - camera may not be responding'));
         }, 10000); // 10 second timeout
         
         video.onloadedmetadata = () => {
+          console.log('Video metadata loaded successfully', {
+            videoWidth: video.videoWidth,
+            videoHeight: video.videoHeight,
+            readyState: video.readyState
+          });
           clearTimeout(timeout);
           resolve(true);
         };
         
-        video.onerror = () => {
+        video.onerror = (error) => {
+          console.error('Video error event:', error);
           clearTimeout(timeout);
-          reject(new Error('Video loading failed'));
+          reject(new Error('Video loading failed - camera stream error'));
+        };
+        
+        video.onloadstart = () => {
+          console.log('Video load started');
+        };
+        
+        video.oncanplay = () => {
+          console.log('Video can start playing');
         };
         
         // Start playing
-        video.play().catch(err => {
+        console.log('Starting video playback...');
+        video.play().then(() => {
+          console.log('Video play() succeeded');
+        }).catch(err => {
+          console.error('Video play() failed:', err);
           clearTimeout(timeout);
           reject(new Error(`Video play failed: ${err.message}`));
         });
@@ -921,6 +1030,30 @@ export const VerificationPage: React.FC = () => {
                       </div>
                     </button>
                   </div>
+                  
+                  {/* Mobile Camera Diagnostics */}
+                  {isMobileDevice && (
+                    <div className="mt-4 p-3 bg-gray-50 rounded-lg border">
+                      <button 
+                        onClick={() => {
+                          logUserAgentInfo();
+                          navigator.mediaDevices.enumerateDevices().then(devices => {
+                            const cameras = devices.filter(d => d.kind === 'videoinput');
+                            toast.info(`Found ${cameras.length} camera(s). Check console for details.`);
+                          }).catch(err => {
+                            toast.error('Camera enumeration failed. Check console.');
+                            console.error('Diagnostic enum error:', err);
+                          });
+                        }}
+                        className="text-xs text-blue-600 underline"
+                      >
+                        🔍 Debug Camera Issues (Mobile)
+                      </button>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Tap to log camera diagnostics to browser console
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
