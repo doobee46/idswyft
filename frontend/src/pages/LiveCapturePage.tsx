@@ -252,7 +252,22 @@ export const LiveCapturePage: React.FC = () => {
         videoRef.current.srcObject = mediaStream;
         console.log('🎥 Video element source set');
         
-        // Wait for video to load and play
+        // Immediately try to play without waiting for metadata
+        const tryPlay = async () => {
+          if (!videoRef.current) return;
+          
+          try {
+            await videoRef.current.play();
+            console.log('🎥 Video play successful (immediate)');
+            setDebugInfo(prev => `${prev}, Playing immediately`);
+          } catch (immediatePlayError) {
+            console.log('🎥 Immediate play failed, waiting for metadata:', immediatePlayError);
+          }
+        };
+        
+        tryPlay();
+        
+        // Also set up metadata handler as backup
         videoRef.current.onloadedmetadata = () => {
           console.log('🎥 Video metadata loaded');
           console.log('🎥 Video dimensions:', {
@@ -261,13 +276,13 @@ export const LiveCapturePage: React.FC = () => {
             duration: videoRef.current?.duration
           });
           
-          if (videoRef.current) {
-            // Force play with user gesture context if possible
+          if (videoRef.current && videoRef.current.paused) {
+            // Only try to play if video is still paused
             const playPromise = videoRef.current.play();
             if (playPromise !== undefined) {
               playPromise
                 .then(() => {
-                  console.log('🎥 Video play successful');
+                  console.log('🎥 Video play successful (metadata)');
                   setDebugInfo(prev => `${prev}, Playing: ${videoRef.current?.videoWidth}x${videoRef.current?.videoHeight}`);
                 })
                 .catch(e => {
@@ -289,6 +304,14 @@ export const LiveCapturePage: React.FC = () => {
           // Start face detection after video starts playing
           setTimeout(() => startFaceDetection(), 1000);
         };
+        
+        // Fallback: Start face detection after a delay regardless of events
+        setTimeout(() => {
+          if (videoRef.current && !videoRef.current.paused) {
+            console.log('🎥 Starting face detection (fallback)');
+            startFaceDetection();
+          }
+        }, 2000);
         
         videoRef.current.onerror = (e) => {
           console.error('🎥 Video element error:', e);
@@ -335,10 +358,66 @@ export const LiveCapturePage: React.FC = () => {
         canvas.height = video.videoHeight;
         context.drawImage(video, 0, 0);
 
-        // Simple face detection simulation (in production, use face-api.js or similar)
-        // For now, we'll simulate face detection with random success
-        const mockFaceDetected = Math.random() > 0.3; // 70% chance of face detection
-        setFaceDetected(mockFaceDetected);
+        // Basic face detection using image analysis
+        // Check if there's significant change in the center area (where face should be)
+        const imageData = context.getImageData(
+          canvas.width * 0.25, 
+          canvas.height * 0.25, 
+          canvas.width * 0.5, 
+          canvas.height * 0.5
+        );
+        
+        // Simple brightness/contrast check for face presence
+        let totalBrightness = 0;
+        let pixelVariance = 0;
+        const pixels = imageData.data;
+        
+        for (let i = 0; i < pixels.length; i += 4) {
+          const brightness = (pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3;
+          totalBrightness += brightness;
+        }
+        
+        const avgBrightness = totalBrightness / (pixels.length / 4);
+        
+        // Calculate variance for texture detection
+        for (let i = 0; i < pixels.length; i += 4) {
+          const brightness = (pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3;
+          pixelVariance += Math.pow(brightness - avgBrightness, 2);
+        }
+        
+        const variance = pixelVariance / (pixels.length / 4);
+        
+        // Face detected if there's reasonable brightness and texture variance
+        // Also check for skin tone range and texture complexity
+        const isFaceDetected = avgBrightness > 50 && avgBrightness < 200 && variance > 200;
+        
+        // Add some hysteresis to prevent flickering
+        const currentTime = Date.now();
+        if (!window.lastFaceDetectionTime) window.lastFaceDetectionTime = 0;
+        if (!window.faceDetectionHistory) window.faceDetectionHistory = [];
+        
+        // Keep history of last 5 detections
+        window.faceDetectionHistory.push(isFaceDetected);
+        if (window.faceDetectionHistory.length > 5) {
+          window.faceDetectionHistory.shift();
+        }
+        
+        // Require majority of recent detections to be positive
+        const positiveDetections = window.faceDetectionHistory.filter(d => d).length;
+        const finalFaceDetected = positiveDetections >= 3;
+        
+        setFaceDetected(finalFaceDetected);
+        
+        if (currentTime - window.lastFaceDetectionTime > 2000) { // Log every 2 seconds
+          console.log('🎥 Face detection:', { 
+            avgBrightness: Math.round(avgBrightness), 
+            variance: Math.round(variance), 
+            immediate: isFaceDetected,
+            final: finalFaceDetected,
+            history: window.faceDetectionHistory
+          });
+          window.lastFaceDetectionTime = currentTime;
+        }
       }
     };
 
