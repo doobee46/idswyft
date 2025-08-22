@@ -230,42 +230,101 @@ export const LiveCapturePage: React.FC = () => {
       setStream(mediaStream);
       setPermissionState('granted');
       
-      // Monitor track events
-      videoTracks.forEach((track, index) => {
-        track.onended = () => {
-          console.log(`🎥 Video track ${index} ended`);
-          setDebugInfo(`Video track ${index} ended - camera may be disconnected`);
-        };
+      // Enhanced stream health monitoring
+      const monitorStreamHealth = () => {
+        videoTracks.forEach((track, index) => {
+          // Monitor track state
+          track.onended = () => {
+            console.log(`🎥 Video track ${index} ended - camera disconnected`);
+            setDebugInfo(`Track ${index} ended - reconnection needed`);
+          };
+          
+          track.onmute = () => {
+            console.log(`🎥 Video track ${index} muted`);
+            setDebugInfo(`Track ${index} muted`);
+          };
+          
+          track.onunmute = () => {
+            console.log(`🎥 Video track ${index} unmuted`);
+            setDebugInfo(`Track ${index} unmuted`);
+          };
+          
+          // Check track constraints and settings
+          const constraints = track.getConstraints();
+          const settings = track.getSettings();
+          console.log(`🎥 Track ${index} details:`, {
+            id: track.id,
+            kind: track.kind,
+            label: track.label,
+            enabled: track.enabled,
+            muted: track.muted,
+            readyState: track.readyState,
+            constraints,
+            settings
+          });
+        });
         
-        track.onmute = () => {
-          console.log(`🎥 Video track ${index} muted`);
-          setDebugInfo(`Video track ${index} muted`);
-        };
+        // Monitor video element health every 2 seconds
+        const healthCheckInterval = setInterval(() => {
+          if (videoRef.current) {
+            const video = videoRef.current;
+            const isHealthy = video.videoWidth > 0 && video.videoHeight > 0 && !video.paused;
+            
+            if (!isHealthy) {
+              console.warn('🎥 Video health check failed:', {
+                videoWidth: video.videoWidth,
+                videoHeight: video.videoHeight,
+                paused: video.paused,
+                readyState: video.readyState,
+                currentTime: video.currentTime,
+                duration: video.duration
+              });
+            }
+          }
+        }, 2000);
         
-        track.onunmute = () => {
-          console.log(`🎥 Video track ${index} unmuted`);
-          setDebugInfo(`Video track ${index} unmuted`);
-        };
-      });
+        // Cleanup function
+        return () => clearInterval(healthCheckInterval);
+      };
+      
+      const cleanupHealthMonitor = monitorStreamHealth();
       
       if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        console.log('🎥 Video element source set');
-        
-        // Immediately try to play without waiting for metadata
-        const tryPlay = async () => {
+        // Enhanced robust stream assignment pattern
+        const assignStreamRobustly = async () => {
           if (!videoRef.current) return;
           
+          const video = videoRef.current;
+          
+          // Step 1: Clear any existing source
+          video.srcObject = null;
+          
+          // Step 2: Set essential attributes for production compatibility
+          video.muted = true;
+          video.autoplay = true;
+          video.playsInline = true;
+          video.setAttribute('webkit-playsinline', 'true'); // iOS compatibility
+          video.setAttribute('playsinline', 'true');
+          
+          // Step 3: Wait a frame for DOM updates
+          await new Promise(resolve => requestAnimationFrame(resolve));
+          
+          // Step 4: Assign stream
+          video.srcObject = mediaStream;
+          console.log('🎥 Video element source set with enhanced method');
+          
+          // Step 5: Immediate play attempt
           try {
-            await videoRef.current.play();
+            await video.play();
             console.log('🎥 Video play successful (immediate)');
             setDebugInfo(prev => `${prev}, Playing immediately`);
           } catch (immediatePlayError) {
             console.log('🎥 Immediate play failed, waiting for metadata:', immediatePlayError);
+            setDebugInfo(prev => `${prev}, Waiting for metadata`);
           }
         };
         
-        tryPlay();
+        assignStreamRobustly();
         
         // Also set up metadata handler as backup
         videoRef.current.onloadedmetadata = () => {
@@ -764,11 +823,18 @@ export const LiveCapturePage: React.FC = () => {
                   playsInline
                   muted
                   controls={false}
+                  webkit-playsinline="true"
+                  x-webkit-airplay="deny"
+                  preload="metadata"
                   style={{ width: '100%', height: '384px', objectFit: 'cover' }}
                   className="w-full h-96 object-cover bg-black"
                   onLoadStart={() => console.log('🎥 Video load started')}
                   onCanPlay={() => console.log('🎥 Video can play')}
                   onPlaying={() => console.log('🎥 Video is playing')}
+                  onLoadedMetadata={() => console.log('🎥 Video metadata loaded via JSX')}
+                  onPlay={() => console.log('🎥 Video play event via JSX')}
+                  onPause={() => console.log('🎥 Video pause event via JSX')}
+                  onError={(e) => console.error('🎥 Video error via JSX:', e)}
                 />
                 <canvas
                   ref={canvasRef}
