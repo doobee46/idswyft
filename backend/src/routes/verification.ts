@@ -233,50 +233,27 @@ router.post('/document',
         quality_analysis: qualityAnalysis
       });
       
-      // Start OCR processing asynchronously
-      if (!req.isSandbox) {
-        // Real OCR processing
-        ocrService.processDocument(document.id, documentPath, document_type)
-          .then(async (ocrData) => {
-            await verificationService.updateVerificationRequest(verificationRequest.id, {
-              ocr_data: ocrData,
-              status: 'verified' // Will be updated by database trigger if needed
-            });
-            
-            logVerificationEvent('ocr_completed', verificationRequest.id, {
-              documentId: document.id,
-              ocrData
-            });
-          })
-          .catch((error) => {
-            logger.error('OCR processing failed:', error);
-            verificationService.updateVerificationRequest(verificationRequest.id, {
-              status: 'manual_review',
-              manual_review_reason: 'OCR processing failed'
-            });
-          });
-      } else {
-        // Mock OCR for sandbox
-        setTimeout(async () => {
-          const mockOcrData = {
-            name: 'John Doe',
-            date_of_birth: '1990-01-01',
-            document_number: 'A12345678',
-            expiration_date: '2025-01-01',
-            confidence_scores: { name: 0.95, date_of_birth: 0.92 }
-          };
-          
+      // Start OCR processing asynchronously - always use real OCR
+      console.log('🔄 Starting real OCR processing...');
+      ocrService.processDocument(document.id, documentPath, document_type)
+        .then(async (ocrData) => {
           await verificationService.updateVerificationRequest(verificationRequest.id, {
-            ocr_data: mockOcrData,
-            status: 'verified'
+            ocr_data: ocrData,
+            status: 'verified' // Will be updated by database trigger if needed
           });
           
-          logVerificationEvent('mock_ocr_completed', verificationRequest.id, {
+          logVerificationEvent('ocr_completed', verificationRequest.id, {
             documentId: document.id,
-            ocrData: mockOcrData
+            ocrData
           });
-        }, 2000);
-      }
+        })
+        .catch((error) => {
+          logger.error('OCR processing failed:', error);
+          verificationService.updateVerificationRequest(verificationRequest.id, {
+            status: 'manual_review',
+            manual_review_reason: 'OCR processing failed'
+          });
+        });
       
       const response: any = {
         verification_id: verificationRequest.id,

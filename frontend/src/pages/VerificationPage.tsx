@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { API_BASE_URL } from '../config/api';
+import toast from 'react-hot-toast';
 
 interface QualityAnalysis {
   overall_quality: 'excellent' | 'good' | 'fair' | 'poor';
@@ -270,6 +271,7 @@ export const VerificationPage: React.FC = () => {
       formData.append('document', documentFile);
       formData.append('verification_id', verificationId);
       formData.append('document_type', 'passport');
+      formData.append('sandbox', 'true'); // Enable sandbox mode for testing
       
       const response = await fetch(`${API_BASE_URL}/api/verify/document`, {
         method: 'POST',
@@ -611,18 +613,31 @@ export const VerificationPage: React.FC = () => {
         }, 'image/jpeg', 0.9);
       });
       
-      // Step 5: Submit live capture to API
-      const formData = new FormData();
-      formData.append('live_capture', blob, 'live_capture.jpg');
-      formData.append('verification_id', verificationId);
-      formData.append('sandbox', 'true'); // Enable sandbox mode for testing
+      // Step 5: Convert blob to base64 and submit live capture to API
+      const base64Data = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          // Remove data:image/jpeg;base64, prefix
+          const base64 = result.split(',')[1];
+          resolve(base64);
+        };
+        reader.readAsDataURL(blob);
+      });
+      
+      const requestBody = {
+        verification_id: verificationId,
+        live_image_data: base64Data,
+        sandbox: true
+      };
       
       const response = await fetch(`${API_BASE_URL}/api/verify/live-capture`, {
         method: 'POST',
         headers: {
           'X-API-Key': apiKey,
+          'Content-Type': 'application/json',
         },
-        body: formData,
+        body: JSON.stringify(requestBody),
       });
       
       if (!response.ok) {
