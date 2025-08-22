@@ -94,3 +94,22 @@ venv/
 models/*.pb
 models/*.h5
 models/*.pkl
+
+# Backup files
+*.backup
+*.bak
+*.orig
+
+# Tesseract training data
+*.traineddata
+
+# SDKs distribution
+sdks/*/dist/
+sdks/*/build/
+sdks/*/*.egg-info/
+
+# Test files
+*.test.js
+
+# Temporary processing files
+backend/temp/

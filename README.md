@@ -24,20 +24,21 @@ What it provides:
 ---
 
 ## Table of Contents
-- Features
-- Architecture
-- Quick Start / Installation
-- Usage / API Reference
-- Configuration
-- Contributing
-- Tests
-- Deployment
-- Built With
-- Authors
-- License
-- Roadmap
-- FAQ
-- Contact
+- [Features](#features-✨)
+- [Architecture](#architecture-🏗️)
+- [Quick Start / Installation](#quick-start--installation-⚙️)
+- [Usage / API Reference](#usage--api-reference-🧭)
+- [Configuration](#configuration-🔧)
+- [Documentation](#documentation-📚)
+- [Contributing](#contributing-🤝)
+- [Tests](#tests-🧪)
+- [Deployment](#deployment-🚀)
+- [Built With](#built-with-🛠️)
+- [Authors](#authors-✍️)
+- [License](#license-📄)
+- [Roadmap](#roadmap-🗺️)
+- [FAQ](#faq-❓)
+- [Contact](#contact-📬)
 
 ---
 
@@ -66,10 +67,12 @@ What it provides:
 - Security: Encrypted file storage, HTTPS-only in production, secure API-key hashing
 
 Key repo files:
-- backend/src/config* — configuration loading
-- backend/src/middleware/* — auth, rate limiting, error handing
+- backend/src/config/* — configuration loading
+- backend/src/middleware/* — auth, rate limiting, error handling
 - backend/src/routes/* — API endpoints
-- CREATE_TABLES.sql — DB schema for Supabase / Postgres
+- sql/CREATE_TABLES.sql — DB schema for Supabase / Postgres
+- docs/ — comprehensive documentation
+- supabase/migrations/ — database migrations
 
 ---
 
@@ -105,11 +108,15 @@ Edit `.env` with your environment-specific values (see Configuration section bel
 
 4) Database
 Create the required tables in your Postgres/Supabase. You can use the provided SQL:
-- Open `CREATE_TABLES.sql` and paste it into your Supabase SQL editor or run against your DB.
+- Open `sql/CREATE_TABLES.sql` and paste it into your Supabase SQL editor or run against your DB.
+- Apply migrations from `supabase/migrations/` in order
 
 Example (psql):
 ```bash
-psql $DATABASE_URL -f CREATE_TABLES.sql
+psql $DATABASE_URL -f sql/CREATE_TABLES.sql
+psql $DATABASE_URL -f supabase/migrations/01_initial_schema.sql
+psql $DATABASE_URL -f supabase/migrations/02_add_missing_document_columns.sql
+psql $DATABASE_URL -f supabase/migrations/03_add_missing_verification_columns.sql
 ```
 
 5) Start in development
@@ -227,6 +234,20 @@ Security notes
 - Keep service role keys and API keys out of VCS.
 - Use HTTPS in production.
 - Rotate keys regularly and enforce least privilege.
+
+---
+
+## Documentation 📚
+
+Comprehensive documentation is available in the `/docs/` directory:
+
+- **[Technical Architecture](docs/VERIFICATION_SYSTEM_ARCHITECTURE.md)** - Complete system architecture and inner workings
+- **[Project Structure](docs/PROJECT_STRUCTURE.md)** - Detailed codebase organization guide  
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions
+- **[SDK Documentation](docs/SDK_IMPLEMENTATION_SUMMARY.md)** - JavaScript and Python SDK usage
+- **[Product Requirements](docs/Specs/Prd.md)** - Original product specification
+- **[Technical Requirements](docs/Specs/requirements.md)** - Implementation requirements
+- **[Development Tasks](docs/Specs/tasks.md)** - Development checklist
 
 ---
 

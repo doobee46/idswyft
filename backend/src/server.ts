@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 import config from './config.js';
 import { connectDB, supabase } from './config/database.js';
 import { generateAPIKey } from './middleware/auth.js';
+import { apiActivityLogger } from './middleware/apiLogger.js';
 import verificationRoutes from './routes/verification.js';
 import developerRoutes from './routes/developer.js';
 import adminRoutes from './routes/admin.js';
@@ -64,6 +65,9 @@ const limiter = rateLimit({
   legacyHeaders: false,
 });
 app.use(limiter);
+
+// API activity logging middleware
+app.use('/api', apiActivityLogger);
 
 // Mount API routes
 app.use('/api/verify', verificationRoutes);

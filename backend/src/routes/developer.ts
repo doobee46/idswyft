@@ -5,6 +5,7 @@ import { supabase } from '@/config/database.js';
 import { generateAPIKey, authenticateDeveloperJWT } from '@/middleware/auth.js';
 import { catchAsync, ValidationError, NotFoundError, AuthenticationError } from '@/middleware/errorHandler.js';
 import { logger } from '@/utils/logger.js';
+import { getRecentActivities } from '@/middleware/apiLogger.js';
 import rateLimit from 'express-rate-limit';
 import crypto from 'crypto';
 
@@ -396,21 +397,40 @@ router.delete('/api-key/:keyId',
       throw new AuthenticationError('Developer authentication required');
     }
     
-    // Deactivate API key with audit trail
+    // Debug logging
+    console.log('🗑️ Deleting API key:', { keyId, developerId: developer.id });
+    
+    // First, check if the key exists and belongs to the developer
+    const { data: existingKey, error: checkError } = await supabase
+      .from('api_keys')
+      .select('id, name, key_prefix, is_active')
+      .eq('id', keyId)
+      .eq('developer_id', developer.id)
+      .single();
+    
+    console.log('🗑️ Existing key check:', { existingKey, checkError });
+    
+    if (checkError || !existingKey) {
+      console.log('🗑️ API key not found:', { keyId, developerId: developer.id, checkError });
+      throw new NotFoundError('API key not found or does not belong to this developer');
+    }
+    
+    // Deactivate API key
     const { data: apiKey, error } = await supabase
       .from('api_keys')
       .update({ 
-        is_active: false,
-        revoked_at: new Date().toISOString(),
-        revoked_reason: 'Manually revoked by developer'
+        is_active: false
       })
       .eq('id', keyId)
       .eq('developer_id', developer.id)
       .select('id, name, key_prefix')
       .single();
     
+    console.log('🗑️ Update result:', { apiKey, error });
+    
     if (error || !apiKey) {
-      throw new NotFoundError('API key');
+      console.log('🗑️ Failed to update API key:', error);
+      throw new Error(`Failed to deactivate API key: ${error?.message || 'Unknown error'}`);
     }
     
     logger.info('API key revoked', {
@@ -477,6 +497,58 @@ router.get('/stats',
       monthly_usage: totalRequests,
       remaining_quota: Math.max(0, 1000 - totalRequests),
       quota_reset_date: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString()
+    });
+  })
+);
+
+// Get API activity logs
+router.get('/activity',
+  apiKeyRateLimit,
+  authenticateDeveloperJWT,
+  catchAsync(async (req: Request, res: Response) => {
+    const developer = req.developer;
+    if (!developer) {
+      throw new AuthenticationError('Developer authentication required');
+    }
+
+    // Get recent activities from memory (fast)
+    const recentActivities = getRecentActivities(developer.id);
+    
+    // Get verification statistics from database
+    const { data: verificationStats, error: statsError } = await supabase
+      .from('verification_requests')
+      .select('status')
+      .eq('developer_id', developer.id);
+    
+    if (statsError) {
+      logger.error('Failed to get verification stats:', statsError);
+    }
+
+    // Calculate statistics
+    const stats = {
+      total_requests: verificationStats?.length || 0,
+      successful_requests: verificationStats?.filter(v => v.status === 'verified').length || 0,
+      failed_requests: verificationStats?.filter(v => v.status === 'failed').length || 0,
+      pending_requests: verificationStats?.filter(v => v.status === 'pending').length || 0,
+      manual_review_requests: verificationStats?.filter(v => v.status === 'manual_review').length || 0
+    };
+
+    // Format recent activities for frontend
+    const formattedActivities = recentActivities.slice(0, 50).map(activity => ({
+      timestamp: activity.timestamp || new Date(),
+      method: activity.method,
+      endpoint: activity.endpoint,
+      status_code: activity.status_code,
+      response_time_ms: activity.response_time_ms,
+      user_agent: activity.user_agent,
+      ip_address: activity.ip_address,
+      error_message: activity.error_message
+    }));
+
+    res.json({
+      statistics: stats,
+      recent_activities: formattedActivities,
+      total_activities: recentActivities.length
     });
   })
 );

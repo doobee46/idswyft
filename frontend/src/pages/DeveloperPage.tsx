@@ -55,6 +55,8 @@ export const DeveloperPage: React.FC = () => {
     monthly_usage: 0,
     monthly_limit: 1000
   });
+  const [apiActivity, setApiActivity] = useState<any[]>([]);
+  const [activityStats, setActivityStats] = useState<any>({});
   const [activeTab, setActiveTab] = useState<'overview' | 'keys' | 'docs' | 'security'>('overview');
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
@@ -78,8 +80,20 @@ export const DeveloperPage: React.FC = () => {
       setIsAuthenticated(true);
       fetchApiKeys();
       fetchStats();
+      fetchApiActivity();
     }
   }, []);
+
+  // Auto-refresh API activity every 10 seconds when on overview tab
+  useEffect(() => {
+    if (!isAuthenticated || activeTab !== 'overview') return;
+    
+    const interval = setInterval(() => {
+      fetchApiActivity();
+    }, 10000); // Refresh every 10 seconds
+    
+    return () => clearInterval(interval);
+  }, [isAuthenticated, activeTab]);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,6 +151,7 @@ export const DeveloperPage: React.FC = () => {
           setIsAuthenticated(true);
           await fetchApiKeys();
           await fetchStats();
+          await fetchApiActivity();
         } else {
           toast.error('Registration successful but login failed. Please try logging in manually.');
         }
@@ -199,6 +214,7 @@ export const DeveloperPage: React.FC = () => {
         // Fetch user data
         await fetchApiKeys();
         await fetchStats();
+        await fetchApiActivity();
       } else {
         toast.error(data.message || 'Login failed');
       }
@@ -265,6 +281,24 @@ export const DeveloperPage: React.FC = () => {
         monthly_usage: 89,
         monthly_limit: 1000
       });
+    }
+  };
+
+  const fetchApiActivity = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/developer/activity`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('developer_token')}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setApiActivity(data.recent_activities || []);
+        setActivityStats(data.statistics || {});
+      }
+    } catch (error) {
+      console.error('Error fetching API activity:', error);
     }
   };
 
@@ -679,54 +713,95 @@ export const DeveloperPage: React.FC = () => {
               {/* API Status Grid */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <div className="text-center p-3 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">{stats.successful_requests}</div>
-                  <div className="text-xs text-green-700">Successful</div>
+                  <div className="text-2xl font-bold text-green-600">{activityStats.successful_requests || 0}</div>
+                  <div className="text-xs text-green-700">Verified</div>
                 </div>
                 <div className="text-center p-3 bg-red-50 rounded-lg">
-                  <div className="text-2xl font-bold text-red-600">{stats.failed_requests}</div>
+                  <div className="text-2xl font-bold text-red-600">{activityStats.failed_requests || 0}</div>
                   <div className="text-xs text-red-700">Failed</div>
                 </div>
                 <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                  <div className="text-2xl font-bold text-yellow-600">12</div>
+                  <div className="text-2xl font-bold text-yellow-600">{activityStats.pending_requests || 0}</div>
                   <div className="text-xs text-yellow-700">Pending</div>
                 </div>
                 <div className="text-center p-3 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">3</div>
+                  <div className="text-2xl font-bold text-blue-600">{activityStats.manual_review_requests || 0}</div>
                   <div className="text-xs text-blue-700">Manual Review</div>
                 </div>
               </div>
 
               {/* Recent API Calls */}
               <div className="space-y-3">
-                <h4 className="font-medium text-gray-900 text-sm">Recent API Calls</h4>
-                <div className="space-y-2">
-                  {/* Mock recent calls - replace with real data */}
-                  {[
-                    { endpoint: '/api/verify/start', method: 'POST', status: 200, time: '2 min ago' },
-                    { endpoint: '/api/verify/document', method: 'POST', status: 200, time: '5 min ago' },
-                    { endpoint: '/api/verify/live-capture', method: 'POST', status: 200, time: '8 min ago' },
-                    { endpoint: '/api/verify/results', method: 'GET', status: 200, time: '12 min ago' },
-                    { endpoint: '/api/verify/start', method: 'POST', status: 400, time: '15 min ago' }
-                  ].map((call, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          call.method === 'POST' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-                        }`}>
-                          {call.method}
-                        </span>
-                        <span className="font-mono text-sm text-gray-700">{call.endpoint}</span>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          call.status === 200 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {call.status}
-                        </span>
-                        <span className="text-sm text-gray-500">{call.time}</span>
-                      </div>
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium text-gray-900 text-sm">Recent API Activity</h4>
+                  <button 
+                    onClick={fetchApiActivity}
+                    className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    Refresh
+                  </button>
+                </div>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {apiActivity.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <div className="text-sm">No API activity yet</div>
+                      <div className="text-xs mt-1">Make some API calls to see activity here</div>
                     </div>
-                  ))}
+                  ) : (
+                    apiActivity.map((activity, index) => {
+                      const timeAgo = activity.timestamp ? 
+                        new Date(activity.timestamp).toLocaleString('en-US', {
+                          month: 'short',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                          hour12: false
+                        }) : 'Unknown';
+                      
+                      const getMethodColor = (method: string) => {
+                        switch (method.toLowerCase()) {
+                          case 'get': return 'bg-green-100 text-green-800';
+                          case 'post': return 'bg-blue-100 text-blue-800';
+                          case 'put': return 'bg-orange-100 text-orange-800';
+                          case 'delete': return 'bg-red-100 text-red-800';
+                          case 'options': return 'bg-purple-100 text-purple-800';
+                          default: return 'bg-gray-100 text-gray-800';
+                        }
+                      };
+                      
+                      const getStatusColor = (status: number) => {
+                        if (status >= 200 && status < 300) return 'bg-green-100 text-green-800';
+                        if (status >= 300 && status < 400) return 'bg-yellow-100 text-yellow-800';
+                        if (status >= 400 && status < 500) return 'bg-orange-100 text-orange-800';
+                        return 'bg-red-100 text-red-800';
+                      };
+                      
+                      return (
+                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                          <div className="flex items-center space-x-3 flex-1 min-w-0">
+                            <span className="text-xs text-gray-500 font-mono whitespace-nowrap">
+                              {timeAgo}
+                            </span>
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getMethodColor(activity.method)}`}>
+                              {activity.method}
+                            </span>
+                            <span className="font-mono text-sm text-gray-700 truncate">
+                              {activity.endpoint}
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-3 flex-shrink-0">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(activity.status_code)}`}>
+                              {activity.status_code}
+                            </span>
+                            <span className="text-sm text-gray-500 whitespace-nowrap">
+                              {activity.response_time_ms}ms
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>
