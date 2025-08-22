@@ -60,6 +60,8 @@ export const VerificationPage: React.FC = () => {
   const [documentUploaded, setDocumentUploaded] = useState(false);
   const [selfieUploaded, setSelfieUploaded] = useState(false);
   const [showRawData, setShowRawData] = useState(false);
+  const [cameraSupported, setCameraSupported] = useState(true);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
   const documentInputRef = useRef<HTMLInputElement>(null);
   const selfieInputRef = useRef<HTMLInputElement>(null);
 
@@ -68,6 +70,48 @@ export const VerificationPage: React.FC = () => {
     if (!userId) {
       setUserId(generateUUID());
     }
+  }, []);
+
+  // Check device capabilities on mount
+  useEffect(() => {
+    // Detect mobile device
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+    setIsMobileDevice(isMobile);
+
+    // Check camera support
+    const checkCameraSupport = async () => {
+      try {
+        // Check HTTPS requirement
+        if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+          console.warn('Camera requires HTTPS or localhost');
+          setCameraSupported(false);
+          return;
+        }
+
+        // Check if getUserMedia is supported
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          setCameraSupported(false);
+          return;
+        }
+
+        // Check if we can enumerate devices (optional, for better UX)
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const hasVideoInput = devices.some(device => device.kind === 'videoinput');
+          if (!hasVideoInput) {
+            console.warn('No video input devices found');
+          }
+        } catch (err) {
+          console.warn('Could not enumerate devices:', err);
+        }
+      } catch (error) {
+        console.error('Camera support check failed:', error);
+        setCameraSupported(false);
+      }
+    };
+
+    checkCameraSupport();
   }, []);
 
   const generateUUID = () => {
@@ -342,23 +386,58 @@ export const VerificationPage: React.FC = () => {
     setLoading(true);
     
     try {
-      // Step 1: Access user's camera
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          width: { ideal: 1280 }, 
-          height: { ideal: 720 },
-          facingMode: 'user' 
-        } 
-      });
+      // Step 1: Access user's camera with mobile-optimized constraints
+      let stream;
+      
+      try {
+        // Try with ideal constraints first
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            width: { min: 640, ideal: 1280, max: 1920 }, 
+            height: { min: 480, ideal: 720, max: 1080 },
+            facingMode: 'user',
+            frameRate: { ideal: 30, max: 30 }
+          } 
+        });
+      } catch (constraintError) {
+        console.warn('Ideal constraints failed, trying basic constraints:', constraintError);
+        
+        // Fallback to basic constraints for older mobile devices
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            facingMode: 'user'
+          } 
+        });
+      }
       
       // Step 2: Create video element and capture frame
       const video = document.createElement('video');
       video.srcObject = stream;
-      video.play();
+      video.autoplay = true;
+      video.playsInline = true; // Critical for iOS Safari
+      video.muted = true; // Required for autoplay on mobile
       
-      // Wait for video to be ready
-      await new Promise((resolve) => {
-        video.onloadedmetadata = () => resolve(true);
+      // Wait for video to be ready with timeout
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Video loading timeout'));
+        }, 10000); // 10 second timeout
+        
+        video.onloadedmetadata = () => {
+          clearTimeout(timeout);
+          resolve(true);
+        };
+        
+        video.onerror = () => {
+          clearTimeout(timeout);
+          reject(new Error('Video loading failed'));
+        };
+        
+        // Start playing
+        video.play().catch(err => {
+          clearTimeout(timeout);
+          reject(new Error(`Video play failed: ${err.message}`));
+        });
       });
       
       // Step 3: Capture photo from video stream
@@ -416,12 +495,18 @@ export const VerificationPage: React.FC = () => {
     } catch (error) {
       console.error('Live capture failed:', error);
       
-      // Handle specific camera errors
+      // Handle specific camera errors with mobile-friendly messages
       if (error instanceof DOMException) {
         if (error.name === 'NotAllowedError') {
-          toast.error('Camera access denied. Please allow camera access and try again.');
+          toast.error('Camera access denied. Please allow camera access in your browser settings and refresh the page.');
         } else if (error.name === 'NotFoundError') {
-          toast.error('No camera found. Please connect a camera and try again.');
+          toast.error('No camera found. Please ensure your device has a camera and try again.');
+        } else if (error.name === 'NotReadableError') {
+          toast.error('Camera is being used by another app. Please close other camera apps and try again.');
+        } else if (error.name === 'OverconstrainedError') {
+          toast.error('Camera constraints not supported. Trying with basic settings...');
+        } else if (error.name === 'SecurityError') {
+          toast.error('Camera access blocked. Please use HTTPS or allow camera permissions.');
         } else {
           toast.error(`Camera error: ${error.message}`);
         }
@@ -799,7 +884,7 @@ export const VerificationPage: React.FC = () => {
                   <div className="space-y-4 sm:grid sm:grid-cols-2 sm:gap-4 sm:space-y-0">
                     <button 
                       onClick={handleLiveCapture}
-                      disabled={loading}
+                      disabled={loading || !cameraSupported}
                       className="p-6 border-2 border-blue-300 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <div className="text-center">
@@ -810,6 +895,12 @@ export const VerificationPage: React.FC = () => {
                         </div>
                         <h3 className="font-semibold text-gray-900 mb-1">Live Camera Capture</h3>
                         <p className="text-sm text-gray-600">Real-time liveness detection with face matching</p>
+                        {isMobileDevice && (
+                          <p className="text-xs text-amber-600 mt-1">📱 Mobile: Allow camera access when prompted</p>
+                        )}
+                        {!cameraSupported && (
+                          <p className="text-xs text-red-600 mt-1">⚠️ Camera not supported on this device</p>
+                        )}
                         {loading && <p className="text-xs text-blue-600 mt-2">Starting camera...</p>}
                       </div>
                     </button>
@@ -1395,6 +1486,13 @@ export const VerificationPage: React.FC = () => {
               <strong>🎥 Live Verification:</strong> This demo uses your real camera and processes actual documents through our AI verification pipeline. Camera access is required for live capture and liveness detection.
             </p>
           </div>
+          {isMobileDevice && (
+            <div className="mt-3 p-2 sm:p-3 bg-white rounded border-l-4 border-amber-400">
+              <p className="text-amber-800 text-xs sm:text-sm">
+                <strong>📱 Mobile Users:</strong> Ensure you're using HTTPS, allow camera permissions when prompted, and close other camera apps. If camera fails, try refreshing the page or switching to desktop.
+              </p>
+            </div>
+          )}
           <div className="mt-3 p-2 sm:p-3 bg-white rounded border-l-4 border-green-400">
             <p className="text-green-800 text-xs sm:text-sm">
               <strong>🔒 Privacy Note:</strong> All verification data is processed securely and can be deleted after testing. This is a real implementation of our identity verification API.
