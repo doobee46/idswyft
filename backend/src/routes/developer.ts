@@ -208,6 +208,22 @@ router.post('/api-key',
       throw new AuthenticationError('Developer authentication required');
     }
     
+    // Debug logging for API key creation
+    console.log('🔑 API Key Creation Debug:', {
+      originalRequest: { name, is_sandbox, expires_in_days },
+      environment: process.env.NODE_ENV,
+      developerEmail: developer.email,
+      requestBody: req.body
+    });
+    
+    // Check for environment-based restrictions
+    const isProductionEnv = process.env.NODE_ENV === 'production';
+    if (isProductionEnv && !is_sandbox) {
+      console.log('⚠️ Production API key requested in production environment');
+      // You can add logic here to force sandbox if needed
+      // For now, just log but allow it
+    }
+    
     // Check if developer has reached API key limit
     const { count: existingKeysCount, error: countError } = await supabase
       .from('api_keys')
@@ -249,7 +265,7 @@ router.post('/api-key',
         key_hash: hash,
         key_prefix: prefix,
         name,
-        is_sandbox,
+        is_sandbox: is_sandbox, // Explicitly set the value
         expires_at: expiresAt?.toISOString(),
         created_at: new Date().toISOString()
       })
@@ -260,6 +276,18 @@ router.post('/api-key',
       logger.error('Failed to create API key:', keyError);
       throw new Error('Failed to create API key');
     }
+    
+    // Debug logging for created API key
+    console.log('🔑 API Key Created Successfully:', {
+      savedKey: { 
+        id: apiKey.id, 
+        name: apiKey.name, 
+        is_sandbox: apiKey.is_sandbox 
+      },
+      requestedSandbox: is_sandbox,
+      actualSandbox: apiKey.is_sandbox,
+      sandboxMismatch: is_sandbox !== apiKey.is_sandbox
+    });
     
     logger.info('API key created', {
       developerId: developer.id,

@@ -270,7 +270,6 @@ export const VerificationPage: React.FC = () => {
       formData.append('document', documentFile);
       formData.append('verification_id', verificationId);
       formData.append('document_type', 'passport');
-      formData.append('sandbox', 'true'); // Enable sandbox mode for testing
       
       const response = await fetch(`${API_BASE_URL}/api/verify/document`, {
         method: 'POST',
@@ -330,19 +329,28 @@ export const VerificationPage: React.FC = () => {
         
         // Check if document processing is actually complete using fresh data
         const hasOcrData = data.ocr_data && Object.keys(data.ocr_data).length > 0;
-        const isProcessed = data.status !== 'pending' || hasOcrData;
+        const isProcessed = data.status !== 'pending';
         
         console.log('Document processing check:', {
           status: data.status,
           hasOcrData,
           isProcessed,
-          attempts
+          attempts,
+          ocrDataKeys: data.ocr_data ? Object.keys(data.ocr_data) : null
         });
         
         if (isProcessed) {
           console.log('Document processing complete, moving to camera step');
           clearInterval(pollInterval);
           setCurrentStep(4); // Move to live capture selection
+          return;
+        }
+        
+        // Also proceed if we've been polling for more than 10 seconds (allows for OCR processing time)
+        if (attempts >= 10) {
+          console.log('Proceeding to camera step after 10 seconds of polling (OCR may still be processing)');
+          clearInterval(pollInterval);
+          setCurrentStep(4);
           return;
         }
         
@@ -1013,13 +1021,22 @@ export const VerificationPage: React.FC = () => {
                   </div>
 
                   {/* Show verification results so far */}
-                  {verificationResult?.ocr_data && (
+                  {verificationResult?.ocr_data ? (
                     <div className="bg-green-50 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
                       <h3 className="font-semibold text-green-900 mb-2 text-sm sm:text-base">Document Information Extracted:</h3>
                       <div className="text-xs sm:text-sm text-green-800 space-y-1">
                         {verificationResult.ocr_data.name && <p>Name: {verificationResult.ocr_data.name}</p>}
                         {verificationResult.ocr_data.document_number && <p>Document #: {verificationResult.ocr_data.document_number}</p>}
                         {verificationResult.ocr_data.date_of_birth && <p>DOB: {verificationResult.ocr_data.date_of_birth}</p>}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-yellow-50 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
+                      <h3 className="font-semibold text-yellow-900 mb-2 text-sm sm:text-base">Document Processing:</h3>
+                      <div className="text-xs sm:text-sm text-yellow-800">
+                        <p>📄 Document uploaded successfully</p>
+                        <p>🔄 OCR extraction in progress...</p>
+                        <p className="mt-2 text-yellow-700">You can proceed with live capture while OCR completes</p>
                       </div>
                     </div>
                   )}
