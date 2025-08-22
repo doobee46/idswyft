@@ -12,25 +12,25 @@ export const DocsPage: React.FC = () => {
   const apiUrl = getDocumentationApiUrl();
   
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      <div className="bg-white rounded-lg shadow-md p-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">API Documentation</h1>
-          <p className="text-xl text-gray-600">
+    <div className="max-w-6xl mx-auto p-4 sm:p-6">
+      <div className="bg-white rounded-lg shadow-md p-4 sm:p-8">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 sm:mb-4">API Documentation</h1>
+          <p className="text-base sm:text-lg lg:text-xl text-gray-600">
             Complete guide to the Idswyft Identity Verification API with AI-powered analysis
           </p>
         </div>
         
         {/* Quick Start */}
-        <section className="mb-10">
-          <h2 className="text-3xl font-semibold mb-6 flex items-center">
-            <BoltIcon className="h-8 w-8 text-yellow-500 mr-2" />
+        <section className="mb-8 sm:mb-10">
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold mb-4 sm:mb-6 flex items-center">
+            <BoltIcon className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-500 mr-2" />
             Quick Start
           </h2>
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="bg-gray-50 p-6 rounded-lg">
-              <h3 className="font-semibold text-lg mb-3">JavaScript/TypeScript</h3>
-              <pre className="text-sm bg-gray-900 text-green-400 p-4 rounded overflow-x-auto">
+          <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+            <div className="bg-gray-50 p-4 sm:p-6 rounded-lg">
+              <h3 className="font-semibold text-base sm:text-lg mb-3">JavaScript/TypeScript</h3>
+              <pre className="text-xs sm:text-sm bg-gray-900 text-green-400 p-3 sm:p-4 rounded overflow-x-auto">
 {`npm install @idswyft/sdk
 
 import { IdswyftSDK } from '@idswyft/sdk';
@@ -50,9 +50,9 @@ console.log(result.ocr_data); // AI analysis
 console.log(result.quality_analysis);`}
               </pre>
             </div>
-            <div className="bg-gray-50 p-6 rounded-lg">
-              <h3 className="font-semibold text-lg mb-3">Python</h3>
-              <pre className="text-sm bg-gray-900 text-green-400 p-4 rounded overflow-x-auto">
+            <div className="bg-gray-50 p-4 sm:p-6 rounded-lg">
+              <h3 className="font-semibold text-base sm:text-lg mb-3">Python</h3>
+              <pre className="text-xs sm:text-sm bg-gray-900 text-green-400 p-3 sm:p-4 rounded overflow-x-auto">
 {`pip install idswyft
 
 import idswyft
@@ -76,21 +76,21 @@ print(result['quality_analysis'])`}
         </section>
 
         {/* Authentication */}
-        <section className="mb-10">
-          <h2 className="text-3xl font-semibold mb-6 flex items-center">
-            <ShieldCheckIcon className="h-8 w-8 text-blue-500 mr-2" />
+        <section className="mb-8 sm:mb-10">
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold mb-4 sm:mb-6 flex items-center">
+            <ShieldCheckIcon className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 mr-2" />
             Authentication
           </h2>
-          <div className="bg-blue-50 p-6 rounded-lg mb-4">
-            <p className="text-blue-800 mb-3">
-              <strong>Base URL:</strong> <code className="bg-blue-100 px-2 py-1 rounded">{apiUrl}</code>
+          <div className="bg-blue-50 p-4 sm:p-6 rounded-lg mb-4">
+            <p className="text-blue-800 mb-3 text-sm sm:text-base">
+              <strong>Base URL:</strong> <code className="bg-blue-100 px-2 py-1 rounded text-xs sm:text-sm break-all">{apiUrl}</code>
             </p>
-            <p className="text-blue-800">
-              <strong>Authentication:</strong> Include <code className="bg-blue-100 px-2 py-1 rounded">X-API-Key</code> header with your API key
+            <p className="text-blue-800 text-sm sm:text-base">
+              <strong>Authentication:</strong> Include <code className="bg-blue-100 px-2 py-1 rounded text-xs sm:text-sm">X-API-Key</code> header with your API key
             </p>
           </div>
-          <div className="bg-gray-50 p-4 rounded-md">
-            <pre className="text-sm">
+          <div className="bg-gray-50 p-3 sm:p-4 rounded-md">
+            <pre className="text-xs sm:text-sm overflow-x-auto">
 {`Headers:
 X-API-Key: your-api-key-here
 Content-Type: multipart/form-data (for file uploads)
@@ -100,43 +100,43 @@ Content-Type: application/json (for other requests)`}
         </section>
 
         {/* Core Endpoints */}
-        <section className="mb-10">
-          <h2 className="text-3xl font-semibold mb-6 flex items-center">
-            <DocumentCheckIcon className="h-8 w-8 text-green-500 mr-2" />
+        <section className="mb-8 sm:mb-10">
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold mb-4 sm:mb-6 flex items-center">
+            <DocumentCheckIcon className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 mr-2" />
             Complete Verification Flow
           </h2>
           
-          <div className="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <h4 className="font-semibold text-blue-900 mb-2">🔄 New Cohesive API Flow</h4>
-            <p className="text-blue-800 text-sm">
+          <div className="mb-4 sm:mb-6 bg-blue-50 p-3 sm:p-4 rounded-lg border border-blue-200">
+            <h4 className="font-semibold text-blue-900 mb-2 text-sm sm:text-base">🔄 New Cohesive API Flow</h4>
+            <p className="text-blue-800 text-xs sm:text-sm">
               Our verification API now follows a session-based approach where you start a verification, 
               upload documents, perform live capture, and get unified results.
             </p>
           </div>
 
           {/* Start Verification */}
-          <div className="mb-8 border border-gray-200 rounded-lg">
-            <div className="bg-blue-50 p-4 border-b">
-              <h3 className="font-semibold text-lg">1. Start Verification Session</h3>
-              <code className="text-sm text-blue-700">POST /api/verify/start</code>
+          <div className="mb-6 sm:mb-8 border border-gray-200 rounded-lg">
+            <div className="bg-blue-50 p-3 sm:p-4 border-b">
+              <h3 className="font-semibold text-base sm:text-lg">1. Start Verification Session</h3>
+              <code className="text-xs sm:text-sm text-blue-700 break-all">POST /api/verify/start</code>
             </div>
-            <div className="p-6">
-              <p className="text-gray-700 mb-4">
+            <div className="p-4 sm:p-6">
+              <p className="text-gray-700 mb-3 sm:mb-4 text-sm sm:text-base">
                 Initialize a new verification session for a user. This creates a unique verification ID 
                 that will be used for all subsequent operations.
               </p>
               
-              <h4 className="font-medium mb-2">Request Parameters:</h4>
-              <div className="bg-gray-50 p-4 rounded text-sm mb-4">
-                <pre>
+              <h4 className="font-medium mb-2 text-sm sm:text-base">Request Parameters:</h4>
+              <div className="bg-gray-50 p-3 sm:p-4 rounded text-xs sm:text-sm mb-3 sm:mb-4">
+                <pre className="overflow-x-auto">
 {`user_id: string (UUID - unique identifier for the user)
 sandbox: boolean (optional - defaults to false)`}
                 </pre>
               </div>
 
-              <h4 className="font-medium mb-2">Example Request:</h4>
-              <div className="bg-gray-900 text-green-400 p-4 rounded text-sm mb-4">
-                <pre>
+              <h4 className="font-medium mb-2 text-sm sm:text-base">Example Request:</h4>
+              <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm mb-3 sm:mb-4">
+                <pre className="overflow-x-auto">
 {`curl -X POST ${apiUrl}/api/verify/start \\
   -H "X-API-Key: your-api-key" \\
   -H "Content-Type: application/json" \\
@@ -146,9 +146,9 @@ sandbox: boolean (optional - defaults to false)`}
                 </pre>
               </div>
 
-              <h4 className="font-medium mb-2">Response:</h4>
-              <div className="bg-gray-900 text-green-400 p-4 rounded text-sm">
-                <pre>
+              <h4 className="font-medium mb-2 text-sm sm:text-base">Response:</h4>
+              <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm">
+                <pre className="overflow-x-auto">
 {`{
   "verification_id": "verif_abc123",
   "status": "started",
@@ -166,20 +166,20 @@ sandbox: boolean (optional - defaults to false)`}
           </div>
 
           {/* Document Upload */}
-          <div className="mb-8 border border-gray-200 rounded-lg">
-            <div className="bg-green-50 p-4 border-b">
-              <h3 className="font-semibold text-lg">2. Upload Document to Verification</h3>
-              <code className="text-sm text-green-700">POST /api/verify/document</code>
+          <div className="mb-6 sm:mb-8 border border-gray-200 rounded-lg">
+            <div className="bg-green-50 p-3 sm:p-4 border-b">
+              <h3 className="font-semibold text-base sm:text-lg">2. Upload Document to Verification</h3>
+              <code className="text-xs sm:text-sm text-green-700 break-all">POST /api/verify/document</code>
             </div>
-            <div className="p-6">
-              <p className="text-gray-700 mb-4">
+            <div className="p-4 sm:p-6">
+              <p className="text-gray-700 mb-3 sm:mb-4 text-sm sm:text-base">
                 Upload an identity document to an existing verification session. This performs OCR extraction, 
                 quality assessment, and authenticity checks.
               </p>
               
-              <h4 className="font-medium mb-2">Request Parameters:</h4>
-              <div className="bg-gray-50 p-4 rounded text-sm mb-4">
-                <pre>
+              <h4 className="font-medium mb-2 text-sm sm:text-base">Request Parameters:</h4>
+              <div className="bg-gray-50 p-3 sm:p-4 rounded text-xs sm:text-sm mb-3 sm:mb-4">
+                <pre className="overflow-x-auto">
 {`verification_id: string (UUID from step 1)
 document_type: 'passport' | 'drivers_license' | 'national_id' | 'other'
 document: File (image/jpeg, image/png, image/webp, application/pdf)
@@ -187,9 +187,9 @@ metadata: object (optional)`}
                 </pre>
               </div>
 
-              <h4 className="font-medium mb-2">Example Request:</h4>
-              <div className="bg-gray-900 text-green-400 p-4 rounded text-sm mb-4">
-                <pre>
+              <h4 className="font-medium mb-2 text-sm sm:text-base">Example Request:</h4>
+              <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm mb-3 sm:mb-4">
+                <pre className="overflow-x-auto">
 {`curl -X POST ${apiUrl}/api/verify/document \\
   -H "X-API-Key: your-api-key" \\
   -F "verification_id=verif_abc123" \\
@@ -198,9 +198,9 @@ metadata: object (optional)`}
                 </pre>
               </div>
 
-              <h4 className="font-medium mb-2">Response with AI Analysis:</h4>
-              <div className="bg-gray-900 text-green-400 p-4 rounded text-sm">
-                <pre>
+              <h4 className="font-medium mb-2 text-sm sm:text-base">Response with AI Analysis:</h4>
+              <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm">
+                <pre className="overflow-x-auto">
 {`{
   "id": "verif_abc123",
   "status": "verified",
@@ -251,19 +251,19 @@ metadata: object (optional)`}
           </div>
 
           {/* Selfie Verification */}
-          <div className="mb-8 border border-gray-200 rounded-lg">
-            <div className="bg-purple-50 p-4 border-b">
-              <h3 className="font-semibold text-lg">Selfie Verification with Face Matching</h3>
-              <code className="text-sm text-purple-700">POST /api/verify/selfie</code>
+          <div className="mb-6 sm:mb-8 border border-gray-200 rounded-lg">
+            <div className="bg-purple-50 p-3 sm:p-4 border-b">
+              <h3 className="font-semibold text-base sm:text-lg">Selfie Verification with Face Matching</h3>
+              <code className="text-xs sm:text-sm text-purple-700 break-all">POST /api/verify/selfie</code>
             </div>
-            <div className="p-6">
-              <p className="text-gray-700 mb-4">
+            <div className="p-4 sm:p-6">
+              <p className="text-gray-700 mb-3 sm:mb-4 text-sm sm:text-base">
                 Upload a selfie for face matching against document photos and liveness detection.
               </p>
               
-              <h4 className="font-medium mb-2">Request Parameters:</h4>
-              <div className="bg-gray-50 p-4 rounded text-sm mb-4">
-                <pre>
+              <h4 className="font-medium mb-2 text-sm sm:text-base">Request Parameters:</h4>
+              <div className="bg-gray-50 p-3 sm:p-4 rounded text-xs sm:text-sm mb-3 sm:mb-4">
+                <pre className="overflow-x-auto">
 {`selfie: File (image/jpeg, image/png, image/webp)
 reference_document_id: string (optional - document to match against)
 user_id: string (optional)
@@ -272,9 +272,9 @@ metadata: object (optional)`}
                 </pre>
               </div>
 
-              <h4 className="font-medium mb-2">Response with Face Matching:</h4>
-              <div className="bg-gray-900 text-green-400 p-4 rounded text-sm">
-                <pre>
+              <h4 className="font-medium mb-2 text-sm sm:text-base">Response with Face Matching:</h4>
+              <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm">
+                <pre className="overflow-x-auto">
 {`{
   "id": "verif_selfie123",
   "status": "verified",
@@ -292,20 +292,20 @@ metadata: object (optional)`}
           </div>
 
           {/* Live Camera Capture */}
-          <div className="mb-8 border border-gray-200 rounded-lg">
-            <div className="bg-orange-50 p-4 border-b">
-              <h3 className="font-semibold text-lg">3. Live Camera Capture with Liveness Detection</h3>
-              <code className="text-sm text-orange-700">POST /api/verify/live-capture</code>
+          <div className="mb-6 sm:mb-8 border border-gray-200 rounded-lg">
+            <div className="bg-orange-50 p-3 sm:p-4 border-b">
+              <h3 className="font-semibold text-base sm:text-lg">3. Live Camera Capture with Liveness Detection</h3>
+              <code className="text-xs sm:text-sm text-orange-700 break-all">POST /api/verify/live-capture</code>
             </div>
-            <div className="p-6">
-              <p className="text-gray-700 mb-4">
+            <div className="p-4 sm:p-6">
+              <p className="text-gray-700 mb-3 sm:mb-4 text-sm sm:text-base">
                 Perform real-time camera capture for an existing verification session. This includes advanced 
                 liveness detection, challenge-response verification, and instant face matching against the uploaded document.
               </p>
               
-              <h4 className="font-medium mb-2">Request Parameters:</h4>
-              <div className="bg-gray-50 p-4 rounded text-sm mb-4">
-                <pre>
+              <h4 className="font-medium mb-2 text-sm sm:text-base">Request Parameters:</h4>
+              <div className="bg-gray-50 p-3 sm:p-4 rounded text-xs sm:text-sm mb-3 sm:mb-4">
+                <pre className="overflow-x-auto">
 {`verification_id: string (existing verification with document)
 live_image_data: string (base64 encoded image)
 challenge_response: string (optional - for challenge-based liveness)
@@ -313,9 +313,9 @@ metadata: object (optional)`}
                 </pre>
               </div>
 
-              <h4 className="font-medium mb-2">Example Request:</h4>
-              <div className="bg-gray-900 text-green-400 p-4 rounded text-sm mb-4">
-                <pre>
+              <h4 className="font-medium mb-2 text-sm sm:text-base">Example Request:</h4>
+              <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm mb-3 sm:mb-4">
+                <pre className="overflow-x-auto">
 {`curl -X POST ${apiUrl}/api/verify/live-capture \\
   -H "X-API-Key: your-api-key" \\
   -H "Content-Type: application/json" \\
@@ -328,9 +328,9 @@ metadata: object (optional)`}
                 </pre>
               </div>
 
-              <h4 className="font-medium mb-2">Response with Liveness Analysis:</h4>
-              <div className="bg-gray-900 text-green-400 p-4 rounded text-sm">
-                <pre>
+              <h4 className="font-medium mb-2 text-sm sm:text-base">Response with Liveness Analysis:</h4>
+              <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm">
+                <pre className="overflow-x-auto">
 {`{
   "id": "verif_live123",
   "status": "verified",
@@ -375,15 +375,15 @@ metadata: object (optional)`}
               
               <h4 className="font-medium mb-2">Request Parameters:</h4>
               <div className="bg-gray-50 p-4 rounded text-sm mb-4">
-                <pre>
+                <pre className="overflow-x-auto">
 {`verification_id: string (existing verification with document)
 challenge_type: 'blink' | 'smile' | 'turn_head' | 'random' (optional)`}
                 </pre>
               </div>
 
-              <h4 className="font-medium mb-2">Response:</h4>
-              <div className="bg-gray-900 text-green-400 p-4 rounded text-sm">
-                <pre>
+              <h4 className="font-medium mb-2 text-sm sm:text-base">Response:</h4>
+              <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm">
+                <pre className="overflow-x-auto">
 {`{
   "token": "live_token_xyz789",
   "challenge": "smile",
@@ -396,28 +396,28 @@ challenge_type: 'blink' | 'smile' | 'turn_head' | 'random' (optional)`}
           </div>
 
           {/* Complete Results */}
-          <div className="mb-8 border border-gray-200 rounded-lg">
-            <div className="bg-purple-50 p-4 border-b">
-              <h3 className="font-semibold text-lg">4. Get Complete Verification Results</h3>
-              <code className="text-sm text-purple-700">GET /api/verify/results/:verification_id</code>
+          <div className="mb-6 sm:mb-8 border border-gray-200 rounded-lg">
+            <div className="bg-purple-50 p-3 sm:p-4 border-b">
+              <h3 className="font-semibold text-base sm:text-lg">4. Get Complete Verification Results</h3>
+              <code className="text-xs sm:text-sm text-purple-700 break-all">GET /api/verify/results/:verification_id</code>
             </div>
-            <div className="p-6">
-              <p className="text-gray-700 mb-4">
+            <div className="p-4 sm:p-6">
+              <p className="text-gray-700 mb-3 sm:mb-4 text-sm sm:text-base">
                 Get comprehensive verification results including document analysis, live capture results, 
                 and overall verification status. This is your one-stop endpoint for all verification data.
               </p>
               
-              <h4 className="font-medium mb-2">Example Request:</h4>
-              <div className="bg-gray-900 text-green-400 p-4 rounded text-sm mb-4">
-                <pre>
+              <h4 className="font-medium mb-2 text-sm sm:text-base">Example Request:</h4>
+              <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm mb-3 sm:mb-4">
+                <pre className="overflow-x-auto">
 {`curl -X GET ${apiUrl}/api/verify/results/verif_abc123 \\
   -H "X-API-Key: your-api-key"`}
                 </pre>
               </div>
 
-              <h4 className="font-medium mb-2">Complete Response:</h4>
-              <div className="bg-gray-900 text-green-400 p-4 rounded text-sm">
-                <pre>
+              <h4 className="font-medium mb-2 text-sm sm:text-base">Complete Response:</h4>
+              <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm">
+                <pre className="overflow-x-auto">
 {`{
   "verification_id": "verif_abc123",
   "user_id": "user_123",
@@ -460,17 +460,17 @@ challenge_type: 'blink' | 'smile' | 'turn_head' | 'random' (optional)`}
         </section>
 
         {/* SDKs Section */}
-        <section className="mb-10">
-          <h2 className="text-3xl font-semibent mb-6 flex items-center">
-            <CodeBracketIcon className="h-8 w-8 text-indigo-500 mr-2" />
+        <section className="mb-8 sm:mb-10">
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold mb-4 sm:mb-6 flex items-center">
+            <CodeBracketIcon className="h-6 w-6 sm:h-8 sm:w-8 text-indigo-500 mr-2" />
             Official SDKs
           </h2>
           
-          <div className="grid md:grid-cols-2 gap-6 mb-6">
-            <div className="border border-gray-200 rounded-lg p-6">
-              <h3 className="font-semibold text-lg mb-3">JavaScript/Node.js SDK</h3>
-              <p className="text-gray-600 mb-4">Full TypeScript support with comprehensive type definitions</p>
-              <div className="space-y-2 text-sm">
+          <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 mb-4 sm:mb-6">
+            <div className="border border-gray-200 rounded-lg p-4 sm:p-6">
+              <h3 className="font-semibold text-base sm:text-lg mb-3">JavaScript/Node.js SDK</h3>
+              <p className="text-gray-600 mb-3 sm:mb-4 text-sm sm:text-base">Full TypeScript support with comprehensive type definitions</p>
+              <div className="space-y-2 text-xs sm:text-sm">
                 <div>📦 <code>npm install @idswyft/sdk</code></div>
                 <div>✅ Browser & Node.js compatible</div>
                 <div>✅ Full TypeScript definitions</div>
@@ -479,10 +479,10 @@ challenge_type: 'blink' | 'smile' | 'turn_head' | 'random' (optional)`}
               </div>
             </div>
             
-            <div className="border border-gray-200 rounded-lg p-6">
-              <h3 className="font-semibold text-lg mb-3">Python SDK</h3>
-              <p className="text-gray-600 mb-4">Python 3.8+ with full type hints and async support</p>
-              <div className="space-y-2 text-sm">
+            <div className="border border-gray-200 rounded-lg p-4 sm:p-6">
+              <h3 className="font-semibold text-base sm:text-lg mb-3">Python SDK</h3>
+              <p className="text-gray-600 mb-3 sm:mb-4 text-sm sm:text-base">Python 3.8+ with full type hints and async support</p>
+              <div className="space-y-2 text-xs sm:text-sm">
                 <div>📦 <code>pip install idswyft</code></div>
                 <div>✅ Python 3.8+ compatible</div>
                 <div>✅ Full type hints</div>
@@ -492,8 +492,8 @@ challenge_type: 'blink' | 'smile' | 'turn_head' | 'random' (optional)`}
             </div>
           </div>
 
-          <div className="bg-indigo-50 p-4 rounded-lg">
-            <p className="text-indigo-800">
+          <div className="bg-indigo-50 p-3 sm:p-4 rounded-lg">
+            <p className="text-indigo-800 text-sm sm:text-base">
               <strong>Both SDKs provide:</strong> Complete access to AI analysis results, automatic retry logic, 
               comprehensive error handling, and detailed documentation with real-world examples.
             </p>
@@ -501,16 +501,16 @@ challenge_type: 'blink' | 'smile' | 'turn_head' | 'random' (optional)`}
         </section>
 
         {/* AI Analysis Details */}
-        <section className="mb-10">
-          <h2 className="text-3xl font-semibold mb-6 flex items-center">
-            <ChartBarIcon className="h-8 w-8 text-orange-500 mr-2" />
+        <section className="mb-8 sm:mb-10">
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold mb-4 sm:mb-6 flex items-center">
+            <ChartBarIcon className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500 mr-2" />
             AI Analysis Features
           </h2>
 
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="border border-gray-200 rounded-lg p-6">
-              <h3 className="font-semibold text-lg mb-3 text-blue-600">OCR Extraction</h3>
-              <ul className="text-sm space-y-1 text-gray-600">
+          <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="border border-gray-200 rounded-lg p-4 sm:p-6">
+              <h3 className="font-semibold text-base sm:text-lg mb-3 text-blue-600">OCR Extraction</h3>
+              <ul className="text-xs sm:text-sm space-y-1 text-gray-600">
                 <li>• Name extraction with confidence scores</li>
                 <li>• Date of birth parsing</li>
                 <li>• Document number recognition</li>
@@ -521,9 +521,9 @@ challenge_type: 'blink' | 'smile' | 'turn_head' | 'random' (optional)`}
               </ul>
             </div>
 
-            <div className="border border-gray-200 rounded-lg p-6">
-              <h3 className="font-semibold text-lg mb-3 text-green-600">Quality Analysis</h3>
-              <ul className="text-sm space-y-1 text-gray-600">
+            <div className="border border-gray-200 rounded-lg p-4 sm:p-6">
+              <h3 className="font-semibold text-base sm:text-lg mb-3 text-green-600">Quality Analysis</h3>
+              <ul className="text-xs sm:text-sm space-y-1 text-gray-600">
                 <li>• Blur detection and scoring</li>
                 <li>• Brightness and contrast analysis</li>
                 <li>• Resolution assessment</li>
@@ -534,9 +534,9 @@ challenge_type: 'blink' | 'smile' | 'turn_head' | 'random' (optional)`}
               </ul>
             </div>
 
-            <div className="border border-gray-200 rounded-lg p-6">
-              <h3 className="font-semibold text-lg mb-3 text-purple-600">Face Matching & Live Capture</h3>
-              <ul className="text-sm space-y-1 text-gray-600">
+            <div className="border border-gray-200 rounded-lg p-4 sm:p-6">
+              <h3 className="font-semibold text-base sm:text-lg mb-3 text-purple-600">Face Matching & Live Capture</h3>
+              <ul className="text-xs sm:text-sm space-y-1 text-gray-600">
                 <li>• Facial similarity scoring (0-1)</li>
                 <li>• Real-time camera capture</li>
                 <li>• Advanced liveness detection</li>
@@ -551,34 +551,34 @@ challenge_type: 'blink' | 'smile' | 'turn_head' | 'random' (optional)`}
         </section>
 
         {/* Verification Statuses */}
-        <section className="mb-10">
-          <h2 className="text-2xl font-semibold mb-4">Verification Statuses</h2>
-          <div className="space-y-3">
-            <div className="flex items-center">
-              <span className="inline-flex px-3 py-1 text-sm font-medium bg-yellow-100 text-yellow-800 rounded-full mr-3">pending</span>
-              <span className="text-gray-600">Verification is being processed by our AI systems</span>
+        <section className="mb-8 sm:mb-10">
+          <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold mb-3 sm:mb-4">Verification Statuses</h2>
+          <div className="space-y-2 sm:space-y-3">
+            <div className="flex items-center flex-wrap">
+              <span className="inline-flex px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium bg-yellow-100 text-yellow-800 rounded-full mr-2 sm:mr-3 mb-1 sm:mb-0">pending</span>
+              <span className="text-gray-600 text-sm sm:text-base">Verification is being processed by our AI systems</span>
             </div>
-            <div className="flex items-center">
-              <span className="inline-flex px-3 py-1 text-sm font-medium bg-green-100 text-green-800 rounded-full mr-3">verified</span>
-              <span className="text-gray-600">Identity successfully verified with high confidence</span>
+            <div className="flex items-center flex-wrap">
+              <span className="inline-flex px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium bg-green-100 text-green-800 rounded-full mr-2 sm:mr-3 mb-1 sm:mb-0">verified</span>
+              <span className="text-gray-600 text-sm sm:text-base">Identity successfully verified with high confidence</span>
             </div>
-            <div className="flex items-center">
-              <span className="inline-flex px-3 py-1 text-sm font-medium bg-red-100 text-red-800 rounded-full mr-3">failed</span>
-              <span className="text-gray-600">Verification failed due to quality or authenticity issues</span>
+            <div className="flex items-center flex-wrap">
+              <span className="inline-flex px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium bg-red-100 text-red-800 rounded-full mr-2 sm:mr-3 mb-1 sm:mb-0">failed</span>
+              <span className="text-gray-600 text-sm sm:text-base">Verification failed due to quality or authenticity issues</span>
             </div>
-            <div className="flex items-center">
-              <span className="inline-flex px-3 py-1 text-sm font-medium bg-blue-100 text-blue-800 rounded-full mr-3">manual_review</span>
-              <span className="text-gray-600">Requires human review due to edge cases or low confidence</span>
+            <div className="flex items-center flex-wrap">
+              <span className="inline-flex px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium bg-blue-100 text-blue-800 rounded-full mr-2 sm:mr-3 mb-1 sm:mb-0">manual_review</span>
+              <span className="text-gray-600 text-sm sm:text-base">Requires human review due to edge cases or low confidence</span>
             </div>
           </div>
         </section>
 
         {/* Rate Limits & Error Codes */}
-        <div className="grid md:grid-cols-2 gap-6 mb-10">
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 mb-8 sm:mb-10">
           <section>
-            <h2 className="text-2xl font-semibold mb-4">Rate Limits</h2>
-            <div className="bg-yellow-50 p-4 rounded-lg">
-              <div className="text-sm space-y-2">
+            <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold mb-3 sm:mb-4">Rate Limits</h2>
+            <div className="bg-yellow-50 p-3 sm:p-4 rounded-lg">
+              <div className="text-xs sm:text-sm space-y-2">
                 <div><strong>Sandbox:</strong> 100 requests/hour</div>
                 <div><strong>Production:</strong> 1000 requests/hour</div>
                 <div><strong>Enterprise:</strong> Custom limits available</div>
@@ -587,8 +587,8 @@ challenge_type: 'blink' | 'smile' | 'turn_head' | 'random' (optional)`}
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibent mb-4">Status Codes</h2>
-            <div className="space-y-2 text-sm">
+            <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold mb-3 sm:mb-4">Status Codes</h2>
+            <div className="space-y-2 text-xs sm:text-sm">
               <div><code className="text-green-600">200</code> - Success</div>
               <div><code className="text-yellow-600">400</code> - Bad Request (validation error)</div>
               <div><code className="text-red-600">401</code> - Unauthorized (invalid API key)</div>
@@ -600,22 +600,22 @@ challenge_type: 'blink' | 'smile' | 'turn_head' | 'random' (optional)`}
 
         {/* Support */}
         <section>
-          <h2 className="text-2xl font-semibold mb-4">Support & Resources</h2>
-          <div className="grid md:grid-cols-3 gap-4">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h3 className="font-semibold mb-2">Developer Portal</h3>
-              <p className="text-sm text-gray-600 mb-2">Get your API keys, view usage stats</p>
-              <a href="/developer" className="text-blue-600 text-sm underline">Access Portal →</a>
+          <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold mb-3 sm:mb-4">Support & Resources</h2>
+          <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="bg-blue-50 p-3 sm:p-4 rounded-lg">
+              <h3 className="font-semibold mb-2 text-sm sm:text-base">Developer Portal</h3>
+              <p className="text-xs sm:text-sm text-gray-600 mb-2">Get your API keys, view usage stats</p>
+              <a href="/developer" className="text-blue-600 text-xs sm:text-sm underline">Access Portal →</a>
             </div>
-            <div className="bg-green-50 p-4 rounded-lg">
-              <h3 className="font-semibold mb-2">GitHub Repository</h3>
-              <p className="text-sm text-gray-600 mb-2">Open source code, examples, issues</p>
-              <a href="https://github.com/doobee46/idswyft" className="text-green-600 text-sm underline" target="_blank" rel="noopener noreferrer">View on GitHub →</a>
+            <div className="bg-green-50 p-3 sm:p-4 rounded-lg">
+              <h3 className="font-semibold mb-2 text-sm sm:text-base">GitHub Repository</h3>
+              <p className="text-xs sm:text-sm text-gray-600 mb-2">Open source code, examples, issues</p>
+              <a href="https://github.com/doobee46/idswyft" className="text-green-600 text-xs sm:text-sm underline" target="_blank" rel="noopener noreferrer">View on GitHub →</a>
             </div>
-            <div className="bg-purple-50 p-4 rounded-lg">
-              <h3 className="font-semibent mb-2">Email Support</h3>
-              <p className="text-sm text-gray-600 mb-2">Technical support and questions</p>
-              <a href="mailto:support@idswyft.com" className="text-purple-600 text-sm underline">support@idswyft.com →</a>
+            <div className="bg-purple-50 p-3 sm:p-4 rounded-lg">
+              <h3 className="font-semibold mb-2 text-sm sm:text-base">Email Support</h3>
+              <p className="text-xs sm:text-sm text-gray-600 mb-2">Technical support and questions</p>
+              <a href="mailto:support@idswyft.com" className="text-purple-600 text-xs sm:text-sm underline">support@idswyft.com →</a>
             </div>
           </div>
         </section>
