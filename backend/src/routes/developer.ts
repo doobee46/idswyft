@@ -25,7 +25,7 @@ const registrationRateLimit = rateLimit({
 // Rate limiting for API key operations
 const apiKeyRateLimit = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 10, // limit each IP to 10 API key operations per minute
+  max: 50, // limit each IP to 50 API key operations per minute (increased for development)
   message: {
     error: 'Too many API key operations, please try again later.'
   },

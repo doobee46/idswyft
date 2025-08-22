@@ -82,6 +82,11 @@ export const LiveCapturePage: React.FC = () => {
 
     setSessionData(mockSession);
 
+    // Automatically request camera permission when session is loaded
+    setTimeout(() => {
+      requestCameraPermission();
+    }, 500); // Small delay to ensure UI is ready
+
     // Set up session expiry timer
     const expiryTimer = setTimeout(() => {
       setSessionExpired(true);
@@ -265,9 +270,35 @@ export const LiveCapturePage: React.FC = () => {
     requestCameraPermission();
   };
 
-  const goToResults = () => {
-    if (captureResult?.verification_id) {
-      navigate(`/verify?verification_id=${captureResult.verification_id}&api_key=${apiKey}`);
+  const goToResults = async () => {
+    if (captureResult?.verification_id && apiKey) {
+      try {
+        // Fetch the complete verification results
+        const response = await fetch(`${API_BASE_URL}/api/verify/results/${captureResult.verification_id}`, {
+          headers: {
+            'X-API-Key': apiKey,
+          },
+        });
+
+        if (response.ok) {
+          const results = await response.json();
+          // Navigate to verification page with results data in URL
+          const params = new URLSearchParams({
+            api_key: apiKey,
+            verification_id: captureResult.verification_id,
+            step: '5', // Go directly to results step
+            status: results.status || 'completed'
+          });
+          navigate(`/verify?${params.toString()}`);
+        } else {
+          // Fallback to verification page
+          navigate(`/verify?verification_id=${captureResult.verification_id}&api_key=${apiKey}&step=5`);
+        }
+      } catch (error) {
+        console.error('Failed to fetch results:', error);
+        // Fallback to verification page
+        navigate(`/verify?verification_id=${captureResult.verification_id}&api_key=${apiKey}&step=5`);
+      }
     }
   };
 

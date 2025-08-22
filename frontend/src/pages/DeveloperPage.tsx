@@ -665,6 +665,71 @@ export const DeveloperPage: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {/* API Calls and Status Card */}
+            <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Recent API Activity</h3>
+                <div className="flex items-center space-x-2 text-sm text-gray-500">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>Live</span>
+                </div>
+              </div>
+              
+              {/* API Status Grid */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div className="text-center p-3 bg-green-50 rounded-lg">
+                  <div className="text-2xl font-bold text-green-600">{stats.successful_requests}</div>
+                  <div className="text-xs text-green-700">Successful</div>
+                </div>
+                <div className="text-center p-3 bg-red-50 rounded-lg">
+                  <div className="text-2xl font-bold text-red-600">{stats.failed_requests}</div>
+                  <div className="text-xs text-red-700">Failed</div>
+                </div>
+                <div className="text-center p-3 bg-yellow-50 rounded-lg">
+                  <div className="text-2xl font-bold text-yellow-600">12</div>
+                  <div className="text-xs text-yellow-700">Pending</div>
+                </div>
+                <div className="text-center p-3 bg-blue-50 rounded-lg">
+                  <div className="text-2xl font-bold text-blue-600">3</div>
+                  <div className="text-xs text-blue-700">Manual Review</div>
+                </div>
+              </div>
+
+              {/* Recent API Calls */}
+              <div className="space-y-3">
+                <h4 className="font-medium text-gray-900 text-sm">Recent API Calls</h4>
+                <div className="space-y-2">
+                  {/* Mock recent calls - replace with real data */}
+                  {[
+                    { endpoint: '/api/verify/start', method: 'POST', status: 200, time: '2 min ago' },
+                    { endpoint: '/api/verify/document', method: 'POST', status: 200, time: '5 min ago' },
+                    { endpoint: '/api/verify/live-capture', method: 'POST', status: 200, time: '8 min ago' },
+                    { endpoint: '/api/verify/results', method: 'GET', status: 200, time: '12 min ago' },
+                    { endpoint: '/api/verify/start', method: 'POST', status: 400, time: '15 min ago' }
+                  ].map((call, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          call.method === 'POST' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                        }`}>
+                          {call.method}
+                        </span>
+                        <span className="font-mono text-sm text-gray-700">{call.endpoint}</span>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          call.status === 200 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {call.status}
+                        </span>
+                        <span className="text-sm text-gray-500">{call.time}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
