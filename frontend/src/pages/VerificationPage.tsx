@@ -1486,7 +1486,7 @@ export const VerificationPage: React.FC = () => {
             </div>
 
             {/* AI Quality Indicator */}
-            {verificationResult?.quality_analysis && (
+            {verificationResult?.quality_analysis?.overall_quality && (
               <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
                 <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">🤖 AI Quality Check</h3>
                 <div className="text-center">
@@ -1558,7 +1558,7 @@ export const VerificationPage: React.FC = () => {
                 </div>
 
                 {/* AI Quality Analysis */}
-                {verificationResult.quality_analysis && (
+                {verificationResult?.quality_analysis?.overall_quality && verificationResult?.quality_analysis?.quality_scores && (
                   <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6">
                     <div className="flex items-center justify-between mb-6">
                       <h4 className="text-xl font-bold text-gray-900">🤖 AI Quality Analysis</h4>
@@ -1574,15 +1574,15 @@ export const VerificationPage: React.FC = () => {
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between items-center">
                             <span className="text-gray-600">Sharpness:</span>
-                            <span className="font-mono font-semibold">{verificationResult.quality_analysis.quality_scores.blur_score.toFixed(1)}</span>
+                            <span className="font-mono font-semibold">{verificationResult.quality_analysis.quality_scores?.blur_score?.toFixed(1) || 'N/A'}</span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-gray-600">Brightness:</span>
-                            <span className="font-mono font-semibold">{verificationResult.quality_analysis.quality_scores.brightness.toFixed(1)}</span>
+                            <span className="font-mono font-semibold">{verificationResult.quality_analysis.quality_scores?.brightness?.toFixed(1) || 'N/A'}</span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-gray-600">Contrast:</span>
-                            <span className="font-mono font-semibold">{verificationResult.quality_analysis.quality_scores.contrast.toFixed(1)}</span>
+                            <span className="font-mono font-semibold">{verificationResult.quality_analysis.quality_scores?.contrast?.toFixed(1) || 'N/A'}</span>
                           </div>
                         </div>
                       </div>
@@ -1595,9 +1595,9 @@ export const VerificationPage: React.FC = () => {
                             <span className="text-gray-600">Resolution:</span>
                             <div className="flex items-center">
                               <span className="font-mono font-semibold">
-                                {verificationResult.quality_analysis.quality_scores.resolution.width} × {verificationResult.quality_analysis.quality_scores.resolution.height}
+                                {verificationResult.quality_analysis.quality_scores?.resolution?.width || '?'} × {verificationResult.quality_analysis.quality_scores?.resolution?.height || '?'}
                               </span>
-                              {verificationResult.quality_analysis.quality_scores.resolution.isHighRes && 
+                              {verificationResult.quality_analysis.quality_scores?.resolution?.isHighRes && 
                                 <span className="ml-2 text-green-600 font-semibold">✓</span>
                               }
                             </div>
@@ -1606,9 +1606,12 @@ export const VerificationPage: React.FC = () => {
                             <span className="text-gray-600">File Size:</span>
                             <div className="flex items-center">
                               <span className="font-mono font-semibold">
-                                {(verificationResult.quality_analysis.quality_scores.file_size.bytes / 1024).toFixed(0)} KB
+                                {verificationResult.quality_analysis.quality_scores?.file_size?.bytes ? 
+                                  `${(verificationResult.quality_analysis.quality_scores.file_size.bytes / 1024).toFixed(0)} KB` : 
+                                  'N/A'
+                                }
                               </span>
-                              {verificationResult.quality_analysis.quality_scores.file_size.isReasonableSize && 
+                              {verificationResult.quality_analysis.quality_scores?.file_size?.isReasonableSize && 
                                 <span className="ml-2 text-green-600 font-semibold">✓</span>
                               }
                             </div>
