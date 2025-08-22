@@ -81,7 +81,7 @@ export const VerificationPage: React.FC = () => {
   // Step 1: Start verification session
   const startVerificationSession = async () => {
     if (!apiKey) {
-      alert('Please enter API key first');
+      toast.error('Please enter API key first');
       return;
     }
 
@@ -100,7 +100,8 @@ export const VerificationPage: React.FC = () => {
           'X-API-Key': apiKey,
         },
         body: JSON.stringify({
-          user_id: currentUserId
+          user_id: currentUserId,
+          sandbox: true // Enable sandbox mode for testing
         }),
       });
       
@@ -110,11 +111,11 @@ export const VerificationPage: React.FC = () => {
         setCurrentStep(2);
         setVerificationResult(data);
       } else {
-        alert('Failed to start verification session');
+        toast.error('Failed to start verification session');
       }
     } catch (error) {
       console.error('Failed to start verification:', error);
-      alert('Failed to start verification session');
+      toast.error('Failed to start verification session');
     } finally {
       setLoading(false);
     }
@@ -194,7 +195,7 @@ export const VerificationPage: React.FC = () => {
   const handleDocumentVerification = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!apiKey || !verificationId || !documentFile) {
-      alert('Please start verification session first and provide document file');
+      toast.error('Please start verification session first and provide document file');
       return;
     }
     
@@ -206,6 +207,7 @@ export const VerificationPage: React.FC = () => {
       formData.append('document', documentFile);
       formData.append('verification_id', verificationId);
       formData.append('document_type', 'passport');
+      formData.append('sandbox', 'true'); // Enable sandbox mode for testing
       
       const response = await fetch(`${API_BASE_URL}/api/verify/document`, {
         method: 'POST',
@@ -223,7 +225,7 @@ export const VerificationPage: React.FC = () => {
       
     } catch (error) {
       console.error('Document upload failed:', error);
-      alert('Document upload failed. Please try again.');
+      toast.error('Document upload failed. Please try again.');
       setCurrentStep(2); // Go back to document upload
     } finally {
       setLoading(false);
@@ -272,7 +274,7 @@ export const VerificationPage: React.FC = () => {
   const handleSelfieVerification = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!apiKey || !verificationResult?.verification_id || !selfieFile) {
-      alert('Please complete document verification first and provide selfie file');
+      toast.error('Please complete document verification first and provide selfie file');
       return;
     }
     
@@ -308,7 +310,7 @@ export const VerificationPage: React.FC = () => {
   // Get complete verification results
   const getVerificationResults = async () => {
     if (!apiKey || !verificationId) {
-      alert('Please start verification session first');
+      toast.error('Please start verification session first');
       return;
     }
 
@@ -333,7 +335,7 @@ export const VerificationPage: React.FC = () => {
 
   const handleLiveCapture = async () => {
     if (!apiKey || !verificationId) {
-      alert('Please start verification session and upload document first');
+      toast.error('Please start verification session and upload document first');
       return;
     }
 
@@ -389,6 +391,7 @@ export const VerificationPage: React.FC = () => {
       const formData = new FormData();
       formData.append('live_capture', blob, 'live_capture.jpg');
       formData.append('verification_id', verificationId);
+      formData.append('sandbox', 'true'); // Enable sandbox mode for testing
       
       const response = await fetch(`${API_BASE_URL}/api/verify/live-capture`, {
         method: 'POST',
@@ -416,14 +419,14 @@ export const VerificationPage: React.FC = () => {
       // Handle specific camera errors
       if (error instanceof DOMException) {
         if (error.name === 'NotAllowedError') {
-          alert('Camera access denied. Please allow camera access and try again.');
+          toast.error('Camera access denied. Please allow camera access and try again.');
         } else if (error.name === 'NotFoundError') {
-          alert('No camera found. Please connect a camera and try again.');
+          toast.error('No camera found. Please connect a camera and try again.');
         } else {
-          alert(`Camera error: ${error.message}`);
+          toast.error(`Camera error: ${error.message}`);
         }
       } else {
-        alert(`Live capture failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        toast.error(`Live capture failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
       
       setCurrentStep(4); // Go back to selection
@@ -812,7 +815,7 @@ export const VerificationPage: React.FC = () => {
                     </button>
 
                     <button
-                      onClick={() => alert('Selfie upload is not implemented in this demo. Please use Live Camera Capture.')}
+                      onClick={() => toast.info('Selfie upload is not implemented in this demo. Please use Live Camera Capture.')}
                       className="p-6 border-2 border-gray-300 rounded-xl hover:border-gray-400 transition-all opacity-75"
                     >
                       <div className="text-center">

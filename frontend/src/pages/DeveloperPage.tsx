@@ -270,6 +270,9 @@ export const DeveloperPage: React.FC = () => {
 
   const createApiKey = async () => {
     try {
+      console.log('🔑 Creating API key with:', { name: newKeyName, is_sandbox: newKeyIsSandbox });
+      console.log('🔑 Using token:', localStorage.getItem('developer_token')?.substring(0, 20) + '...');
+      
       const response = await fetch(`${API_BASE_URL}/api/developer/api-key`, {
         method: 'POST',
         headers: {
@@ -282,7 +285,9 @@ export const DeveloperPage: React.FC = () => {
         }),
       });
 
+      console.log('🔑 Response status:', response.status);
       const data = await response.json();
+      console.log('🔑 Response data:', data);
 
       if (response.ok) {
         toast.success('API key created successfully!');
@@ -294,11 +299,12 @@ export const DeveloperPage: React.FC = () => {
         await fetchApiKeys();
         return true; // Success
       } else {
+        console.error('🔑 API key creation failed:', response.status, data);
         toast.error(data.message || 'Failed to create API key');
         return false; // Failure
       }
     } catch (error) {
-      console.error('Error creating API key:', error);
+      console.error('🔑 Error creating API key:', error);
       toast.error('Failed to create API key');
       return false; // Failure
     }
@@ -513,28 +519,28 @@ export const DeveloperPage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 space-y-4 sm:space-y-0">
           <div className="flex items-center space-x-3">
             <div className="bg-blue-600 p-2 rounded-lg">
               <CpuChipIcon className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Developer Portal</h1>
-              <p className="text-gray-600">Manage your API keys and monitor usage</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Developer Portal</h1>
+              <p className="text-sm sm:text-base text-gray-600">Manage your API keys and monitor usage</p>
             </div>
           </div>
           <button
             onClick={logout}
-            className="flex items-center space-x-2 px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors"
+            className="flex items-center space-x-2 px-3 sm:px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors text-sm sm:text-base"
           >
-            <ArrowRightOnRectangleIcon className="w-5 h-5" />
+            <ArrowRightOnRectangleIcon className="w-4 h-4 sm:w-5 sm:h-5" />
             <span>Logout</span>
           </button>
         </div>
 
         {/* Navigation Tabs */}
         <div className="border-b border-gray-200 mb-6">
-          <nav className="-mb-px flex space-x-8">
+          <nav className="-mb-px flex space-x-2 sm:space-x-8 overflow-x-auto">
             {[
               { id: 'overview', label: 'Overview', icon: ChartBarIcon },
               { id: 'keys', label: 'API Keys', icon: KeyIcon },
@@ -544,14 +550,15 @@ export const DeveloperPage: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                className={`flex items-center py-4 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors whitespace-nowrap ${
                   activeTab === tab.id
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                <tab.icon className="w-5 h-5 mr-2" />
-                {tab.label}
+                <tab.icon className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden">{tab.id === 'docs' ? 'Docs' : tab.label}</span>
               </button>
             ))}
           </nav>
@@ -561,45 +568,45 @@ export const DeveloperPage: React.FC = () => {
         {activeTab === 'overview' && (
           <div className="space-y-6">
             {/* Usage Statistics */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Total Requests</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats.total_requests.toLocaleString()}</p>
+                    <p className="text-xs sm:text-sm font-medium text-gray-600">Total Requests</p>
+                    <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.total_requests.toLocaleString()}</p>
                   </div>
-                  <div className="bg-blue-50 p-3 rounded-lg">
-                    <GlobeAltIcon className="w-6 h-6 text-blue-600" />
+                  <div className="bg-blue-50 p-2 sm:p-3 rounded-lg">
+                    <GlobeAltIcon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                   </div>
                 </div>
               </div>
               
-              <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Success Rate</p>
-                    <p className="text-3xl font-bold text-green-600">{((stats.successful_requests / stats.total_requests) * 100).toFixed(1)}%</p>
+                    <p className="text-xs sm:text-sm font-medium text-gray-600">Success Rate</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-green-600">{((stats.successful_requests / stats.total_requests) * 100).toFixed(1)}%</p>
                   </div>
-                  <div className="bg-green-50 p-3 rounded-lg">
-                    <CheckCircleIcon className="w-6 h-6 text-green-600" />
+                  <div className="bg-green-50 p-2 sm:p-3 rounded-lg">
+                    <CheckCircleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                   </div>
                 </div>
                 <div className="mt-2">
-                  <div className="flex items-center text-sm text-gray-600">
+                  <div className="flex items-center text-xs sm:text-sm text-gray-600">
                     <span>{stats.successful_requests} successful</span>
                   </div>
                 </div>
               </div>
               
-              <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">This Month</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats.monthly_usage}</p>
-                    <p className="text-sm text-gray-500">{((stats.failed_requests / stats.total_requests) * 100).toFixed(1)}% error rate</p>
+                    <p className="text-xs sm:text-sm font-medium text-gray-600">This Month</p>
+                    <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.monthly_usage}</p>
+                    <p className="text-xs sm:text-sm text-gray-500">{((stats.failed_requests / stats.total_requests) * 100).toFixed(1)}% error rate</p>
                   </div>
-                  <div className="bg-orange-50 p-3 rounded-lg">
-                    <ChartBarIcon className="w-6 h-6 text-orange-600" />
+                  <div className="bg-orange-50 p-2 sm:p-3 rounded-lg">
+                    <ChartBarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
                   </div>
                 </div>
                 <div className="mt-2">
@@ -664,29 +671,29 @@ export const DeveloperPage: React.FC = () => {
         {activeTab === 'keys' && (
           <div className="space-y-6">
             {/* API Keys Management */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">API Keys</h2>
-                <p className="text-gray-600">Manage your API keys for development and production</p>
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900">API Keys</h2>
+                <p className="text-sm sm:text-base text-gray-600">Manage your API keys for development and production</p>
               </div>
               <button
                 onClick={() => setShowKeyModal(true)}
-                className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                className="flex items-center space-x-2 bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base w-full sm:w-auto justify-center sm:justify-start"
               >
-                <PlusIcon className="w-5 h-5" />
+                <PlusIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span>New API Key</span>
               </button>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
               {apiKeys.length === 0 ? (
-                <div className="p-8 text-center">
-                  <KeyIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No API Keys Yet</h3>
-                  <p className="text-gray-600 mb-4">Create your first API key to start integrating with Idswyft</p>
+                <div className="p-6 sm:p-8 text-center">
+                  <KeyIcon className="w-10 h-10 sm:w-12 sm:h-12 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">No API Keys Yet</h3>
+                  <p className="text-sm sm:text-base text-gray-600 mb-4">Create your first API key to start integrating with Idswyft</p>
                   <button
                     onClick={() => setShowKeyModal(true)}
-                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    className="bg-blue-600 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base"
                   >
                     Create API Key
                   </button>
@@ -694,15 +701,15 @@ export const DeveloperPage: React.FC = () => {
               ) : (
                 <div className="divide-y divide-gray-200">
                   {apiKeys.map((key) => (
-                    <div key={key.id} className="p-6 flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="bg-gray-100 p-2 rounded-lg">
-                          <KeyIcon className="w-5 h-5 text-gray-600" />
+                    <div key={key.id} className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0">
+                      <div className="flex items-start sm:items-center space-x-3 sm:space-x-4 w-full sm:w-auto">
+                        <div className="bg-gray-100 p-2 rounded-lg flex-shrink-0">
+                          <KeyIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                         </div>
-                        <div>
-                          <div className="flex items-center space-x-2">
-                            <h3 className="font-medium text-gray-900">{key.name}</h3>
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
+                            <h3 className="font-medium text-gray-900 text-sm sm:text-base truncate">{key.name}</h3>
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full w-fit ${
                               key.is_sandbox 
                                 ? 'bg-yellow-100 text-yellow-800' 
                                 : 'bg-green-100 text-green-800'
@@ -710,8 +717,8 @@ export const DeveloperPage: React.FC = () => {
                               {key.is_sandbox ? 'Sandbox' : 'Production'}
                             </span>
                           </div>
-                          <div className="flex items-center space-x-4 mt-1 text-sm text-gray-500">
-                            <span>Key: {key.key_preview}</span>
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 mt-1 text-xs sm:text-sm text-gray-500 space-y-1 sm:space-y-0">
+                            <span className="font-mono">Key: {key.key_preview}</span>
                             <span>Created: {new Date(key.created_at).toLocaleDateString()}</span>
                             {key.last_used_at && (
                               <span>Last used: {new Date(key.last_used_at).toLocaleDateString()}</span>
@@ -719,7 +726,7 @@ export const DeveloperPage: React.FC = () => {
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 w-full sm:w-auto justify-between sm:justify-end">
                         <div className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadge(key.status)}`}>
                           {key.status}
                         </div>
@@ -876,13 +883,13 @@ export const DeveloperPage: React.FC = () => {
 
         {/* API Key Creation Modal */}
         {showKeyModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl p-4 sm:p-6 w-full max-w-md">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Create New API Key</h3>
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900">Create New API Key</h3>
                 <button
                   onClick={() => setShowKeyModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 p-1"
                 >
                   <XMarkIcon className="w-5 h-5" />
                 </button>
@@ -915,16 +922,16 @@ export const DeveloperPage: React.FC = () => {
                   </label>
                 </div>
                 
-                <div className="flex space-x-3 pt-4">
+                <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 pt-4">
                   <button
                     onClick={() => setShowKeyModal(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm sm:text-base"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleKeyCreation}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base"
                   >
                     Create Key
                   </button>
