@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, shouldUseSandbox } from '../config/api';
 
 
 interface Document {
@@ -110,7 +110,7 @@ const VerificationPage: React.FC = () => {
         },
         body: JSON.stringify({
           user_id: userId,
-          sandbox: true
+          ...(shouldUseSandbox() && { sandbox: true })
         }),
       });
 
@@ -175,7 +175,9 @@ const VerificationPage: React.FC = () => {
       formData.append('document', selectedFile);
       formData.append('verification_id', verificationId);
       formData.append('document_type', 'national_id');
-      formData.append('sandbox', 'true');
+      if (shouldUseSandbox()) {
+        formData.append('sandbox', 'true');
+      }
 
       const response = await fetch(`${API_BASE_URL}/api/verify/document`, {
         method: 'POST',

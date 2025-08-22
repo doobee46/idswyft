@@ -37,7 +37,7 @@ import { IdswyftSDK } from '@idswyft/sdk';
 
 const client = new IdswyftSDK({
   apiKey: 'your-api-key',
-  sandbox: true
+  sandbox: true // Set to false for production
 });
 
 const result = await client.verifyDocument({

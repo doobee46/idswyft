@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, shouldUseSandbox } from '../config/api';
 import {
   CameraIcon,
   CheckCircleIcon,
@@ -223,7 +223,7 @@ export const LiveCapturePage: React.FC = () => {
           verification_id: sessionData.verification_id,
           live_image_data: base64Data,
           challenge_response: sessionData.liveness_challenge.type,
-          sandbox: true // Enable sandbox mode for testing
+          ...(shouldUseSandbox() && { sandbox: true })
         }),
       });
 

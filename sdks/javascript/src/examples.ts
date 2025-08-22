@@ -9,7 +9,7 @@ import * as path from 'path';
 // Initialize SDK
 const idswyft = new IdswyftSDK({
   apiKey: process.env.IDSWYFT_API_KEY || 'your-api-key',
-  sandbox: true // Use sandbox for testing
+  sandbox: process.env.NODE_ENV !== 'production' // Auto-detect based on environment
 });
 
 /**
