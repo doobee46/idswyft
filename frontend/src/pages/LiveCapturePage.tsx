@@ -120,6 +120,21 @@ export const LiveCapturePage: React.FC = () => {
         throw new Error('Camera access is not supported in this browser');
       }
       
+      // Check available devices first
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+        console.log('🎥 Available video devices:', videoDevices);
+        setDebugInfo(`Found ${videoDevices.length} camera(s)`);
+        
+        if (videoDevices.length === 0) {
+          throw new Error('No camera devices found');
+        }
+      } catch (deviceError) {
+        console.log('🎥 Could not enumerate devices:', deviceError);
+        setDebugInfo('Could not check available cameras');
+      }
+      
       console.log('🎥 Requesting camera access...');
       setDebugInfo('Requesting camera access...');
       
@@ -138,19 +153,78 @@ export const LiveCapturePage: React.FC = () => {
         console.log('🎥 Initial constraints failed, trying fallback...');
         setDebugInfo('Initial constraints failed, trying fallback...');
         
-        // Fallback to basic video constraints
-        mediaStream = await navigator.mediaDevices.getUserMedia({ 
-          video: true,
-          audio: false 
-        });
+        try {
+          // Fallback to basic video constraints
+          mediaStream = await navigator.mediaDevices.getUserMedia({ 
+            video: true,
+            audio: false 
+          });
+        } catch (basicError) {
+          console.log('🎥 Basic constraints failed, trying device-specific...');
+          setDebugInfo('Basic constraints failed, trying device-specific...');
+          
+          // Last resort: try with a specific device
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const videoDevices = devices.filter(device => device.kind === 'videoinput');
+          
+          if (videoDevices.length > 0) {
+            mediaStream = await navigator.mediaDevices.getUserMedia({
+              video: { deviceId: videoDevices[0].deviceId },
+              audio: false
+            });
+          } else {
+            throw basicError;
+          }
+        }
       }
       
       console.log('🎥 Camera access granted, stream:', mediaStream);
       console.log('🎥 Stream tracks:', mediaStream.getTracks());
-      setDebugInfo(`Camera granted. Tracks: ${mediaStream.getTracks().length}`);
+      console.log('🎥 Video tracks:', mediaStream.getVideoTracks());
+      console.log('🎥 Audio tracks:', mediaStream.getAudioTracks());
+      
+      const videoTracks = mediaStream.getVideoTracks();
+      const audioTracks = mediaStream.getAudioTracks();
+      
+      setDebugInfo(`Stream: ${mediaStream.active ? 'active' : 'inactive'}, Video tracks: ${videoTracks.length}, Audio tracks: ${audioTracks.length}`);
+      
+      // Check if we have any video tracks
+      if (videoTracks.length === 0) {
+        throw new Error('No video tracks available in media stream');
+      }
+      
+      // Log track details
+      videoTracks.forEach((track, index) => {
+        console.log(`🎥 Video track ${index}:`, {
+          id: track.id,
+          kind: track.kind,
+          label: track.label,
+          enabled: track.enabled,
+          readyState: track.readyState,
+          muted: track.muted
+        });
+      });
       
       setStream(mediaStream);
       setPermissionState('granted');
+      
+      // Monitor track events
+      videoTracks.forEach((track, index) => {
+        track.onended = () => {
+          console.log(`🎥 Video track ${index} ended`);
+          setDebugInfo(`Video track ${index} ended - camera may be disconnected`);
+        };
+        
+        track.onmute = () => {
+          console.log(`🎥 Video track ${index} muted`);
+          setDebugInfo(`Video track ${index} muted`);
+        };
+        
+        track.onunmute = () => {
+          console.log(`🎥 Video track ${index} unmuted`);
+          setDebugInfo(`Video track ${index} unmuted`);
+        };
+      });
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
