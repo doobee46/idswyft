@@ -120,6 +120,28 @@ export const LiveCapturePage: React.FC = () => {
         throw new Error('Camera access is not supported in this browser');
       }
       
+      // Log environment info for debugging
+      console.log('🌐 Environment info:', {
+        protocol: window.location.protocol,
+        hostname: window.location.hostname,
+        isSecureContext: window.isSecureContext,
+        userAgent: navigator.userAgent,
+        platform: navigator.platform
+      });
+      
+      setDebugInfo(`Environment: ${window.location.protocol}//${window.location.hostname}, Secure: ${window.isSecureContext}`);
+      
+      // Check current camera permissions
+      if (navigator.permissions) {
+        try {
+          const permission = await navigator.permissions.query({ name: 'camera' as PermissionName });
+          console.log('🎥 Camera permission state:', permission.state);
+          setDebugInfo(prev => `${prev}, Perm: ${permission.state}`);
+        } catch (permError) {
+          console.log('🎥 Could not check camera permissions:', permError);
+        }
+      }
+      
       // Check available devices first
       try {
         const devices = await navigator.mediaDevices.enumerateDevices();
@@ -233,11 +255,32 @@ export const LiveCapturePage: React.FC = () => {
         // Wait for video to load and play
         videoRef.current.onloadedmetadata = () => {
           console.log('🎥 Video metadata loaded');
+          console.log('🎥 Video dimensions:', {
+            videoWidth: videoRef.current?.videoWidth,
+            videoHeight: videoRef.current?.videoHeight,
+            duration: videoRef.current?.duration
+          });
+          
           if (videoRef.current) {
-            videoRef.current.play().catch(e => {
-              console.error('🎥 Video play failed:', e);
-              setError('Failed to start video playback. Please refresh and try again.');
-            });
+            // Force play with user gesture context if possible
+            const playPromise = videoRef.current.play();
+            if (playPromise !== undefined) {
+              playPromise
+                .then(() => {
+                  console.log('🎥 Video play successful');
+                  setDebugInfo(prev => `${prev}, Playing: ${videoRef.current?.videoWidth}x${videoRef.current?.videoHeight}`);
+                })
+                .catch(e => {
+                  console.error('🎥 Video play failed:', e);
+                  setError('Failed to start video playback. Please click to enable camera.');
+                  // Add a click handler to retry play
+                  if (videoRef.current) {
+                    videoRef.current.onclick = () => {
+                      videoRef.current?.play().catch(console.error);
+                    };
+                  }
+                });
+            }
           }
         };
         
@@ -750,6 +793,30 @@ export const LiveCapturePage: React.FC = () => {
           {debugInfo && (
             <div className="mt-4 p-3 bg-gray-100 rounded-lg">
               <p className="text-sm text-gray-600">Debug: {debugInfo}</p>
+              {/* Production troubleshooting buttons */}
+              {permissionState === 'granted' && (
+                <div className="mt-2 space-x-2">
+                  <button
+                    onClick={() => videoRef.current?.play().catch(console.error)}
+                    className="px-3 py-1 text-xs bg-blue-500 text-white rounded"
+                  >
+                    Force Play
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (videoRef.current && stream) {
+                        videoRef.current.srcObject = null;
+                        setTimeout(() => {
+                          if (videoRef.current) videoRef.current.srcObject = stream;
+                        }, 100);
+                      }
+                    }}
+                    className="px-3 py-1 text-xs bg-green-500 text-white rounded"
+                  >
+                    Reconnect Stream
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
