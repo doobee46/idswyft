@@ -280,10 +280,17 @@ export const VerificationPage: React.FC = () => {
         body: formData,
       });
       
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        throw new Error(`Document upload failed: ${errorData.message || response.statusText}`);
+      }
+      
       const data = await response.json();
+      console.log('Document upload response:', data);
       setDocumentUploaded(true);
       
       // Simulate document processing time and poll for results
+      console.log('Starting document verification polling...');
       await pollForDocumentVerification();
       
     } catch (error) {
@@ -304,18 +311,39 @@ export const VerificationPage: React.FC = () => {
       attempts++;
       
       try {
-        await getVerificationResults();
+        // Get verification results directly instead of relying on state
+        const response = await fetch(`${API_BASE_URL}/api/verify/results/${verificationId}`, {
+          headers: {
+            'X-API-Key': apiKey,
+          },
+        });
         
-        // Check if document processing is actually complete
-        if (verificationResult) {
-          const hasOcrData = verificationResult.ocr_data && Object.keys(verificationResult.ocr_data).length > 0;
-          const isProcessed = verificationResult.status !== 'pending' || hasOcrData;
-          
-          if (isProcessed) {
-            clearInterval(pollInterval);
-            setCurrentStep(4); // Move to live capture selection
-            return;
-          }
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Polling verification results:', data);
+        
+        // Update state with fresh data
+        setVerificationResult(data);
+        
+        // Check if document processing is actually complete using fresh data
+        const hasOcrData = data.ocr_data && Object.keys(data.ocr_data).length > 0;
+        const isProcessed = data.status !== 'pending' || hasOcrData;
+        
+        console.log('Document processing check:', {
+          status: data.status,
+          hasOcrData,
+          isProcessed,
+          attempts
+        });
+        
+        if (isProcessed) {
+          console.log('Document processing complete, moving to camera step');
+          clearInterval(pollInterval);
+          setCurrentStep(4); // Move to live capture selection
+          return;
         }
         
         // Timeout after max attempts
@@ -964,8 +992,15 @@ export const VerificationPage: React.FC = () => {
                 </div>
               )}
 
+              {/* Debug info - temporary */}
+              {currentStep >= 3 && (
+                <div className="mb-4 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
+                  Debug: currentStep={currentStep}, documentUploaded={documentUploaded ? 'true' : 'false'}, hasVerificationResult={verificationResult ? 'true' : 'false'}
+                </div>
+              )}
+
               {/* Step 4: Live Capture Selection */}
-              {currentStep === 4 && verificationResult && (
+              {currentStep === 4 && documentUploaded && (
                 <div className="space-y-4 sm:space-y-6">
                   <div className="text-center mb-4 sm:mb-6">
                     <div className="inline-flex p-2 sm:p-3 bg-green-100 rounded-full mb-3 sm:mb-4">
@@ -978,7 +1013,7 @@ export const VerificationPage: React.FC = () => {
                   </div>
 
                   {/* Show verification results so far */}
-                  {verificationResult.ocr_data && (
+                  {verificationResult?.ocr_data && (
                     <div className="bg-green-50 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
                       <h3 className="font-semibold text-green-900 mb-2 text-sm sm:text-base">Document Information Extracted:</h3>
                       <div className="text-xs sm:text-sm text-green-800 space-y-1">
