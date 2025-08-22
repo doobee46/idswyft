@@ -245,11 +245,17 @@ router.post('/document',
         .then(async (ocrData) => {
           console.log('✅ OCR processing succeeded:', { 
             verificationId: verificationRequest.id,
+            documentId: document.id,
             ocrData 
           });
           
+          // Store OCR data in the documents table where it belongs
+          await verificationService.updateDocument(document.id, {
+            ocr_data: ocrData
+          });
+          
+          // Update verification status
           await verificationService.updateVerificationRequest(verificationRequest.id, {
-            ocr_data: ocrData,
             status: 'verified' // Will be updated by database trigger if needed
           });
           
@@ -463,7 +469,7 @@ router.get('/results/:verification_id',
       // Document verification results
       document_uploaded: !!document,
       document_type: document?.document_type || null,
-      ocr_data: verificationRequest.ocr_data || null,
+      ocr_data: document?.ocr_data || null,
       quality_analysis: document?.quality_analysis || null,
       
       // Live capture results
@@ -565,18 +571,21 @@ router.get('/status-legacy/:user_id',
       });
     }
     
+    // Get associated document to retrieve OCR data
+    const document = await verificationService.getDocumentByVerificationId(verificationRequest.id);
+    
     // Build response data
     const responseData: any = {
       face_match_score: verificationRequest.face_match_score,
       manual_review_reason: verificationRequest.manual_review_reason
     };
     
-    if (verificationRequest.ocr_data) {
-      responseData.ocr_data = verificationRequest.ocr_data;
+    if (document?.ocr_data) {
+      responseData.ocr_data = document.ocr_data;
     }
     
-    if (verificationRequest.quality_analysis) {
-      responseData.quality_analysis = verificationRequest.quality_analysis;
+    if (document?.quality_analysis) {
+      responseData.quality_analysis = document.quality_analysis;
     }
     
     res.json({
