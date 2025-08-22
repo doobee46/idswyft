@@ -19,6 +19,12 @@ export class OCRService {
     filePath: string,
     documentType: string
   ): Promise<OCRData> {
+    console.log('🔍 Starting OCR processing...', {
+      documentId,
+      filePath,
+      documentType
+    });
+    
     logger.info('Starting OCR processing', {
       documentId,
       filePath,
@@ -27,12 +33,19 @@ export class OCRService {
     
     try {
       // Download the file
+      console.log('🔍 Downloading file for OCR...', { filePath });
       const fileBuffer = await this.storageService.downloadFile(filePath);
+      console.log('🔍 File downloaded successfully', { 
+        bufferSize: fileBuffer.length,
+        bufferType: Buffer.isBuffer(fileBuffer) ? 'Buffer' : typeof fileBuffer
+      });
       
       // Initialize Tesseract worker
+      console.log('🔍 Creating Tesseract worker...');
       const worker = await Tesseract.createWorker('eng', 1, {
         logger: m => {
           if (m.status === 'recognizing text') {
+            console.log(`🔍 OCR Progress: ${Math.round(m.progress * 100)}%`);
             logger.debug(`OCR Progress: ${Math.round(m.progress * 100)}%`, {
               documentId
             });
@@ -40,14 +53,28 @@ export class OCRService {
         }
       });
       
+      console.log('🔍 Tesseract worker created, starting recognition...');
       // Perform OCR
       const { data } = await worker.recognize(fileBuffer);
+      console.log('🔍 OCR recognition completed', {
+        textLength: data.text.length,
+        confidence: data.confidence,
+        textPreview: data.text.substring(0, 100) + '...'
+      });
+      
       await worker.terminate();
+      console.log('🔍 Tesseract worker terminated');
       
       // Extract structured data based on document type
+      console.log('🔍 Extracting structured data from OCR text...');
       const ocrData = this.extractStructuredData(data.text, documentType);
+      console.log('🔍 Structured data extracted', {
+        extractedFields: Object.keys(ocrData),
+        ocrData
+      });
       
       // Update document record
+      console.log('🔍 Updating document record...');
       await this.verificationService.updateDocument(documentId, {
         ocr_extracted: true,
         quality_score: this.calculateQualityScore(data)
@@ -59,8 +86,18 @@ export class OCRService {
         extractedFields: Object.keys(ocrData).length
       });
       
+      console.log('✅ OCR processing completed successfully');
       return ocrData;
     } catch (error) {
+      console.error('🚨 OCR processing failed:', error);
+      console.error('🚨 OCR Error details:', {
+        documentId,
+        filePath,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorStack: error instanceof Error ? error.stack : 'No stack trace',
+        errorType: error instanceof Error ? error.constructor.name : typeof error
+      });
+      
       logger.error('OCR processing failed', {
         documentId,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -71,7 +108,7 @@ export class OCRService {
         quality_score: 0
       });
       
-      throw new Error('OCR processing failed');
+      throw new Error(`OCR processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
   

@@ -685,9 +685,8 @@ router.post('/live-capture',
         verification_request_id: verification_id,
         file_path: liveCapturePath,
         file_name: liveCaptureFilename,
-        file_size: imageBuffer.length,
-        is_live_capture: true,
-        challenge_response: challenge_response || undefined
+        file_size: imageBuffer.length
+        // Note: is_live_capture and challenge_response columns don't exist in current schema
       });
       
       // Update verification request with live capture ID
