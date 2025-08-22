@@ -56,6 +56,7 @@ export const LiveCapturePage: React.FC = () => {
   const [faceDetected, setFaceDetected] = useState(false);
   const [captureAttempts, setCaptureAttempts] = useState(0);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string>('');
 
   const token = searchParams.get('token');
   const verificationId = searchParams.get('verification_id');
@@ -112,29 +113,91 @@ export const LiveCapturePage: React.FC = () => {
   const requestCameraPermission = async () => {
     try {
       setLoading(true);
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          facingMode: 'user'
-        },
-        audio: false 
-      });
+      setError(''); // Clear any previous errors
+      
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera access is not supported in this browser');
+      }
+      
+      console.log('🎥 Requesting camera access...');
+      setDebugInfo('Requesting camera access...');
+      
+      // Try with ideal constraints first
+      let mediaStream: MediaStream;
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: 'user'
+          },
+          audio: false 
+        });
+      } catch (constraintError) {
+        console.log('🎥 Initial constraints failed, trying fallback...');
+        setDebugInfo('Initial constraints failed, trying fallback...');
+        
+        // Fallback to basic video constraints
+        mediaStream = await navigator.mediaDevices.getUserMedia({ 
+          video: true,
+          audio: false 
+        });
+      }
+      
+      console.log('🎥 Camera access granted, stream:', mediaStream);
+      console.log('🎥 Stream tracks:', mediaStream.getTracks());
+      setDebugInfo(`Camera granted. Tracks: ${mediaStream.getTracks().length}`);
       
       setStream(mediaStream);
       setPermissionState('granted');
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        console.log('🎥 Video element source set');
+        
+        // Wait for video to load and play
+        videoRef.current.onloadedmetadata = () => {
+          console.log('🎥 Video metadata loaded');
+          if (videoRef.current) {
+            videoRef.current.play().catch(e => {
+              console.error('🎥 Video play failed:', e);
+              setError('Failed to start video playback. Please refresh and try again.');
+            });
+          }
+        };
+        
+        videoRef.current.onplay = () => {
+          console.log('🎥 Video started playing');
+          // Start face detection after video starts playing
+          setTimeout(() => startFaceDetection(), 1000);
+        };
+        
+        videoRef.current.onerror = (e) => {
+          console.error('🎥 Video element error:', e);
+          setError('Video display error. Please refresh and try again.');
+        };
       }
-
-      // Start basic face detection
-      startFaceDetection();
       
     } catch (error: any) {
-      console.error('Camera access denied:', error);
+      console.error('🎥 Camera access error:', error);
       setPermissionState('denied');
-      setError('Camera access is required for live verification. Please enable camera permissions and try again.');
+      
+      let errorMessage = 'Camera access is required for live verification.';
+      
+      if (error.name === 'NotAllowedError') {
+        errorMessage = 'Camera permission denied. Please enable camera access and try again.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage = 'No camera found. Please connect a camera and try again.';
+      } else if (error.name === 'NotReadableError') {
+        errorMessage = 'Camera is in use by another application. Please close other apps and try again.';
+      } else if (error.name === 'SecurityError') {
+        errorMessage = 'Camera access blocked due to security settings. Please use HTTPS and try again.';
+      } else {
+        errorMessage = `Camera error: ${error.message || 'Unknown error occurred'}`;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -492,13 +555,18 @@ export const LiveCapturePage: React.FC = () => {
               </div>
 
               {/* Video Feed */}
-              <div className="relative bg-black">
+              <div className="relative bg-black rounded-lg overflow-hidden">
                 <video
                   ref={videoRef}
                   autoPlay
                   playsInline
                   muted
-                  className="w-full h-96 object-cover"
+                  controls={false}
+                  style={{ width: '100%', height: '384px', objectFit: 'cover' }}
+                  className="w-full h-96 object-cover bg-black"
+                  onLoadStart={() => console.log('🎥 Video load started')}
+                  onCanPlay={() => console.log('🎥 Video can play')}
+                  onPlaying={() => console.log('🎥 Video is playing')}
                 />
                 <canvas
                   ref={canvasRef}
@@ -603,6 +671,13 @@ export const LiveCapturePage: React.FC = () => {
               <span>Stay still during capture for best results</span>
             </li>
           </ul>
+          
+          {/* Debug Info for Production Troubleshooting */}
+          {debugInfo && (
+            <div className="mt-4 p-3 bg-gray-100 rounded-lg">
+              <p className="text-sm text-gray-600">Debug: {debugInfo}</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
