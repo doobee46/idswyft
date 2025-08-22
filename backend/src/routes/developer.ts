@@ -246,8 +246,10 @@ router.post('/api-key',
     }
     
     // Generate API key with enhanced security
+    console.log('🔑 Generating API key...');
     const { key, hash, prefix } = generateAPIKey();
     const keyId = crypto.randomUUID();
+    console.log('🔑 API key generated:', { prefix, keyId });
     
     // Calculate expiration date
     let expiresAt = null;
@@ -257,6 +259,7 @@ router.post('/api-key',
     }
     
     // Create API key record with enhanced security
+    console.log('🔑 Inserting API key into database...');
     const { data: apiKey, error: keyError } = await supabase
       .from('api_keys')
       .insert({
@@ -273,8 +276,9 @@ router.post('/api-key',
       .single();
     
     if (keyError) {
+      console.error('🚨 API Key Creation Error:', keyError);
       logger.error('Failed to create API key:', keyError);
-      throw new Error('Failed to create API key');
+      throw new Error(`Failed to create API key: ${keyError.message || keyError.code || 'Unknown database error'}`);
     }
     
     // Debug logging for created API key
