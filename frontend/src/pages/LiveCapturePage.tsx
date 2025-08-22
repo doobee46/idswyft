@@ -57,6 +57,7 @@ export const LiveCapturePage: React.FC = () => {
   const [captureAttempts, setCaptureAttempts] = useState(0);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [debugInfo, setDebugInfo] = useState<string>('');
+  const [showManualFix, setShowManualFix] = useState(false);
 
   const token = searchParams.get('token');
   const verificationId = searchParams.get('verification_id');
@@ -364,29 +365,76 @@ export const LiveCapturePage: React.FC = () => {
           setTimeout(() => startFaceDetection(), 1000);
         };
         
-        // Fallback: Auto-reconnect stream if video isn't visible after 3 seconds
-        setTimeout(() => {
-          if (videoRef.current && stream) {
-            console.log('🎥 Checking if video is visible...');
+        // Multiple aggressive fallback attempts
+        let fallbackAttempts = 0;
+        const maxFallbackAttempts = 3;
+        
+        const tryFallbackReconnection = () => {
+          if (!videoRef.current || !mediaStream || fallbackAttempts >= maxFallbackAttempts) return;
+          
+          fallbackAttempts++;
+          console.log(`🎥 Fallback attempt ${fallbackAttempts}/${maxFallbackAttempts}`);
+          
+          const video = videoRef.current;
+          
+          // Check if video needs reconnection
+          if (video.videoWidth === 0 || video.videoHeight === 0 || video.paused || video.readyState === 0) {
+            console.log('🎥 Video needs reconnection:', {
+              videoWidth: video.videoWidth,
+              videoHeight: video.videoHeight,
+              paused: video.paused,
+              readyState: video.readyState
+            });
             
-            // Check if video has dimensions (visible)
-            if (videoRef.current.videoWidth === 0 || videoRef.current.videoHeight === 0) {
-              console.log('🎥 Video not visible, auto-reconnecting stream...');
-              
-              // Simulate the "Reconnect Stream" button click
-              videoRef.current.srcObject = null;
-              setTimeout(() => {
-                if (videoRef.current && stream) {
-                  videoRef.current.srcObject = stream;
-                  videoRef.current.play().catch(console.error);
+            // Force complete reset
+            video.srcObject = null;
+            video.load(); // Force video element reset
+            
+            setTimeout(async () => {
+              if (videoRef.current && mediaStream) {
+                console.log(`🎥 Attempting reconnection ${fallbackAttempts}...`);
+                
+                // Re-apply all attributes
+                video.muted = true;
+                video.autoplay = true;
+                video.playsInline = true;
+                video.setAttribute('webkit-playsinline', 'true');
+                
+                // Assign stream again
+                video.srcObject = mediaStream;
+                
+                try {
+                  await video.play();
+                  console.log(`🎥 Reconnection ${fallbackAttempts} successful`);
+                  setDebugInfo(prev => `${prev}, Reconnected on attempt ${fallbackAttempts}`);
+                  
+                  // Start face detection if successful
+                  setTimeout(() => startFaceDetection(), 1000);
+                } catch (playError) {
+                  console.error(`🎥 Reconnection ${fallbackAttempts} failed:`, playError);
+                  
+                  // Try next attempt after delay
+                  if (fallbackAttempts < maxFallbackAttempts) {
+                    setTimeout(tryFallbackReconnection, 2000);
+                  } else {
+                    // All automatic attempts failed, show manual fix button
+                    console.log('🎥 All automatic reconnection attempts failed');
+                    setShowManualFix(true);
+                    setDebugInfo(prev => `${prev}, Auto-reconnection failed - manual fix needed`);
+                  }
                 }
-              }, 100);
-            } else {
-              console.log('🎥 Video is visible, starting face detection');
-              startFaceDetection();
-            }
+              }
+            }, 500);
+          } else {
+            console.log('🎥 Video is healthy, starting face detection');
+            startFaceDetection();
           }
-        }, 3000);
+        };
+        
+        // Start fallback attempts at different intervals
+        setTimeout(tryFallbackReconnection, 2000);  // First attempt after 2s
+        setTimeout(tryFallbackReconnection, 5000);  // Second attempt after 5s  
+        setTimeout(tryFallbackReconnection, 8000);  // Third attempt after 8s
         
         videoRef.current.onerror = (e) => {
           console.error('🎥 Video element error:', e);
@@ -859,6 +907,30 @@ export const LiveCapturePage: React.FC = () => {
                     </div>
                   </div>
                 </div>
+                
+                {/* Manual Fix Button */}
+                {showManualFix && (
+                  <div className="absolute top-4 right-4">
+                    <button
+                      onClick={() => {
+                        if (videoRef.current && stream) {
+                          console.log('🎥 Manual fix button clicked');
+                          videoRef.current.srcObject = null;
+                          setTimeout(() => {
+                            if (videoRef.current && stream) {
+                              videoRef.current.srcObject = stream;
+                              videoRef.current.play().catch(console.error);
+                              setShowManualFix(false);
+                            }
+                          }, 100);
+                        }
+                      }}
+                      className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium transition-colors"
+                    >
+                      Fix Camera
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Controls */}
