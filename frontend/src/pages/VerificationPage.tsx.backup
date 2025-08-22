@@ -440,7 +440,7 @@ export const VerificationPage: React.FC = () => {
       return;
     }
 
-    // Redirect to dedicated live capture page (better for mobile UX)
+    // Redirect to dedicated live capture page (better for mobile)
     const liveCaptureUrl = `/live-capture?api_key=${apiKey}&verification_id=${verificationId}&token=${apiKey}`;
     window.location.href = liveCaptureUrl;
   };
@@ -469,7 +469,6 @@ export const VerificationPage: React.FC = () => {
           }
         }
         
-        // Timeout after max attempts
         if (attempts >= maxAttempts) {
           clearInterval(pollInterval);
           console.warn('Live capture processing polling timed out');
@@ -578,21 +577,16 @@ export const VerificationPage: React.FC = () => {
                         API Key *
                       </label>
                       <input
-        console.log('Stream info:', {
-          active: stream.active,
-          tracks: stream.getVideoTracks().map(track => ({
-            kind: track.kind,
-            label: track.label,
-            enabled: track.enabled,
-            readyState: track.readyState,
-            settings: track.getSettings ? track.getSettings() : 'N/A'
-          }))
-        });
-      } catch (constraintError) {
-        console.warn('Ideal constraints failed, trying basic constraints:', constraintError);
-        
-        try {
-          // Fallback to basic constraints for older mobile devices
+                        type="text"
+                        value={apiKey}
+                        onChange={(e) => setApiKey(e.target.value)}
+                        placeholder="Enter your API key"
+                        className="w-full p-3 sm:p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm sm:text-base"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Get your API key from the <a href="/developer" className="text-blue-600 underline">Developer Portal</a>
+                      </p>
+                    </div>
           stream = await navigator.mediaDevices.getUserMedia({ 
             video: { 
               facingMode: 'user'
