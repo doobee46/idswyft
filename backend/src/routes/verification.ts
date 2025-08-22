@@ -234,9 +234,20 @@ router.post('/document',
       });
       
       // Start OCR processing asynchronously - always use real OCR
-      console.log('🔄 Starting real OCR processing...');
+      console.log('🔄 Starting real OCR processing...', {
+        documentId: document.id,
+        documentPath,
+        documentType: document_type,
+        verificationId: verificationRequest.id
+      });
+      
       ocrService.processDocument(document.id, documentPath, document_type)
         .then(async (ocrData) => {
+          console.log('✅ OCR processing succeeded:', { 
+            verificationId: verificationRequest.id,
+            ocrData 
+          });
+          
           await verificationService.updateVerificationRequest(verificationRequest.id, {
             ocr_data: ocrData,
             status: 'verified' // Will be updated by database trigger if needed
@@ -248,6 +259,7 @@ router.post('/document',
           });
         })
         .catch((error) => {
+          console.error('🚨 OCR processing failed in route:', error);
           logger.error('OCR processing failed:', error);
           verificationService.updateVerificationRequest(verificationRequest.id, {
             status: 'manual_review',
