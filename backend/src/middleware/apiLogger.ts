@@ -12,6 +12,7 @@ interface ApiLogEntry {
   user_agent?: string;
   ip_address?: string;
   error_message?: string;
+  timestamp?: Date;
 }
 
 // In-memory store for recent API activities (last 100 calls per developer)
@@ -24,7 +25,7 @@ export const apiActivityLogger = (req: Request, res: Response, next: NextFunctio
   const originalEnd = res.end;
   
   // Override end function to capture response details
-  res.end = function(chunk?: any, encoding?: any) {
+  res.end = function(chunk?: any, encoding?: any): any {
     const endTime = Date.now();
     const responseTime = endTime - startTime;
     
