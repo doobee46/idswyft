@@ -43,6 +43,8 @@ export const LiveCapturePage: React.FC = () => {
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const displayCanvasRef = useRef<HTMLCanvasElement>(null); // Alternative display method
+  const hiddenVideoRef = useRef<HTMLVideoElement>(null); // Hidden video for processing
   
   const [sessionData, setSessionData] = useState<LiveCaptureSession | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -58,6 +60,7 @@ export const LiveCapturePage: React.FC = () => {
   const [sessionExpired, setSessionExpired] = useState(false);
   const [debugInfo, setDebugInfo] = useState<string>('');
   const [showManualFix, setShowManualFix] = useState(false);
+  const [useCanvasDisplay, setUseCanvasDisplay] = useState(false);
 
   const token = searchParams.get('token');
   const verificationId = searchParams.get('verification_id');
@@ -417,10 +420,11 @@ export const LiveCapturePage: React.FC = () => {
                   if (fallbackAttempts < maxFallbackAttempts) {
                     setTimeout(tryFallbackReconnection, 2000);
                   } else {
-                    // All automatic attempts failed, show manual fix button
-                    console.log('🎥 All automatic reconnection attempts failed');
+                    // All automatic attempts failed, try canvas alternative
+                    console.log('🎥 All automatic reconnection attempts failed, trying canvas alternative');
+                    setDebugInfo(prev => `${prev}, Trying canvas display alternative`);
+                    startCanvasDisplay(mediaStream);
                     setShowManualFix(true);
-                    setDebugInfo(prev => `${prev}, Auto-reconnection failed - manual fix needed`);
                   }
                 }
               }
@@ -467,11 +471,13 @@ export const LiveCapturePage: React.FC = () => {
   };
 
   const startFaceDetection = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current) return;
-
-    const video = videoRef.current;
+    const video = useCanvasDisplay ? hiddenVideoRef.current : videoRef.current;
     const canvas = canvasRef.current;
+    
+    if (!video || !canvas) return;
+    
     const context = canvas.getContext('2d');
+    console.log('🎥 Starting face detection with:', useCanvasDisplay ? 'hidden video' : 'main video');
 
     if (!context) return;
 
@@ -632,7 +638,71 @@ export const LiveCapturePage: React.FC = () => {
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+    if (hiddenVideoRef.current) {
+      hiddenVideoRef.current.srcObject = null;
+    }
   };
+
+  // Canvas-based display alternative (bypasses video element issues)
+  const startCanvasDisplay = useCallback((mediaStream: MediaStream) => {
+    console.log('🎨 Starting canvas-based display alternative');
+    
+    if (!hiddenVideoRef.current || !displayCanvasRef.current) return;
+    
+    const hiddenVideo = hiddenVideoRef.current;
+    const displayCanvas = displayCanvasRef.current;
+    const displayContext = displayCanvas.getContext('2d');
+    
+    if (!displayContext) return;
+    
+    // Set up hidden video element
+    hiddenVideo.srcObject = mediaStream;
+    hiddenVideo.muted = true;
+    hiddenVideo.autoplay = true;
+    hiddenVideo.playsInline = true;
+    
+    hiddenVideo.onloadedmetadata = () => {
+      console.log('🎨 Hidden video metadata loaded');
+      
+      // Set canvas dimensions to match video
+      displayCanvas.width = hiddenVideo.videoWidth || 640;
+      displayCanvas.height = hiddenVideo.videoHeight || 480;
+      
+      console.log('🎨 Canvas dimensions set:', {
+        width: displayCanvas.width,
+        height: displayCanvas.height
+      });
+      
+      hiddenVideo.play().then(() => {
+        console.log('🎨 Hidden video playing, starting canvas rendering');
+        
+        // Start rendering video frames to canvas
+        const renderFrame = () => {
+          if (hiddenVideo.readyState >= hiddenVideo.HAVE_CURRENT_DATA) {
+            // Clear canvas
+            displayContext.clearRect(0, 0, displayCanvas.width, displayCanvas.height);
+            
+            // Draw video frame to canvas
+            displayContext.drawImage(hiddenVideo, 0, 0, displayCanvas.width, displayCanvas.height);
+          }
+          
+          // Continue rendering at 30fps
+          requestAnimationFrame(renderFrame);
+        };
+        
+        renderFrame();
+        setUseCanvasDisplay(true);
+        setDebugInfo(prev => `${prev}, Canvas display active`);
+        
+        // Start face detection using the hidden video
+        setTimeout(() => startFaceDetection(), 1000);
+        
+      }).catch(error => {
+        console.error('🎨 Canvas display video play failed:', error);
+      });
+    };
+    
+  }, [startFaceDetection]);
 
   const retryCapture = () => {
     setError('');
@@ -865,6 +935,7 @@ export const LiveCapturePage: React.FC = () => {
 
               {/* Video Feed */}
               <div className="relative bg-black rounded-lg overflow-hidden">
+                {/* Main video element */}
                 <video
                   ref={videoRef}
                   autoPlay
@@ -874,7 +945,12 @@ export const LiveCapturePage: React.FC = () => {
                   webkit-playsinline="true"
                   x-webkit-airplay="deny"
                   preload="metadata"
-                  style={{ width: '100%', height: '384px', objectFit: 'cover' }}
+                  style={{ 
+                    width: '100%', 
+                    height: '384px', 
+                    objectFit: 'cover',
+                    display: useCanvasDisplay ? 'none' : 'block'
+                  }}
                   className="w-full h-96 object-cover bg-black"
                   onLoadStart={() => console.log('🎥 Video load started')}
                   onCanPlay={() => console.log('🎥 Video can play')}
@@ -884,6 +960,29 @@ export const LiveCapturePage: React.FC = () => {
                   onPause={() => console.log('🎥 Video pause event via JSX')}
                   onError={(e) => console.error('🎥 Video error via JSX:', e)}
                 />
+                
+                {/* Canvas display alternative */}
+                <canvas
+                  ref={displayCanvasRef}
+                  style={{ 
+                    width: '100%', 
+                    height: '384px', 
+                    objectFit: 'cover',
+                    display: useCanvasDisplay ? 'block' : 'none'
+                  }}
+                  className="w-full h-96 object-cover bg-black"
+                />
+                
+                {/* Hidden video for canvas processing */}
+                <video
+                  ref={hiddenVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  style={{ display: 'none' }}
+                />
+                
+                {/* Face detection canvas */}
                 <canvas
                   ref={canvasRef}
                   className="hidden"
@@ -913,16 +1012,27 @@ export const LiveCapturePage: React.FC = () => {
                   <div className="absolute top-4 right-4">
                     <button
                       onClick={() => {
-                        if (videoRef.current && stream) {
+                        if (stream) {
                           console.log('🎥 Manual fix button clicked');
-                          videoRef.current.srcObject = null;
-                          setTimeout(() => {
-                            if (videoRef.current && stream) {
-                              videoRef.current.srcObject = stream;
-                              videoRef.current.play().catch(console.error);
-                              setShowManualFix(false);
+                          if (!useCanvasDisplay) {
+                            // Try canvas display alternative
+                            console.log('🎥 Switching to canvas display');
+                            startCanvasDisplay(stream);
+                          } else {
+                            // Try video element again
+                            console.log('🎥 Switching back to video element');
+                            setUseCanvasDisplay(false);
+                            if (videoRef.current) {
+                              videoRef.current.srcObject = null;
+                              setTimeout(() => {
+                                if (videoRef.current && stream) {
+                                  videoRef.current.srcObject = stream;
+                                  videoRef.current.play().catch(console.error);
+                                }
+                              }, 100);
                             }
-                          }, 100);
+                          }
+                          setShowManualFix(false);
                         }
                       }}
                       className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium transition-colors"
