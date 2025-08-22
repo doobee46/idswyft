@@ -45,21 +45,26 @@ export const apiActivityLogger = (req: Request, res: Response, next: NextFunctio
       error_message: res.statusCode >= 400 ? `${res.statusCode} ${res.statusMessage}` : undefined
     };
     
-    // Store in memory for quick access
-    if (developer?.id) {
-      if (!recentActivities.has(developer.id)) {
-        recentActivities.set(developer.id, []);
+    // Store in memory for quick access (but exclude developer portal calls)
+    if (developer?.id && apiKey?.id) { // Only log if there's an API key (external API usage)
+      // Filter out developer dashboard internal calls
+      const isDeveloperPortalCall = req.originalUrl.startsWith('/api/developer/');
+      
+      if (!isDeveloperPortalCall) {
+        if (!recentActivities.has(developer.id)) {
+          recentActivities.set(developer.id, []);
+        }
+        
+        const activities = recentActivities.get(developer.id)!;
+        activities.unshift({ ...logEntry, timestamp: new Date() } as any);
+        
+        // Keep only last 100 activities per developer
+        if (activities.length > 100) {
+          activities.splice(100);
+        }
+        
+        recentActivities.set(developer.id, activities);
       }
-      
-      const activities = recentActivities.get(developer.id)!;
-      activities.unshift({ ...logEntry, timestamp: new Date() } as any);
-      
-      // Keep only last 100 activities per developer
-      if (activities.length > 100) {
-        activities.splice(100);
-      }
-      
-      recentActivities.set(developer.id, activities);
     }
     
     // Log to console for debugging (like in your screenshot)
@@ -77,28 +82,32 @@ export const apiActivityLogger = (req: Request, res: Response, next: NextFunctio
     
     console.log(`${timestamp} ${req.method.padEnd(7)} ${req.originalUrl.padEnd(40)} ${statusColor}${res.statusCode}${resetColor} ${responseTime}ms`);
     
-    // Async database logging (don't block response)
-    if (developer?.id) {
-      setImmediate(async () => {
-        try {
-          await supabase
-            .from('api_activity_logs')
-            .insert({
-              developer_id: developer.id,
-              api_key_id: apiKey?.id,
-              method: req.method,
-              endpoint: req.originalUrl,
-              status_code: res.statusCode,
-              response_time_ms: responseTime,
-              user_agent: req.get('User-Agent'),
-              ip_address: req.ip || req.connection.remoteAddress,
-              error_message: logEntry.error_message,
-              timestamp: new Date().toISOString()
-            });
-        } catch (error) {
-          logger.error('Failed to log API activity to database:', error);
-        }
-      });
+    // Async database logging (don't block response) - only for API key usage
+    if (developer?.id && apiKey?.id) {
+      const isDeveloperPortalCall = req.originalUrl.startsWith('/api/developer/');
+      
+      if (!isDeveloperPortalCall) {
+        setImmediate(async () => {
+          try {
+            await supabase
+              .from('api_activity_logs')
+              .insert({
+                developer_id: developer.id,
+                api_key_id: apiKey?.id,
+                method: req.method,
+                endpoint: req.originalUrl,
+                status_code: res.statusCode,
+                response_time_ms: responseTime,
+                user_agent: req.get('User-Agent'),
+                ip_address: req.ip || req.connection.remoteAddress,
+                error_message: logEntry.error_message,
+                timestamp: new Date().toISOString()
+              });
+          } catch (error) {
+            logger.error('Failed to log API activity to database:', error);
+          }
+        });
+      }
     }
     
     // Call original end function

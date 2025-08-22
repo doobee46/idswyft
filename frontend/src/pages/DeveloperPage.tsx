@@ -60,6 +60,8 @@ export const DeveloperPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'keys' | 'docs' | 'security'>('overview');
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [keyToDelete, setKeyToDelete] = useState<string | null>(null);
   const [newKeyName, setNewKeyName] = useState('');
   const [newKeyIsSandbox, setNewKeyIsSandbox] = useState(false);
   const [registrationMode, setRegistrationMode] = useState(true);
@@ -345,12 +347,15 @@ export const DeveloperPage: React.FC = () => {
   };
 
   const deleteApiKey = async (keyId: string) => {
-    if (!confirm('Are you sure you want to delete this API key? This action cannot be undone.')) {
-      return;
-    }
+    setKeyToDelete(keyId);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!keyToDelete) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/developer/api-key/${keyId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/developer/api-key/${keyToDelete}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('developer_token')}`,
@@ -367,6 +372,9 @@ export const DeveloperPage: React.FC = () => {
     } catch (error) {
       console.error('Error deleting API key:', error);
       toast.error('Failed to delete API key');
+    } finally {
+      setShowDeleteConfirm(false);
+      setKeyToDelete(null);
     }
   };
 
@@ -673,7 +681,14 @@ export const DeveloperPage: React.FC = () => {
                         <span className="text-gray-900 break-all mr-2">{currentApiKey}</span>
                         <div className="flex space-x-2">
                           <button
-                            onClick={() => navigator.clipboard.writeText(currentApiKey)}
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(currentApiKey);
+                                toast.success('API key copied to clipboard');
+                              } catch (error) {
+                                toast.error('Failed to copy API key');
+                              }
+                            }}
                             className="p-2 text-gray-500 hover:text-gray-700 rounded"
                             title="Copy to clipboard"
                           >
@@ -730,7 +745,7 @@ export const DeveloperPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Recent API Calls */}
+              {/* Terminal-style API Activity */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="font-medium text-gray-900 text-sm">Recent API Activity</h4>
@@ -741,67 +756,87 @@ export const DeveloperPage: React.FC = () => {
                     Refresh
                   </button>
                 </div>
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {apiActivity.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <div className="text-sm">No API activity yet</div>
-                      <div className="text-xs mt-1">Make some API calls to see activity here</div>
+                
+                {/* Terminal-style container */}
+                <div className="bg-gray-900 rounded-lg overflow-hidden">
+                  {/* Terminal header */}
+                  <div className="bg-gray-800 px-4 py-2 flex items-center justify-between border-b border-gray-700">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                      <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                     </div>
-                  ) : (
-                    apiActivity.map((activity, index) => {
-                      const timeAgo = activity.timestamp ? 
-                        new Date(activity.timestamp).toLocaleString('en-US', {
-                          month: 'short',
-                          day: '2-digit',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit',
-                          hour12: false
-                        }) : 'Unknown';
-                      
-                      const getMethodColor = (method: string) => {
-                        switch (method.toLowerCase()) {
-                          case 'get': return 'bg-green-100 text-green-800';
-                          case 'post': return 'bg-blue-100 text-blue-800';
-                          case 'put': return 'bg-orange-100 text-orange-800';
-                          case 'delete': return 'bg-red-100 text-red-800';
-                          case 'options': return 'bg-purple-100 text-purple-800';
-                          default: return 'bg-gray-100 text-gray-800';
-                        }
-                      };
-                      
-                      const getStatusColor = (status: number) => {
-                        if (status >= 200 && status < 300) return 'bg-green-100 text-green-800';
-                        if (status >= 300 && status < 400) return 'bg-yellow-100 text-yellow-800';
-                        if (status >= 400 && status < 500) return 'bg-orange-100 text-orange-800';
-                        return 'bg-red-100 text-red-800';
-                      };
-                      
-                      return (
-                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                          <div className="flex items-center space-x-3 flex-1 min-w-0">
-                            <span className="text-xs text-gray-500 font-mono whitespace-nowrap">
-                              {timeAgo}
+                    <div className="text-xs text-gray-400 font-mono">
+                      You reached the start of the range → {new Date().toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: '2-digit', 
+                        year: 'numeric' 
+                      })}, {new Date().toLocaleTimeString('en-US', { 
+                        hour: '2-digit', 
+                        minute: '2-digit', 
+                        hour12: true 
+                      })}
+                    </div>
+                  </div>
+                  
+                  {/* Terminal content */}
+                  <div className="p-4 font-mono text-sm max-h-96 overflow-y-auto">
+                    {apiActivity.length === 0 ? (
+                      <div className="text-center py-8 text-gray-400">
+                        <div className="text-sm">No API activity yet</div>
+                        <div className="text-xs mt-1">Make some API calls to see activity here</div>
+                      </div>
+                    ) : (
+                      apiActivity.map((activity, index) => {
+                        const timestamp = activity.timestamp ? 
+                          new Date(activity.timestamp).toLocaleString('en-US', {
+                            month: 'short',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: false
+                          }) : 'Unknown';
+                        
+                        const getStatusColor = (status: number) => {
+                          if (status >= 200 && status < 300) return 'text-green-400';
+                          if (status >= 400) return 'text-red-400';
+                          return 'text-yellow-400';
+                        };
+                        
+                        const getMethodColor = (method: string) => {
+                          switch (method.toLowerCase()) {
+                            case 'get': return 'text-green-400';
+                            case 'post': return 'text-blue-400';
+                            case 'put': return 'text-yellow-400';
+                            case 'delete': return 'text-red-400';
+                            case 'options': return 'text-purple-400';
+                            default: return 'text-gray-400';
+                          }
+                        };
+                        
+                        return (
+                          <div key={index} className="flex items-center text-white text-xs leading-relaxed py-0.5 hover:bg-gray-800/50">
+                            <span className="text-gray-400 w-20 flex-shrink-0">
+                              {timestamp}
                             </span>
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getMethodColor(activity.method)}`}>
-                              {activity.method}
+                            <span className={`w-16 flex-shrink-0 ml-4 ${getMethodColor(activity.method)}`}>
+                              {activity.method.toUpperCase()}
                             </span>
-                            <span className="font-mono text-sm text-gray-700 truncate">
+                            <span className="text-white flex-1 ml-4 truncate">
                               {activity.endpoint}
                             </span>
-                          </div>
-                          <div className="flex items-center space-x-3 flex-shrink-0">
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(activity.status_code)}`}>
+                            <span className={`w-12 text-right flex-shrink-0 ml-4 ${getStatusColor(activity.status_code)}`}>
                               {activity.status_code}
                             </span>
-                            <span className="text-sm text-gray-500 whitespace-nowrap">
+                            <span className="text-gray-400 w-16 text-right flex-shrink-0 ml-4">
                               {activity.response_time_ms}ms
                             </span>
                           </div>
-                        </div>
-                      );
-                    })
-                  )}
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1075,6 +1110,44 @@ export const DeveloperPage: React.FC = () => {
                   >
                     Create Key
                   </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
+                </div>
+                <div className="ml-3 w-full">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Delete API Key
+                  </h3>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Are you sure you want to delete this API key? This action cannot be undone and will immediately revoke access for any applications using this key.
+                  </p>
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={confirmDelete}
+                      className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                    >
+                      Delete Key
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowDeleteConfirm(false);
+                        setKeyToDelete(null);
+                      }}
+                      className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

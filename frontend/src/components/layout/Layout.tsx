@@ -24,9 +24,15 @@ export function Layout({ children }: LayoutProps) {
   const location = useLocation()
   
   const isAdminRoute = location.pathname.startsWith('/admin')
+  const isUserVerificationRoute = location.pathname.startsWith('/user-verification')
   
   if (isAdminRoute && location.pathname !== '/admin/login') {
     // Admin layout will be handled separately
+    return <>{children}</>
+  }
+  
+  if (isUserVerificationRoute) {
+    // User verification page - no navbar, no footer, clean standalone experience
     return <>{children}</>
   }
   

@@ -514,6 +514,16 @@ router.get('/activity',
     // Get recent activities from memory (fast)
     const recentActivities = getRecentActivities(developer.id);
     
+    // Debug logging for activities
+    console.log(`🔍 Developer ${developer.id} activity check:`, {
+      activitiesFound: recentActivities.length,
+      recentActivities: recentActivities.slice(0, 3).map(a => ({
+        method: a.method,
+        endpoint: a.endpoint,
+        timestamp: a.timestamp
+      }))
+    });
+    
     // Get verification statistics from database
     const { data: verificationStats, error: statsError } = await supabase
       .from('verification_requests')

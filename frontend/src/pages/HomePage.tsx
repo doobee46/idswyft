@@ -79,116 +79,161 @@ const stats = [
 
 const getCodeExamples = (apiUrl: string) => ({
   curl: `# Complete verification flow
-curl -X POST ${apiUrl}/api/verify/start \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
+curl -X POST ${apiUrl}/api/verify/start \\
+  -H "X-API-Key: YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
   -d '{"user_id": "user_123"}'
 
-curl -X POST ${apiUrl}/api/verify/document \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -F "verification_id=verif_abc123" \
-  -F "document=@passport.jpg" \
+curl -X POST ${apiUrl}/api/verify/document \\
+  -H "X-API-Key: YOUR_API_KEY" \\
+  -F "verification_id=verif_abc123" \\
+  -F "document=@passport.jpg" \\
   -F "document_type=passport"
 
-curl -X POST ${apiUrl}/api/verify/live-capture \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"verification_id": "verif_abc123", "live_image_data": "base64..."}'
+curl -X POST ${apiUrl}/api/verify/selfie \\
+  -H "X-API-Key: YOUR_API_KEY" \\
+  -F "verification_id=verif_abc123" \\
+  -F "selfie=@selfie.jpg"
 
-curl -X GET ${apiUrl}/api/verify/results/verif_abc123 \
+curl -X GET ${apiUrl}/api/verify/results/verif_abc123 \\
   -H "X-API-Key: YOUR_API_KEY"`,
-  javascript: `import { IdswyftSDK } from '@idswyft/sdk';
+  javascript: `// Direct API calls using fetch (no SDK needed)
+const API_BASE_URL = '${apiUrl}';
+const API_KEY = 'your_api_key';
 
-const client = new IdswyftSDK({
-  apiKey: 'your_api_key',
-  sandbox: false
+// Start verification session
+const startResponse = await fetch(\`\${API_BASE_URL}/api/verify/start\`, {
+  method: 'POST',
+  headers: {
+    'X-API-Key': API_KEY,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({ user_id: 'user_123' })
+});
+const session = await startResponse.json();
+
+// Upload document
+const formData = new FormData();
+formData.append('verification_id', session.verification_id);
+formData.append('document_type', 'passport');
+formData.append('document', documentFile);
+
+await fetch(\`\${API_BASE_URL}/api/verify/document\`, {
+  method: 'POST',
+  headers: { 'X-API-Key': API_KEY },
+  body: formData
 });
 
-// Complete verification flow
-const session = await client.startVerification({
-  user_id: 'user_123'
+// Upload selfie for face matching
+const selfieData = new FormData();
+selfieData.append('verification_id', session.verification_id);
+selfieData.append('selfie', selfieFile);
+
+await fetch(\`\${API_BASE_URL}/api/verify/selfie\`, {
+  method: 'POST',
+  headers: { 'X-API-Key': API_KEY },
+  body: selfieData
 });
 
-await client.uploadDocument({
-  verification_id: session.verification_id,
-  document_type: 'passport',
-  document_file: documentFile
-});
+// Get results
+const results = await fetch(\`\${API_BASE_URL}/api/verify/results/\${session.verification_id}\`, {
+  headers: { 'X-API-Key': API_KEY }
+}).then(res => res.json());
 
-await client.liveCapture({
-  verification_id: session.verification_id,
-  live_image_data: capturedImageBase64
-});
-
-const results = await client.getResults(session.verification_id);
 console.log(results.status); // 'verified'
-console.log(results.ocr_data.name); // 'John Doe'
-console.log(results.liveness_score); // 0.94`,
-  python: `import idswyft
+console.log(results.ocr_data?.name); // 'John Doe'
+console.log(results.face_match_score); // 0.94`,
+  python: `import requests
 
-client = idswyft.IdswyftClient(
-    api_key="your_api_key",
-    sandbox=False
+API_BASE_URL = '${apiUrl}'
+API_KEY = 'your_api_key'
+headers = {'X-API-Key': API_KEY}
+
+# Start verification session
+session_response = requests.post(
+    f'{API_BASE_URL}/api/verify/start',
+    headers={**headers, 'Content-Type': 'application/json'},
+    json={'user_id': 'user_123'}
 )
+session = session_response.json()
 
-# Complete verification flow
-session = client.start_verification(user_id="user_123")
+# Upload document
+with open('passport.jpg', 'rb') as doc_file:
+    requests.post(
+        f'{API_BASE_URL}/api/verify/document',
+        headers=headers,
+        files={'document': doc_file},
+        data={
+            'verification_id': session['verification_id'],
+            'document_type': 'passport'
+        }
+    )
 
-client.upload_document(
-    verification_id=session["verification_id"],
-    document_type="passport",
-    document_file="passport.jpg"
-)
+# Upload selfie for face matching
+with open('selfie.jpg', 'rb') as selfie_file:
+    requests.post(
+        f'{API_BASE_URL}/api/verify/selfie',
+        headers=headers,
+        files={'selfie': selfie_file},
+        data={'verification_id': session['verification_id']}
+    )
 
-client.live_capture(
-    verification_id=session["verification_id"],
-    live_image_data=captured_image_base64
-)
+# Get results
+results = requests.get(
+    f'{API_BASE_URL}/api/verify/results/{session["verification_id"]}',
+    headers=headers
+).json()
 
-results = client.get_results(session["verification_id"])
 print(f"Status: {results['status']}")
-print(f"Name: {results['ocr_data']['name']}")
-print(f"Liveness: {results['liveness_score']}")`,
+print(f"Name: {results.get('ocr_data', {}).get('name')}")
+print(f"Face Match: {results.get('face_match_score')}")`,
   response: `{
-  "id": "verif_abc123",
+  "verification_id": "verif_abc123",
   "status": "verified",
-  "type": "document",
-  "confidence_score": 0.95,
   "user_id": "user_123",
-  "developer_id": "dev_xyz789",
   "created_at": "2024-01-01T12:00:00Z",
   "updated_at": "2024-01-01T12:00:15Z",
-  "ocr_data": {
-    "name": "John Doe",
-    "date_of_birth": "1990-01-01",
-    "document_number": "P123456789",
-    "expiration_date": "2030-01-01",
-    "nationality": "US",
-    "confidence_scores": {
-      "name": 0.98,
-      "date_of_birth": 0.95,
-      "document_number": 0.92,
-      "expiration_date": 0.94
+  
+  // Document Analysis
+  "documents": [{
+    "id": "doc_123",
+    "file_name": "passport.jpg",
+    "document_type": "passport",
+    "ocr_data": {
+      "document_number": "P123456789",
+      "full_name": "John Doe",
+      "date_of_birth": "1990-01-01",
+      "expiry_date": "2030-01-01",
+      "nationality": "US"
+    },
+    "quality_analysis": {
+      "overallQuality": "excellent",
+      "isBlurry": false,
+      "blurScore": 342.5,
+      "brightness": 128,
+      "contrast": 45,
+      "resolution": {
+        "width": 1920,
+        "height": 1080,
+        "isHighRes": true
+      },
+      "fileSize": {
+        "bytes": 2457600,
+        "isReasonableSize": true
+      },
+      "issues": [],
+      "recommendations": []
     }
-  },
-  "quality_analysis": {
-    "overallQuality": "excellent",
-    "isBlurry": false,
-    "blurScore": 342.5,
-    "brightness": 128,
-    "contrast": 45,
-    "resolution": {
-      "width": 1920,
-      "height": 1080,
-      "isHighRes": true
-    },
-    "fileSize": {
-      "bytes": 2457600,
-      "isReasonableSize": true
-    },
-    "issues": [],
-    "recommendations": ["Increase lighting for even better clarity"]
-  }
+  }],
+  
+  // Face Matching Results
+  "face_match_score": 0.92,
+  "liveness_score": 0.94,
+  "live_capture_completed": true,
+  
+  // Overall Assessment
+  "confidence_score": 0.93,
+  "manual_review_reason": null
 }`
 })
 
@@ -202,16 +247,16 @@ const integrationSteps = [
   },
   {
     step: '2', 
-    title: 'Start Session',
-    description: 'Create verification session with user ID',
-    icon: CubeIcon,
+    title: 'Upload Document',
+    description: 'Start session & upload ID document for OCR analysis',
+    icon: DocumentCheckIcon,
     color: 'from-purple-500 to-purple-600'
   },
   {
     step: '3',
-    title: 'Verify & Capture',
-    description: 'Upload documents + live capture for complete verification',
-    icon: RocketLaunchIcon,
+    title: 'Face Matching',
+    description: 'Upload selfie for face matching & liveness detection',
+    icon: CameraIcon,
     color: 'from-green-500 to-green-600'
   }
 ]
@@ -475,10 +520,10 @@ export function HomePage() {
                     </div>
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">Multiple SDKs</h3>
-                    <p className="text-gray-600 mb-4">JavaScript, Python, Go, PHP, and REST API. Choose your preferred language.</p>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">REST API</h3>
+                    <p className="text-gray-600 mb-4">Simple REST API with comprehensive documentation. Use any HTTP client in your preferred language.</p>
                     <div className="flex flex-wrap gap-2">
-                      {['JavaScript', 'Python', 'Go', 'PHP', 'cURL'].map((lang) => (
+                      {['JavaScript/fetch', 'Python/requests', 'Go/http', 'PHP/cURL', 'Ruby/Net::HTTP'].map((lang) => (
                         <span key={lang} className="inline-flex px-3 py-1 bg-gray-100 text-gray-700 text-sm font-medium rounded-full">
                           {lang}
                         </span>

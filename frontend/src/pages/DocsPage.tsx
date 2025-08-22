@@ -459,6 +459,244 @@ challenge_type: 'blink' | 'smile' | 'turn_head' | 'random' (optional)`}
           </div>
         </section>
 
+        {/* Integration Options */}
+        <section className="mb-8 sm:mb-10">
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold mb-4 sm:mb-6 flex items-center">
+            <BoltIcon className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-500 mr-2" />
+            Integration Options
+          </h2>
+          
+          <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 mb-6 sm:mb-8">
+            {/* Ready-Made Solution */}
+            <div className="border-2 border-blue-200 bg-blue-50 rounded-lg p-4 sm:p-6">
+              <div className="flex items-start">
+                <div className="flex-shrink-0 mr-3">
+                  <div className="text-2xl">🚀</div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-lg text-blue-900 mb-2">Ready-Made Verification Page</h3>
+                  <p className="text-blue-800 text-sm mb-3">
+                    <strong>Fastest Integration:</strong> Complete verification flow ready in minutes. 
+                    Just provide your API key and user ID - we handle everything else.
+                  </p>
+                  <div className="space-y-2 text-xs text-blue-700 mb-4">
+                    <div>✅ Complete UI with progress tracking</div>
+                    <div>✅ Document upload & OCR processing</div>
+                    <div>✅ Live camera capture with liveness detection</div>
+                    <div>✅ Results display & custom redirects</div>
+                    <div>✅ Light/dark theme support</div>
+                    <div>✅ Mobile responsive design</div>
+                  </div>
+                  <div className="bg-blue-100 p-3 rounded mb-3">
+                    <h4 className="font-semibold text-blue-900 mb-1">URL Integration:</h4>
+                    <code className="text-xs text-blue-800 break-all">
+                      /user-verification?api_key=your-key&user_id=user-123&redirect_url=https://yourapp.com/success
+                    </code>
+                  </div>
+                  <a 
+                    href="/user-verification?api_key=demo&user_id=demo-user" 
+                    className="inline-block bg-blue-600 text-white px-4 py-2 rounded font-medium text-sm hover:bg-blue-700 transition-colors mr-3"
+                    target="_blank"
+                  >
+                    Try Live Demo →
+                  </a>
+                  <a 
+                    href="#ready-made-integration" 
+                    className="inline-block bg-white text-blue-600 border border-blue-600 px-4 py-2 rounded font-medium text-sm hover:bg-blue-50 transition-colors"
+                  >
+                    View Integration Guide →
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* API Integration */}
+            <div className="border border-gray-200 rounded-lg p-4 sm:p-6">
+              <div className="flex items-start">
+                <div className="flex-shrink-0 mr-3">
+                  <div className="text-2xl">⚙️</div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-lg text-gray-900 mb-2">Custom API Integration</h3>
+                  <p className="text-gray-600 text-sm mb-3">
+                    Full control over the verification flow. Build your own UI using our comprehensive REST API.
+                  </p>
+                  <div className="space-y-2 text-xs text-gray-600 mb-4">
+                    <div>✅ Complete API control</div>
+                    <div>✅ Custom UI/UX design</div>
+                    <div>✅ Advanced configuration options</div>
+                    <div>✅ Webhook integrations</div>
+                    <div>✅ SDK support (JS, Python)</div>
+                    <div>✅ Enterprise features</div>
+                  </div>
+                  <a 
+                    href="#complete-verification-flow" 
+                    className="inline-block bg-gray-600 text-white px-4 py-2 rounded font-medium text-sm hover:bg-gray-700 transition-colors mr-3"
+                  >
+                    View API Docs →
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Ready-Made Integration Guide */}
+        <section id="ready-made-integration" className="mb-8 sm:mb-10 scroll-mt-4">
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold mb-4 sm:mb-6 flex items-center">
+            <div className="text-2xl mr-3">🚀</div>
+            Ready-Made Integration Guide
+          </h2>
+          
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 sm:p-6 rounded-lg mb-6 border border-blue-200">
+            <h3 className="font-bold text-lg text-blue-900 mb-2">Get Started in Under 5 Minutes</h3>
+            <p className="text-blue-800 text-sm">
+              Skip the complex API integration. Our ready-made verification page handles the entire flow - 
+              from document upload to live capture to results display.
+            </p>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2 mb-6">
+            {/* URL Method */}
+            <div className="border border-gray-200 rounded-lg p-4 sm:p-6">
+              <h3 className="font-semibold text-lg mb-3 flex items-center">
+                <span className="bg-green-100 text-green-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">1</span>
+                URL Redirect Method
+              </h3>
+              <p className="text-gray-600 text-sm mb-4">Simply redirect users to our verification page with URL parameters.</p>
+              
+              <h4 className="font-medium mb-2 text-sm">Example URL:</h4>
+              <div className="bg-gray-900 text-green-400 p-3 rounded text-xs mb-4 overflow-x-auto">
+                <pre>
+{`https://yourapp.com/user-verification?api_key=your-api-key&user_id=user-123&redirect_url=https://yourapp.com/success&theme=light`}
+                </pre>
+              </div>
+
+              <h4 className="font-medium mb-2 text-sm">JavaScript Example:</h4>
+              <div className="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-x-auto">
+                <pre>
+{`// Redirect user to verification
+const verifyUrl = \`/user-verification?\${new URLSearchParams({
+  api_key: 'your-api-key',
+  user_id: currentUser.id,
+  redirect_url: '/dashboard',
+  theme: 'light'
+}).toString()}\`;
+
+window.location.href = verifyUrl;`}
+                </pre>
+              </div>
+            </div>
+
+            {/* Popup Method */}
+            <div className="border border-gray-200 rounded-lg p-4 sm:p-6">
+              <h3 className="font-semibold text-lg mb-3 flex items-center">
+                <span className="bg-green-100 text-green-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">2</span>
+                Popup Window Method
+              </h3>
+              <p className="text-gray-600 text-sm mb-4">Open verification in a popup window for seamless user experience.</p>
+              
+              <h4 className="font-medium mb-2 text-sm">JavaScript Example:</h4>
+              <div className="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-x-auto">
+                <pre>
+{`function openVerification() {
+  const verifyUrl = \`/user-verification?\${new URLSearchParams({
+    api_key: 'your-api-key',
+    user_id: 'user-123'
+  }).toString()}\`;
+  
+  const popup = window.open(
+    verifyUrl,
+    'verification',
+    'width=500,height=700,scrollbars=yes'
+  );
+  
+  // Listen for completion message
+  window.addEventListener('message', (event) => {
+    if (event.data.type === 'VERIFICATION_COMPLETE') {
+      console.log('Result:', event.data.result);
+      popup.close();
+    }
+  });
+}`}
+                </pre>
+              </div>
+            </div>
+          </div>
+
+          {/* Parameters Table */}
+          <div className="border border-gray-200 rounded-lg overflow-hidden mb-6">
+            <div className="bg-gray-50 px-4 py-3 border-b">
+              <h3 className="font-semibold">URL Parameters</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left font-medium">Parameter</th>
+                    <th className="px-4 py-2 text-left font-medium">Required</th>
+                    <th className="px-4 py-2 text-left font-medium">Description</th>
+                    <th className="px-4 py-2 text-left font-medium">Example</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  <tr>
+                    <td className="px-4 py-2 font-mono text-xs">api_key</td>
+                    <td className="px-4 py-2 text-red-600 font-medium">Required</td>
+                    <td className="px-4 py-2">Your Idswyft API key</td>
+                    <td className="px-4 py-2 font-mono text-xs">sk_test_123...</td>
+                  </tr>
+                  <tr>
+                    <td className="px-4 py-2 font-mono text-xs">user_id</td>
+                    <td className="px-4 py-2 text-red-600 font-medium">Required</td>
+                    <td className="px-4 py-2">Unique user identifier</td>
+                    <td className="px-4 py-2 font-mono text-xs">user-123</td>
+                  </tr>
+                  <tr>
+                    <td className="px-4 py-2 font-mono text-xs">redirect_url</td>
+                    <td className="px-4 py-2 text-gray-500">Optional</td>
+                    <td className="px-4 py-2">Where to redirect after completion</td>
+                    <td className="px-4 py-2 font-mono text-xs">https://yourapp.com/success</td>
+                  </tr>
+                  <tr>
+                    <td className="px-4 py-2 font-mono text-xs">theme</td>
+                    <td className="px-4 py-2 text-gray-500">Optional</td>
+                    <td className="px-4 py-2">UI theme (light or dark)</td>
+                    <td className="px-4 py-2 font-mono text-xs">light</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Flow Steps */}
+          <div className="bg-gray-50 p-4 sm:p-6 rounded-lg">
+            <h3 className="font-semibold text-lg mb-4">What Happens During Verification:</h3>
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+              <div className="bg-white p-3 rounded border">
+                <div className="text-2xl mb-2">📄</div>
+                <div className="font-medium text-sm">1. Document Upload</div>
+                <div className="text-xs text-gray-600">User uploads ID document</div>
+              </div>
+              <div className="bg-white p-3 rounded border">
+                <div className="text-2xl mb-2">⚙️</div>
+                <div className="font-medium text-sm">2. AI Processing</div>
+                <div className="text-xs text-gray-600">OCR extraction & quality analysis</div>
+              </div>
+              <div className="bg-white p-3 rounded border">
+                <div className="text-2xl mb-2">📸</div>
+                <div className="font-medium text-sm">3. Live Capture</div>
+                <div className="text-xs text-gray-600">Camera selfie with liveness detection</div>
+              </div>
+              <div className="bg-white p-3 rounded border">
+                <div className="text-2xl mb-2">✅</div>
+                <div className="font-medium text-sm">4. Results</div>
+                <div className="text-xs text-gray-600">Verification status & redirect</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* SDKs Section */}
         <section className="mb-8 sm:mb-10">
           <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold mb-4 sm:mb-6 flex items-center">
