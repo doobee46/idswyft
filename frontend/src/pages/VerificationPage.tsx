@@ -105,23 +105,35 @@ const VerificationPage: React.FC = () => {
       return;
     }
 
+
     setIsLoading(true);
     try {
+      const useSandbox = shouldUseSandbox();
+      const requestBody = {
+        user_id: userId,
+        ...(useSandbox && { sandbox: true })
+      };
+
+      console.log('🔧 Start Verification Debug:');
+      console.log('🔧 Sandbox mode:', useSandbox);
+      console.log('🔧 API Key (first 10):', apiKey?.substring(0, 10));
+      console.log('🔧 Request body:', requestBody);
+
       const response = await fetch(`${API_BASE_URL}/api/verify/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-API-Key': apiKey,
         },
-        body: JSON.stringify({
-          user_id: userId,
-          ...(shouldUseSandbox() && { sandbox: true })
-        }),
+        body: JSON.stringify(requestBody),
       });
+
+      console.log('🔧 Start verification response status:', response.status);
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to start verification');
+        console.log('🔧 Start verification error response:', errorData);
+        throw new Error(errorData.error || errorData.message || 'Failed to start verification');
       }
 
       const data = await response.json();
@@ -180,11 +192,25 @@ const VerificationPage: React.FC = () => {
       formData.append('document', selectedFile);
       formData.append('verification_id', verificationId);
       formData.append('document_type', 'national_id');
-      if (shouldUseSandbox()) {
-        formData.append('sandbox', 'true');
+      
+      const useSandbox = shouldUseSandbox();
+      
+      // Build URL with sandbox query parameter if needed
+      const url = new URL(`${API_BASE_URL}/api/verify/document`);
+      if (useSandbox) {
+        url.searchParams.append('sandbox', 'true');
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/verify/document`, {
+      console.log('🔧 Document Upload Debug:');
+      console.log('🔧 Sandbox mode:', useSandbox);
+      console.log('🔧 API Key (first 10):', apiKey?.substring(0, 10));
+      console.log('🔧 Verification ID:', verificationId);
+      console.log('🔧 Upload URL:', url.toString());
+      console.log('🔧 FormData entries:', Array.from(formData.entries()).map(([key, value]) => 
+        key === 'document' ? [key, `${value.constructor.name} (${value.size} bytes)`] : [key, value]
+      ));
+
+      const response = await fetch(url.toString(), {
         method: 'POST',
         headers: {
           'X-API-Key': apiKey,
@@ -192,9 +218,12 @@ const VerificationPage: React.FC = () => {
         body: formData,
       });
 
+      console.log('🔧 Upload response status:', response.status);
+
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to upload document');
+        console.log('🔧 Upload error response:', errorData);
+        throw new Error(errorData.error || errorData.message || 'Failed to upload document');
       }
 
       const data = await response.json();
