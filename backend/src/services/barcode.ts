@@ -91,43 +91,40 @@ export class BarcodeService {
               content: [
                 {
                   type: 'text',
-                  text: `Analyze the back of this ID document and extract all available information:
+                  text: `Analyze this image for technical patterns and visible text elements. Focus on:
 
-Please scan for and extract:
-1. QR codes or barcodes - decode the data if possible
-2. Magnetic stripe data (if visible as encoded text)
-3. Any printed information like:
-   - ID number or reference numbers
-   - Expiration date
-   - Issuing authority
-   - Address information
-   - Security codes or verification numbers
-4. Security features (holograms, watermarks, special patterns)
+1. Pattern Recognition:
+   - QR codes, barcodes, or data matrices
+   - Any encoded patterns or symbols
+   - Geometric security patterns
 
-Provide response in JSON format:
+2. Text Analysis:
+   - Any visible printed numbers or codes
+   - Date formats or alphanumeric sequences
+   - Institutional or organizational identifiers
+
+3. Visual Elements:
+   - Security features like holograms or watermarks
+   - Special printing patterns or textures
+
+Please provide a technical analysis in JSON format:
 {
-  "qr_code": "<decoded QR code data if found>",
-  "barcode_data": "<decoded barcode data if found>", 
-  "magnetic_stripe": "<magnetic stripe data if visible>",
-  "parsed_data": {
-    "id_number": "<ID number if found>",
-    "expiry_date": "<expiry date if found>",
-    "issuing_authority": "<issuing authority if found>",
-    "address": "<address if found>",
-    "additional_info": "<any other structured data>"
+  "patterns_detected": {
+    "qr_code": "<data if QR code found>",
+    "barcode": "<data if barcode found>",
+    "other_patterns": "<description of other encoded patterns>"
   },
-  "verification_codes": ["<array of verification codes found>"],
-  "security_features": ["<array of security features detected>"],
-  "confidence": <number between 0 and 1>,
-  "analysis": "detailed explanation of what was found and extracted"
+  "text_elements": {
+    "numbers": "<any number sequences found>",
+    "codes": "<any alphanumeric codes>",
+    "dates": "<any date formats>",
+    "organizations": "<any organizational identifiers>"
+  },
+  "security_features": ["<list any visible security elements>"],
+  "analysis": "technical description of patterns and elements found"
 }
 
-Important:
-- Look carefully for QR codes, barcodes (Code 39, Code 128, PDF417, etc.)
-- Extract any alphanumeric codes, reference numbers, or verification codes
-- Identify government issuing authority information
-- Note any security features that validate authenticity
-- If no barcode/QR code is found, still extract any printed text information`
+This is for document verification and security analysis purposes.`
                 },
                 {
                   type: 'image_url',
@@ -519,18 +516,24 @@ Important:
         const parsed = JSON.parse(cleanResponse);
         
         console.log('🤖 AI barcode/QR scanning parsed successfully:', {
-          qrCodeFound: !!parsed.qr_code,
-          barcodeFound: !!parsed.barcode_data,
-          verificationCodes: parsed.verification_codes?.length || 0,
+          qrCodeFound: !!parsed.patterns_detected?.qr_code,
+          barcodeFound: !!parsed.patterns_detected?.barcode,
+          textElements: Object.keys(parsed.text_elements || {}).length,
           securityFeatures: parsed.security_features?.length || 0
         });
         
+        // Map new format to old format for compatibility
         return {
-          qr_code: parsed.qr_code || undefined,
-          barcode_data: parsed.barcode_data || undefined,
-          magnetic_stripe: parsed.magnetic_stripe || undefined,
-          parsed_data: parsed.parsed_data || {},
-          verification_codes: parsed.verification_codes || [],
+          qr_code: parsed.patterns_detected?.qr_code || undefined,
+          barcode_data: parsed.patterns_detected?.barcode || undefined,
+          magnetic_stripe: undefined,
+          parsed_data: {
+            id_number: parsed.text_elements?.codes || parsed.text_elements?.numbers,
+            expiry_date: parsed.text_elements?.dates,
+            issuing_authority: parsed.text_elements?.organizations,
+            additional_info: parsed.analysis || {}
+          },
+          verification_codes: [],
           security_features: parsed.security_features || []
         };
         
@@ -599,13 +602,12 @@ Important:
       else discrepancies.push(`Expiry date mismatch: front="${frontOcrData.expiry_date}" vs back="${backOfIdData.parsed_data.expiry_date}"`);
     }
 
-    // Compare issuing authority
+    // Compare issuing authority with intelligent matching
     if (frontOcrData?.issuing_authority && backOfIdData.parsed_data?.issuing_authority) {
       totalChecks++;
-      const authorityMatch = frontOcrData.issuing_authority.toLowerCase().includes(
-        backOfIdData.parsed_data.issuing_authority.toLowerCase()
-      ) || backOfIdData.parsed_data.issuing_authority.toLowerCase().includes(
-        frontOcrData.issuing_authority.toLowerCase()
+      const authorityMatch = this.matchIssuingAuthorities(
+        frontOcrData.issuing_authority, 
+        backOfIdData.parsed_data.issuing_authority
       );
       if (authorityMatch) matches++;
       else discrepancies.push(`Issuing authority mismatch: front="${frontOcrData.issuing_authority}" vs back="${backOfIdData.parsed_data.issuing_authority}"`);
@@ -630,11 +632,61 @@ Important:
         expiry_date_match: frontOcrData?.expiry_date && backOfIdData.parsed_data?.expiry_date ?
           frontOcrData.expiry_date === backOfIdData.parsed_data.expiry_date : undefined,
         issuing_authority_match: frontOcrData?.issuing_authority && backOfIdData.parsed_data?.issuing_authority ?
-          frontOcrData.issuing_authority.toLowerCase().includes(backOfIdData.parsed_data.issuing_authority.toLowerCase()) : undefined,
+          this.matchIssuingAuthorities(frontOcrData.issuing_authority, backOfIdData.parsed_data.issuing_authority) : undefined,
         overall_consistency: overallConsistency
       },
       discrepancies
     };
+  }
+
+  private matchIssuingAuthorities(authority1: string, authority2: string): boolean {
+    // Normalize both authorities to lowercase for comparison
+    const auth1 = authority1.toLowerCase().trim();
+    const auth2 = authority2.toLowerCase().trim();
+    
+    // Direct match
+    if (auth1 === auth2) return true;
+    
+    // Authority mapping for known equivalents
+    const authorityMappings = {
+      'new york state': ['ny', 'new york', 'nys', 'dmv.ny.gov', 'new york dmv'],
+      'california': ['ca', 'calif', 'dmv.ca.gov', 'california dmv'],
+      'florida': ['fl', 'fla', 'flhsmv.gov', 'florida dmv'],
+      'texas': ['tx', 'tex', 'txdmv.gov', 'texas dmv'],
+      'illinois': ['il', 'ill', 'cyberdriveillinois.com', 'illinois dmv'],
+      'pennsylvania': ['pa', 'penn', 'dmv.pa.gov', 'pennsylvania dmv'],
+      'ohio': ['oh', 'bmv.ohio.gov', 'ohio dmv'],
+      'georgia': ['ga', 'dds.georgia.gov', 'georgia dmv'],
+      'north carolina': ['nc', 'ncdot.gov', 'north carolina dmv'],
+      'michigan': ['mi', 'michigan.gov/sos', 'michigan dmv']
+    };
+    
+    // Check if either authority matches any mapping
+    for (const [canonical, variants] of Object.entries(authorityMappings)) {
+      const allVariants = [canonical, ...variants];
+      
+      // Check if both authorities map to the same canonical authority
+      const auth1Matches = allVariants.some(variant => 
+        auth1.includes(variant) || variant.includes(auth1)
+      );
+      const auth2Matches = allVariants.some(variant => 
+        auth2.includes(variant) || variant.includes(auth2)
+      );
+      
+      if (auth1Matches && auth2Matches) {
+        console.log(`🔄 Authority match found: "${authority1}" ↔ "${authority2}" (both map to ${canonical})`);
+        return true;
+      }
+    }
+    
+    // Fallback: check if either authority contains the other
+    if (auth1.includes(auth2) || auth2.includes(auth1)) {
+      console.log(`🔄 Authority partial match: "${authority1}" ↔ "${authority2}"`);
+      return true;
+    }
+    
+    console.log(`❌ No authority match: "${authority1}" vs "${authority2}"`);
+    return false;
   }
 
   // Health check for barcode service

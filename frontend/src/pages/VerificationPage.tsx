@@ -596,28 +596,46 @@ const VerificationPage: React.FC = () => {
               </div>
             )}
 
-            <div className="text-center">
-              <h3 className="text-lg font-semibold mb-4">Take a Selfie</h3>
-              <p className="text-gray-600 mb-6">
-                Now we need to verify that you're the person in the document.
-              </p>
-              
-              <div className="space-y-4">
-                <button
-                  onClick={handleLiveCapture}
-                  className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-                >
-                  Take Selfie
-                </button>
+            {/* Liveness Challenge - Only show after back-of-ID is uploaded */}
+            {backOfIdUploaded && (
+              <div className="text-center">
+                <h3 className="text-lg font-semibold mb-4">Take a Selfie</h3>
+                <p className="text-gray-600 mb-6">
+                  Now we need to verify that you're the person in the document.
+                </p>
                 
-                <button
-                  onClick={skipLiveCapture}
-                  className="w-full bg-gray-300 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-400 transition-colors"
-                >
-                  Skip Selfie (Complete Verification)
-                </button>
+                <div className="space-y-4">
+                  <button
+                    onClick={handleLiveCapture}
+                    className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                  >
+                    Take Selfie
+                  </button>
+                  
+                  <button
+                    onClick={skipLiveCapture}
+                    className="w-full bg-gray-300 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-400 transition-colors"
+                  >
+                    Skip Selfie (Complete Verification)
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Instructions when back-of-ID is not uploaded */}
+            {!backOfIdUploaded && (
+              <div className="text-center bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <div className="text-blue-600 mb-2">
+                  <svg className="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-blue-900 mb-2">Next Step: Upload Back-of-ID</h3>
+                <p className="text-blue-700 text-sm">
+                  Please upload the back of your ID above for enhanced verification with QR/barcode scanning and cross-validation before proceeding to the liveness challenge.
+                </p>
+              </div>
+            )}
           </div>
         );
 

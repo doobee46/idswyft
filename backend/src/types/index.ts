@@ -17,6 +17,10 @@ export interface VerificationRequest {
   live_capture_completed?: boolean;
   manual_review_reason?: string;
   external_verification_id?: string;
+  // Enhanced verification fields
+  back_of_id_uploaded?: boolean;
+  cross_validation_score?: number;
+  enhanced_verification_completed?: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -36,6 +40,11 @@ export interface Document {
   quality_score?: number;
   quality_analysis?: any;
   authenticity_score?: number;
+  // Back-of-ID fields
+  is_back_of_id?: boolean;
+  barcode_data?: any;
+  cross_validation_results?: any;
+  back_of_id_document_id?: string;
   created_at: Date;
 }
 
