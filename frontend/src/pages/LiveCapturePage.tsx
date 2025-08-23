@@ -164,44 +164,63 @@ export const LiveCapturePage: React.FC = () => {
       console.log('🎥 Requesting camera access...');
       setDebugInfo('Requesting camera access...');
       
-      // Try with ideal constraints first
-      let mediaStream: MediaStream;
-      try {
-        mediaStream = await navigator.mediaDevices.getUserMedia({ 
+      // Try multiple constraint variations until one works
+      const constraintVariations = [
+        // Variation 1: Ideal HD
+        { 
           video: { 
             width: { ideal: 1280 },
             height: { ideal: 720 },
             facingMode: 'user'
           },
           audio: false 
-        });
-      } catch (constraintError) {
-        console.log('🎥 Initial constraints failed, trying fallback...');
-        setDebugInfo('Initial constraints failed, trying fallback...');
-        
+        },
+        // Variation 2: Lower resolution
+        { 
+          video: { 
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: 'user'
+          },
+          audio: false 
+        },
+        // Variation 3: Basic video only
+        { 
+          video: true,
+          audio: false 
+        },
+        // Variation 4: No facing mode
+        { 
+          video: { 
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          },
+          audio: false 
+        }
+      ];
+      
+      let mediaStream: MediaStream | null = null;
+      let successfulConstraints = null;
+      
+      for (let i = 0; i < constraintVariations.length; i++) {
         try {
-          // Fallback to basic video constraints
-          mediaStream = await navigator.mediaDevices.getUserMedia({ 
-            video: true,
-            audio: false 
-          });
-        } catch (basicError) {
-          console.log('🎥 Basic constraints failed, trying device-specific...');
-          setDebugInfo('Basic constraints failed, trying device-specific...');
+          console.log(`🎥 Trying constraint variation ${i + 1}/${constraintVariations.length}:`, constraintVariations[i]);
+          setDebugInfo(`Trying constraint variation ${i + 1}/${constraintVariations.length}`);
           
-          // Last resort: try with a specific device
-          const devices = await navigator.mediaDevices.enumerateDevices();
-          const videoDevices = devices.filter(device => device.kind === 'videoinput');
-          
-          if (videoDevices.length > 0) {
-            mediaStream = await navigator.mediaDevices.getUserMedia({
-              video: { deviceId: videoDevices[0].deviceId },
-              audio: false
-            });
-          } else {
-            throw basicError;
+          mediaStream = await navigator.mediaDevices.getUserMedia(constraintVariations[i]);
+          successfulConstraints = constraintVariations[i];
+          console.log(`🎥 Constraint variation ${i + 1} successful!`);
+          break;
+        } catch (constraintError) {
+          console.log(`🎥 Constraint variation ${i + 1} failed:`, constraintError);
+          if (i === constraintVariations.length - 1) {
+            throw constraintError; // Re-throw the last error
           }
         }
+      }
+      
+      if (!mediaStream) {
+        throw new Error('All constraint variations failed');
       }
       
       console.log('🎥 Camera access granted, stream:', mediaStream);
@@ -420,11 +439,21 @@ export const LiveCapturePage: React.FC = () => {
                   if (fallbackAttempts < maxFallbackAttempts) {
                     setTimeout(tryFallbackReconnection, 2000);
                   } else {
-                    // All automatic attempts failed, try canvas alternative
-                    console.log('🎥 All automatic reconnection attempts failed, trying canvas alternative');
-                    setDebugInfo(prev => `${prev}, Trying canvas display alternative`);
-                    startCanvasDisplay(mediaStream);
-                    setShowManualFix(true);
+                    // All automatic attempts failed, recreate MediaStream entirely
+                    console.log('🎥 All attempts failed, recreating MediaStream from scratch');
+                    setDebugInfo(prev => `${prev}, Recreating MediaStream`);
+                    
+                    // Stop current stream completely
+                    mediaStream.getTracks().forEach(track => {
+                      track.stop();
+                      console.log('🎥 Stopped track:', track.id);
+                    });
+                    
+                    // Request completely new MediaStream after delay
+                    setTimeout(() => {
+                      console.log('🎥 Requesting fresh MediaStream...');
+                      requestCameraPermission();
+                    }, 1000);
                   }
                 }
               }
