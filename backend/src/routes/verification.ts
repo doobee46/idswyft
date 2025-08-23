@@ -9,6 +9,7 @@ import { VerificationService } from '@/services/verification.js';
 import { StorageService } from '@/services/storage.js';
 import { OCRService } from '@/services/ocr.js';
 import { FaceRecognitionService } from '@/services/faceRecognition.js';
+import { opencvFaceDetectionService } from '@/services/opencvFaceDetection.js';
 import { logger, logVerificationEvent } from '@/utils/logger.js';
 
 const router = express.Router();
