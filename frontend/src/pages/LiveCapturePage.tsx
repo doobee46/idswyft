@@ -358,6 +358,18 @@ export const LiveCapturePage: React.FC = () => {
       const base64Data = imageData.split(',')[1];
 
       console.log('📸 Capturing frame for verification...');
+      
+      const useSandbox = shouldUseSandbox(apiKey || undefined);
+      const requestBody = {
+        verification_id: sessionData.verification_id,
+        live_image_data: base64Data,
+        challenge_response: sessionData.liveness_challenge.type,
+        ...(useSandbox && { sandbox: true })
+      };
+      
+      console.log('🔧 Sandbox mode:', useSandbox);
+      console.log('🔧 API Key (first 10 chars):', apiKey?.substring(0, 10));
+      console.log('🔧 Request body keys:', Object.keys(requestBody));
 
       const response = await fetch(`${API_BASE_URL}/api/verify/live-capture`, {
         method: 'POST',
@@ -365,12 +377,7 @@ export const LiveCapturePage: React.FC = () => {
           'Content-Type': 'application/json',
           'X-API-Key': apiKey,
         },
-        body: JSON.stringify({
-          verification_id: sessionData.verification_id,
-          live_image_data: base64Data,
-          challenge_response: sessionData.liveness_challenge.type,
-          ...(shouldUseSandbox() && { sandbox: true })
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
