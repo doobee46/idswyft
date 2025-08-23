@@ -69,7 +69,12 @@ const VerificationPage: React.FC = () => {
 
   const loadVerificationResults = async (verificationId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/verify/results/${verificationId}`, {
+      const url = new URL(`${API_BASE_URL}/api/verify/results/${verificationId}`);
+      if (shouldUseSandbox()) {
+        url.searchParams.append('sandbox', 'true');
+      }
+      
+      const response = await fetch(url.toString(), {
         headers: {
           'X-API-Key': apiKey,
         },
@@ -212,7 +217,12 @@ const VerificationPage: React.FC = () => {
   const pollForOCRResults = () => {
     const pollInterval = setInterval(async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/verify/results/${verificationId}`, {
+        const url = new URL(`${API_BASE_URL}/api/verify/results/${verificationId}`);
+        if (shouldUseSandbox()) {
+          url.searchParams.append('sandbox', 'true');
+        }
+        
+        const response = await fetch(url.toString(), {
           headers: {
             'X-API-Key': apiKey,
           },
@@ -253,7 +263,12 @@ const VerificationPage: React.FC = () => {
   const skipLiveCapture = async () => {
     try {
       // Get results from the verification
-      const response = await fetch(`${API_BASE_URL}/api/verify/results/${verificationId}`, {
+      const url = new URL(`${API_BASE_URL}/api/verify/results/${verificationId}`);
+      if (shouldUseSandbox()) {
+        url.searchParams.append('sandbox', 'true');
+      }
+      
+      const response = await fetch(url.toString(), {
         headers: {
           'X-API-Key': apiKey,
         },

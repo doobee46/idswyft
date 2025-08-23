@@ -369,7 +369,9 @@ export const LiveCapturePage: React.FC = () => {
       
       console.log('🔧 Sandbox mode:', useSandbox);
       console.log('🔧 API Key (first 10 chars):', apiKey?.substring(0, 10));
+      console.log('🔧 Verification ID:', sessionData.verification_id);
       console.log('🔧 Request body keys:', Object.keys(requestBody));
+      console.log('🔧 Full request body:', JSON.stringify(requestBody, null, 2).substring(0, 200) + '...');
 
       const response = await fetch(`${API_BASE_URL}/api/verify/live-capture`, {
         method: 'POST',
@@ -380,8 +382,12 @@ export const LiveCapturePage: React.FC = () => {
         body: JSON.stringify(requestBody),
       });
 
+      console.log('🔧 Response status:', response.status);
+      console.log('🔧 Response headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
         const errorData = await response.json();
+        console.log('🔧 Error response:', errorData);
         throw new Error(errorData.message || 'Live capture failed');
       }
 
