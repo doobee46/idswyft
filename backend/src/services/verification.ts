@@ -130,6 +130,7 @@ export class VerificationService {
     file_size: number;
     mime_type: string;
     document_type: string;
+    is_back_of_id?: boolean;
   }): Promise<Document> {
     const { data: document, error } = await supabase
       .from('documents')

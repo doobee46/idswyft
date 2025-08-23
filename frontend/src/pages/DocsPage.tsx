@@ -4,7 +4,10 @@ import {
   CodeBracketIcon,
   BoltIcon,
   ChartBarIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  SparklesIcon,
+  AcademicCapIcon,
+  EyeIcon
 } from '@heroicons/react/24/outline';
 import { getDocumentationApiUrl } from '../config/api';
 
@@ -15,9 +18,12 @@ export const DocsPage: React.FC = () => {
     <div className="max-w-6xl mx-auto p-4 sm:p-6">
       <div className="bg-white rounded-lg shadow-md p-4 sm:p-8">
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 sm:mb-4">API Documentation</h1>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 sm:mb-4">
+            <SparklesIcon className="inline h-8 w-8 text-purple-600 mr-2" />
+            AI-Powered API Documentation
+          </h1>
           <p className="text-base sm:text-lg lg:text-xl text-gray-600">
-            Complete guide to the Idswyft Identity Verification API with AI-powered analysis
+            Complete guide to the Idswyft Identity Verification API with GPT-4o Vision, AI liveness detection, and enhanced verification features
           </p>
         </div>
         
@@ -250,6 +256,82 @@ metadata: object (optional)`}
             </div>
           </div>
 
+          {/* Back-of-ID Upload */}
+          <div className="mb-6 sm:mb-8 border border-gray-200 rounded-lg">
+            <div className="bg-cyan-50 p-3 sm:p-4 border-b">
+              <h3 className="font-semibold text-base sm:text-lg flex items-center">
+                <AcademicCapIcon className="h-5 w-5 text-cyan-600 mr-2" />
+                2b. Upload Back-of-ID (Enhanced Verification)
+                <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">NEW</span>
+              </h3>
+              <code className="text-xs sm:text-sm text-cyan-700 break-all">POST /api/verify/back-of-id</code>
+            </div>
+            <div className="p-4 sm:p-6">
+              <p className="text-gray-700 mb-3 sm:mb-4 text-sm sm:text-base">
+                Upload the back of an ID document for enhanced verification with QR/barcode scanning and cross-validation 
+                against front-of-ID data. This optional step significantly increases verification accuracy.
+              </p>
+              
+              <div className="bg-purple-50 border border-purple-200 p-3 mb-4 rounded-lg">
+                <h4 className="font-medium text-purple-900 mb-2 flex items-center">
+                  <SparklesIcon className="h-4 w-4 mr-1" />
+                  AI-Powered Features
+                </h4>
+                <ul className="text-purple-800 text-sm space-y-1">
+                  <li>• GPT-4o Vision barcode and QR code scanning</li>
+                  <li>• Cross-validation between front and back data</li>
+                  <li>• Security feature detection and analysis</li>
+                  <li>• Verification code extraction and matching</li>
+                </ul>
+              </div>
+              
+              <h4 className="font-medium mb-2 text-sm sm:text-base">Request Parameters:</h4>
+              <div className="bg-gray-50 p-3 sm:p-4 rounded text-xs sm:text-sm mb-3 sm:mb-4">
+                <pre className="overflow-x-auto">
+{`verification_id: string (UUID from step 1)
+document_type: 'passport' | 'drivers_license' | 'national_id' | 'other'
+back_of_id: File (image/jpeg, image/png, image/webp)
+metadata: object (optional)`}
+                </pre>
+              </div>
+
+              <h4 className="font-medium mb-2 text-sm sm:text-base">Example Request:</h4>
+              <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm mb-3 sm:mb-4">
+                <pre className="overflow-x-auto">
+{`curl -X POST ${apiUrl}/api/verify/back-of-id \\
+  -H "X-API-Key: your-api-key" \\
+  -F "verification_id=verif_abc123" \\
+  -F "document_type=drivers_license" \\
+  -F "back_of_id=@drivers_license_back.jpg"`}
+                </pre>
+              </div>
+
+              <h4 className="font-medium mb-2 text-sm sm:text-base">Response with Cross-Validation:</h4>
+              <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm">
+                <pre className="overflow-x-auto">
+{`{
+  "verification_id": "verif_abc123",
+  "back_of_id_document_id": "doc_back456",
+  "status": "processing",
+  "message": "Back-of-ID uploaded successfully. Enhanced verification processing started.",
+  
+  "enhanced_verification": {
+    "barcode_scanning_enabled": true,
+    "cross_validation_enabled": true,
+    "ai_powered": true
+  },
+  
+  "next_steps": [
+    "Processing barcode/QR code scanning",
+    "Cross-validating with front-of-ID data",
+    "Check results with GET /api/verify/results/verif_abc123"
+  ]
+}`}
+                </pre>
+              </div>
+            </div>
+          </div>
+
           {/* Selfie Verification */}
           <div className="mb-6 sm:mb-8 border border-gray-200 rounded-lg">
             <div className="bg-purple-50 p-3 sm:p-4 border-b">
@@ -294,14 +376,32 @@ metadata: object (optional)`}
           {/* Live Camera Capture */}
           <div className="mb-6 sm:mb-8 border border-gray-200 rounded-lg">
             <div className="bg-orange-50 p-3 sm:p-4 border-b">
-              <h3 className="font-semibold text-base sm:text-lg">3. Live Camera Capture with Liveness Detection</h3>
+              <h3 className="font-semibold text-base sm:text-lg flex items-center">
+                <EyeIcon className="h-5 w-5 text-orange-600 mr-2" />
+                3. Live Camera Capture with AI Liveness Detection
+                <span className="ml-2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full">AI-Enhanced</span>
+              </h3>
               <code className="text-xs sm:text-sm text-orange-700 break-all">POST /api/verify/live-capture</code>
             </div>
             <div className="p-4 sm:p-6">
               <p className="text-gray-700 mb-3 sm:mb-4 text-sm sm:text-base">
-                Perform real-time camera capture for an existing verification session. This includes advanced 
-                liveness detection, challenge-response verification, and instant face matching against the uploaded document.
+                Perform real-time camera capture with advanced AI-powered liveness detection using GPT-4o Vision. 
+                Detects spoofing attempts, analyzes facial depth, skin texture, and micro-expressions for bulletproof security.
               </p>
+              
+              <div className="bg-purple-50 border border-purple-200 p-3 mb-4 rounded-lg">
+                <h4 className="font-medium text-purple-900 mb-2 flex items-center">
+                  <SparklesIcon className="h-4 w-4 mr-1" />
+                  AI Liveness Detection Features
+                </h4>
+                <ul className="text-purple-800 text-sm space-y-1">
+                  <li>• Facial depth and 3D structure analysis</li>
+                  <li>• Natural skin texture and lighting detection</li>
+                  <li>• Digital artifact and screen glare identification</li>
+                  <li>• Micro-expression and eye authenticity verification</li>
+                  <li>• Challenge response validation (blink, smile, head movement)</li>
+                </ul>
+              </div>
               
               <h4 className="font-medium mb-2 text-sm sm:text-base">Request Parameters:</h4>
               <div className="bg-gray-50 p-3 sm:p-4 rounded text-xs sm:text-sm mb-3 sm:mb-4">
@@ -415,7 +515,7 @@ challenge_type: 'blink' | 'smile' | 'turn_head' | 'random' (optional)`}
                 </pre>
               </div>
 
-              <h4 className="font-medium mb-2 text-sm sm:text-base">Complete Response:</h4>
+              <h4 className="font-medium mb-2 text-sm sm:text-base">Enhanced Response with AI Features:</h4>
               <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm">
                 <pre className="overflow-x-auto">
 {`{
@@ -425,28 +525,51 @@ challenge_type: 'blink' | 'smile' | 'turn_head' | 'random' (optional)`}
   "created_at": "2024-01-01T12:00:00Z",
   "updated_at": "2024-01-01T12:05:30Z",
   
-  // Document Results
+  // Front Document Results (AI-Powered OCR)
   "document_uploaded": true,
-  "document_type": "passport",
+  "document_type": "drivers_license",
   "ocr_data": {
     "name": "John Doe",
     "date_of_birth": "1990-01-01",
-    "document_number": "P123456789",
+    "document_number": "DL123456789",
     "expiration_date": "2030-01-01",
-    "nationality": "US"
+    "address": "123 Main St, Anytown, US",
+    "ai_extraction_confidence": 0.96
   },
   "quality_analysis": {
     "overallQuality": "excellent",
     "isBlurry": false,
-    "blurScore": 342.5,
-    "brightness": 128,
-    "resolution": {"width": 1920, "height": 1080}
+    "ai_authenticity_score": 0.94
   },
   
-  // Live Capture Results
+  // Back-of-ID Results (NEW - Enhanced Verification)
+  "back_of_id_uploaded": true,
+  "barcode_data": {
+    "qr_code": "DL|123456789|DOE,JOHN|1990-01-01|...",
+    "parsed_data": {
+      "id_number": "DL123456789",
+      "expiry_date": "2030-01-01",
+      "issuing_authority": "Department of Motor Vehicles"
+    },
+    "verification_codes": ["VER123", "CHK456"],
+    "security_features": ["Hologram detected", "UV pattern verified"]
+  },
+  "cross_validation_results": {
+    "match_score": 0.98,
+    "validation_results": {
+      "id_number_match": true,
+      "expiry_date_match": true,
+      "overall_consistency": true
+    },
+    "discrepancies": []
+  },
+  "cross_validation_score": 0.98,
+  "enhanced_verification_completed": true,
+  
+  // AI Live Capture Results  
   "live_capture_completed": true,
-  "liveness_score": 0.94,
-  "face_match_score": 0.92,
+  "liveness_score": 0.96,
+  "face_match_score": 0.94,
   
   // Overall Assessment
   "confidence_score": 0.93,

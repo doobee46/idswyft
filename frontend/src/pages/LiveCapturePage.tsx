@@ -57,10 +57,13 @@ export const LiveCapturePage: React.FC = () => {
   const [sessionExpired, setSessionExpired] = useState(false);
   const [debugInfo, setDebugInfo] = useState<string>('');
   const [opencvReady, setOpencvReady] = useState(false);
+  const [livenessScore, setLivenessScore] = useState(0);
+  const [faceStability, setFaceStability] = useState(0);
   
   // OpenCV refs
   const animationRef = useRef<number | null>(null);
   const faceClassifierRef = useRef<any>(null);
+  const videoElementRef = useRef<HTMLVideoElement | null>(null);
 
   // URL params
   const token = searchParams.get('token');
@@ -108,9 +111,16 @@ export const LiveCapturePage: React.FC = () => {
 
     setSessionData(mockSession);
 
-    // Auto-start camera when OpenCV is ready
-    if (opencvReady) {
-      setTimeout(initializeCamera, 500);
+    // Auto-start camera when OpenCV is ready and canvas is available
+    if (opencvReady && cameraState === 'prompt') {
+      // Wait a bit longer to ensure canvas is rendered
+      setTimeout(() => {
+        if (canvasRef.current) {
+          initializeCamera();
+        } else {
+          console.log('🎥 Canvas not ready, will wait for manual initialization');
+        }
+      }, 1000);
     }
 
     // Session expiry timer
@@ -147,6 +157,28 @@ export const LiveCapturePage: React.FC = () => {
       console.log('🎥 Initializing camera...');
       setDebugInfo('Requesting camera access...');
 
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('getUserMedia is not supported in this browser');
+      }
+
+      console.log('🎥 getUserMedia is supported');
+      setDebugInfo('getUserMedia supported, checking permissions...');
+
+      // Check permissions first
+      if (navigator.permissions) {
+        try {
+          const permission = await navigator.permissions.query({ name: 'camera' as PermissionName });
+          console.log('🎥 Camera permission state:', permission.state);
+          setDebugInfo(`Permission state: ${permission.state}`);
+        } catch (permError) {
+          console.log('🎥 Could not check permissions:', permError);
+        }
+      }
+
+      console.log('🎥 Requesting camera stream...');
+      setDebugInfo('Requesting camera stream...');
+
       const constraints = {
         video: {
           width: { ideal: 640 },
@@ -156,16 +188,49 @@ export const LiveCapturePage: React.FC = () => {
         audio: false
       };
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      streamRef.current = stream;
+      console.log('🎥 Constraints:', constraints);
 
-      if (canvasRef.current) {
-        setupCanvas(stream);
-        startVideoProcessing();
-        setCameraState('ready');
-        setDebugInfo('Camera ready');
-        console.log('🎥 Camera initialized successfully');
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      
+      console.log('🎥 Stream received:', stream);
+      console.log('🎥 Stream active:', stream.active);
+      console.log('🎥 Video tracks:', stream.getVideoTracks().length);
+      
+      if (stream.getVideoTracks().length === 0) {
+        throw new Error('No video tracks in stream');
       }
+
+      streamRef.current = stream;
+      setDebugInfo('Stream received, setting up canvas...');
+
+      // Double-check canvas is available
+      if (!canvasRef.current) {
+        // Canvas might not be rendered yet, wait a bit and retry
+        console.log('🎥 Canvas not available, retrying in 500ms...');
+        setTimeout(() => {
+          if (canvasRef.current) {
+            console.log('🎥 Canvas now available, continuing setup...');
+            setupCanvas(stream);
+            setCameraState('ready');
+            setDebugInfo('Camera ready - waiting for video to start');
+            setLoading(false);
+            console.log('🎥 Camera initialized successfully');
+          } else {
+            console.error('🎥 Canvas still not available after retry');
+            setCameraState('error');
+            setError('Canvas element not found. Please refresh the page.');
+            setLoading(false);
+          }
+        }, 500);
+        return; // Exit early, let the timeout handle it
+      }
+
+      console.log('🎥 Setting up canvas...');
+      setupCanvas(stream);
+      
+      setCameraState('ready');
+      setDebugInfo('Camera ready - waiting for video to start');
+      console.log('🎥 Camera initialized successfully');
 
     } catch (error: any) {
       console.error('🎥 Camera initialization failed:', error);
@@ -176,9 +241,16 @@ export const LiveCapturePage: React.FC = () => {
         errorMessage = 'Camera permission denied. Please enable camera access.';
       } else if (error.name === 'NotFoundError') {
         errorMessage = 'No camera found. Please connect a camera.';
+      } else if (error.name === 'NotReadableError') {
+        errorMessage = 'Camera is already in use by another application.';
+      } else if (error.name === 'SecurityError') {
+        errorMessage = 'Camera access blocked due to security settings.';
+      } else {
+        errorMessage = `Camera error: ${error.message || 'Unknown error'}`;
       }
       
       setError(errorMessage);
+      setDebugInfo(`Error: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -186,8 +258,13 @@ export const LiveCapturePage: React.FC = () => {
 
   const setupCanvas = (stream: MediaStream) => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      console.error('🎥 Canvas is null in setupCanvas');
+      return;
+    }
 
+    console.log('🎥 Creating video element...');
+    
     // Create a hidden video element to get frames from the stream
     const video = document.createElement('video');
     video.srcObject = stream;
@@ -195,40 +272,104 @@ export const LiveCapturePage: React.FC = () => {
     video.playsInline = true;
     video.muted = true;
     
+    console.log('🎥 Video element created, waiting for metadata...');
+    
     video.onloadedmetadata = () => {
+      console.log('🎥 Video metadata loaded:', {
+        videoWidth: video.videoWidth,
+        videoHeight: video.videoHeight,
+        duration: video.duration,
+        readyState: video.readyState
+      });
+      
       canvas.width = video.videoWidth || 640;
       canvas.height = video.videoHeight || 480;
+      
+      console.log('🎥 Canvas dimensions set:', canvas.width, 'x', canvas.height);
     };
 
-    // Store video element reference for processing
-    (canvas as any).videoElement = video;
+    video.onplay = () => {
+      console.log('🎥 Video element started playing');
+      // Start processing only when video is actually playing
+      setTimeout(() => {
+        console.log('🎥 Starting video processing after play event');
+        startVideoProcessing();
+      }, 100);
+    };
+
+    video.oncanplay = () => {
+      console.log('🎥 Video can start playing');
+      console.log('🎥 Video dimensions at canplay:', {
+        videoWidth: video.videoWidth,
+        videoHeight: video.videoHeight,
+        readyState: video.readyState
+      });
+      video.play().catch(err => console.error('🎥 Video play failed:', err));
+    };
+
+    video.onerror = (e) => {
+      console.error('🎥 Video element error:', e);
+    };
+
+    // Store video element reference using React ref
+    videoElementRef.current = video;
+    
+    console.log('🎥 Canvas setup completed');
   };
 
   const startVideoProcessing = () => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current) {
+      console.error('🎥 Canvas is null in startVideoProcessing');
+      return;
+    }
+
+    console.log('🎥 Starting video processing loop...');
 
     const processFrame = () => {
       const canvas = canvasRef.current;
-      const video = (canvas as any)?.videoElement;
+      const video = videoElementRef.current;
       
-      if (!canvas || !video || video.readyState < 2) {
+      if (!canvas) {
+        console.error('🎥 Canvas lost during processing');
+        return;
+      }
+
+      if (!video) {
+        console.error('🎥 Video element lost during processing');
         animationRef.current = requestAnimationFrame(processFrame);
         return;
       }
 
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      if (video.readyState < 2 || video.videoWidth === 0) {
+        // Video not ready yet, continue loop
+        animationRef.current = requestAnimationFrame(processFrame);
+        return;
+      }
 
-      // Draw video frame
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) {
+        console.error('🎥 Could not get canvas context');
+        return;
+      }
 
-      // Perform face detection
-      detectFaces(canvas, ctx);
+      try {
+        // Clear canvas first
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw video frame
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // Perform face detection (draws overlay on top)
+        detectFaces(canvas, ctx);
+      } catch (drawError) {
+        console.error('🎥 Error drawing video frame:', drawError);
+      }
 
       animationRef.current = requestAnimationFrame(processFrame);
     };
 
     processFrame();
+    console.log('🎥 Video processing loop started');
   };
 
   const detectFaces = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) => {
@@ -254,18 +395,21 @@ export const LiveCapturePage: React.FC = () => {
   };
 
   const performBasicFaceDetection = (imageData: ImageData, width: number, height: number): boolean => {
-    // Simple face detection based on skin color and face proportions
+    // Enhanced face detection with liveness scoring
     const data = imageData.data;
     const centerX = width / 2;
     const centerY = height / 2;
-    const regionSize = Math.min(width, height) * 0.3;
     
+    // Method 1: Skin color detection in center region
+    const regionSize = Math.min(width, height) * 0.4; // Larger region
     let skinPixels = 0;
     let totalPixels = 0;
+    let brightnessSum = 0;
+    let colorVariance = 0;
     
-    // Sample pixels in the center region where a face would be
-    for (let y = centerY - regionSize/2; y < centerY + regionSize/2; y += 4) {
-      for (let x = centerX - regionSize/2; x < centerX + regionSize/2; x += 4) {
+    // Sample more densely for better detection
+    for (let y = centerY - regionSize/2; y < centerY + regionSize/2; y += 2) {
+      for (let x = centerX - regionSize/2; x < centerX + regionSize/2; x += 2) {
         if (x < 0 || x >= width || y < 0 || y >= height) continue;
         
         const i = (Math.floor(y) * width + Math.floor(x)) * 4;
@@ -273,10 +417,22 @@ export const LiveCapturePage: React.FC = () => {
         const g = data[i + 1];
         const b = data[i + 2];
         
-        // Basic skin color detection
-        if (r > 95 && g > 40 && b > 20 && 
-            Math.max(r, Math.max(g, b)) - Math.min(r, Math.min(g, b)) > 15 &&
-            Math.abs(r - g) > 15 && r > g && r > b) {
+        // Improved skin color detection with multiple criteria
+        const brightness = (r + g + b) / 3;
+        brightnessSum += brightness;
+        colorVariance += Math.abs(r - g) + Math.abs(g - b) + Math.abs(r - b);
+        
+        // Multiple skin tone ranges
+        const skinCondition1 = r > 95 && g > 40 && b > 20 && 
+                              Math.max(r, Math.max(g, b)) - Math.min(r, Math.min(g, b)) > 15 &&
+                              Math.abs(r - g) > 15 && r > g && r > b;
+        
+        const skinCondition2 = r > 60 && g > 30 && b > 15 && r > b && (r - g) < 50;
+        
+        const skinCondition3 = brightness > 80 && brightness < 220 && 
+                              r > g && g > b && (r - b) > 20;
+        
+        if (skinCondition1 || skinCondition2 || skinCondition3) {
           skinPixels++;
         }
         totalPixels++;
@@ -284,7 +440,61 @@ export const LiveCapturePage: React.FC = () => {
     }
     
     const skinRatio = totalPixels > 0 ? skinPixels / totalPixels : 0;
-    return skinRatio > 0.1; // At least 10% skin pixels indicates a face
+    const avgBrightness = totalPixels > 0 ? brightnessSum / totalPixels : 0;
+    const avgColorVariance = totalPixels > 0 ? colorVariance / totalPixels : 0;
+    
+    // Method 2: Edge detection for facial features
+    let edgePixels = 0;
+    let strongEdges = 0;
+    const edgeThreshold = 30;
+    const strongEdgeThreshold = 60;
+    
+    for (let y = centerY - regionSize/4; y < centerY + regionSize/4; y += 4) {
+      for (let x = centerX - regionSize/4; x < centerX + regionSize/4; x += 4) {
+        if (x < 1 || x >= width-1 || y < 1 || y >= height-1) continue;
+        
+        const i = (Math.floor(y) * width + Math.floor(x)) * 4;
+        const current = (data[i] + data[i + 1] + data[i + 2]) / 3;
+        
+        const right = (data[i + 4] + data[i + 5] + data[i + 6]) / 3;
+        const bottom = (data[i + width * 4] + data[i + width * 4 + 1] + data[i + width * 4 + 2]) / 3;
+        
+        const edgeStrength = Math.max(Math.abs(current - right), Math.abs(current - bottom));
+        if (edgeStrength > edgeThreshold) {
+          edgePixels++;
+          if (edgeStrength > strongEdgeThreshold) {
+            strongEdges++;
+          }
+        }
+      }
+    }
+    
+    // Calculate liveness indicators
+    const detectionQuality = Math.min(1, (skinRatio * 2 + (edgePixels / 50)) / 2);
+    const lightingQuality = avgBrightness > 60 && avgBrightness < 200 ? 1 : 0.5;
+    const textureQuality = Math.min(1, avgColorVariance / 30); // More texture = more lively
+    const featureQuality = Math.min(1, strongEdges / 10); // Strong features = more lively
+    
+    // Update liveness score (0-1 scale)
+    const currentLivenessScore = (detectionQuality * 0.4 + lightingQuality * 0.2 + textureQuality * 0.2 + featureQuality * 0.2);
+    setLivenessScore(currentLivenessScore);
+    
+    // Track face stability over time
+    const faceHistory = (window as any).faceStabilityHistory || [];
+    faceHistory.push(skinRatio > 0.08 ? 1 : 0);
+    if (faceHistory.length > 10) faceHistory.shift();
+    (window as any).faceStabilityHistory = faceHistory;
+    
+    const stability = faceHistory.reduce((a: number, b: number) => a + b, 0) / faceHistory.length;
+    setFaceStability(stability);
+    
+    // Combined detection criteria with enhanced thresholds
+    const hasGoodLighting = avgBrightness > 60 && avgBrightness < 200;
+    const hasSkinTone = skinRatio > 0.08; // Lowered threshold
+    const hasFeatures = edgePixels > 5; // Some facial features detected
+    const hasLiveness = currentLivenessScore > 0.4; // Liveness threshold
+    
+    return hasGoodLighting && hasSkinTone && hasFeatures && hasLiveness;
   };
 
   const drawFaceOverlay = (ctx: CanvasRenderingContext2D, width: number, height: number, faceDetected: boolean) => {
@@ -310,26 +520,69 @@ export const LiveCapturePage: React.FC = () => {
       centerX,
       centerY + radius + 30
     );
+    
+    // Draw liveness indicators
+    if (faceDetected && livenessScore > 0) {
+      ctx.font = '12px Arial';
+      ctx.fillStyle = '#10B981';
+      ctx.fillText(
+        `Liveness: ${Math.round(livenessScore * 100)}%`,
+        centerX,
+        centerY + radius + 50
+      );
+      ctx.fillText(
+        `Stability: ${Math.round(faceStability * 100)}%`,
+        centerX,
+        centerY + radius + 65
+      );
+    }
   };
 
   const updateFaceDetectionState = (detected: boolean) => {
-    // Use a simple smoothing algorithm
+    // More responsive smoothing algorithm
     const history = (window as any).faceHistory || [];
     history.push(detected);
-    if (history.length > 10) history.shift();
+    if (history.length > 6) history.shift(); // Shorter history for faster response
     (window as any).faceHistory = history;
     
     const positiveCount = history.filter((h: boolean) => h).length;
-    const smoothedDetection = positiveCount >= 6; // Require 6/10 positive detections
+    const totalCount = history.length;
+    
+    // More responsive thresholds
+    let smoothedDetection = false;
+    if (totalCount >= 3) {
+      // Quick detection: 2/3 recent frames
+      if (positiveCount >= 2 && totalCount <= 3) {
+        smoothedDetection = true;
+      }
+      // Stable detection: 4/6 frames for longer sequences
+      else if (positiveCount >= 4 && totalCount >= 6) {
+        smoothedDetection = true;
+      }
+      // Medium detection: 3/5 frames
+      else if (positiveCount >= 3 && totalCount >= 5) {
+        smoothedDetection = true;
+      }
+    }
     
     setFaceDetected(smoothedDetection);
   };
 
   const startChallenge = () => {
-    if (challengeState !== 'waiting' || !faceDetected) return;
+    // Enhanced challenge requirements
+    if (challengeState !== 'waiting' || !faceDetected || livenessScore < 0.6 || faceStability < 0.8) {
+      if (faceDetected && livenessScore < 0.6) {
+        setError('Please ensure good lighting and face clearly visible');
+      }
+      if (faceDetected && faceStability < 0.8) {
+        setError('Please hold your face steady in the center');
+      }
+      return;
+    }
 
     setChallengeState('active');
     setCountdown(3);
+    setError(''); // Clear any previous errors
 
     const timer = setInterval(() => {
       setCountdown(prev => {
@@ -373,6 +626,9 @@ export const LiveCapturePage: React.FC = () => {
       console.log('🔧 Request body keys:', Object.keys(requestBody));
       console.log('🔧 Full request body:', JSON.stringify(requestBody, null, 2).substring(0, 200) + '...');
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
       const response = await fetch(`${API_BASE_URL}/api/verify/live-capture`, {
         method: 'POST',
         headers: {
@@ -380,7 +636,10 @@ export const LiveCapturePage: React.FC = () => {
           'X-API-Key': apiKey,
         },
         body: JSON.stringify(requestBody),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       console.log('🔧 Response status:', response.status);
       console.log('🔧 Response headers:', Object.fromEntries(response.headers.entries()));
@@ -398,7 +657,15 @@ export const LiveCapturePage: React.FC = () => {
 
     } catch (error: any) {
       console.error('📸 Capture failed:', error);
-      setError(error.message || 'Failed to capture image. Please try again.');
+      
+      let errorMessage = 'Failed to capture image. Please try again.';
+      if (error.name === 'AbortError') {
+        errorMessage = 'Request timed out. Please check your connection and try again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
       setChallengeState('waiting');
       
       if (captureAttempts >= 3) {
@@ -419,6 +686,11 @@ export const LiveCapturePage: React.FC = () => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
+    }
+    
+    if (videoElementRef.current) {
+      videoElementRef.current.srcObject = null;
+      videoElementRef.current = null;
     }
     
     if (faceClassifierRef.current) {
@@ -528,6 +800,29 @@ export const LiveCapturePage: React.FC = () => {
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+          {/* Canvas for camera - always present but conditionally visible */}
+          {cameraState === 'ready' && (
+            <div className="relative bg-black">
+              <canvas
+                ref={canvasRef}
+                width={640}
+                height={480}
+                className="w-full h-96 object-cover"
+                style={{ maxHeight: '384px' }}
+              />
+            </div>
+          )}
+          
+          {/* Hidden canvas for initialization when not ready */}
+          {cameraState !== 'ready' && (
+            <canvas
+              ref={canvasRef}
+              width={640}
+              height={480}
+              className="hidden"
+            />
+          )}
+          
           {/* Camera Permission Prompt */}
           {cameraState === 'prompt' && (
             <div className="p-8 text-center">
@@ -601,14 +896,6 @@ export const LiveCapturePage: React.FC = () => {
                 )}
               </div>
 
-              {/* OpenCV Canvas */}
-              <div className="relative bg-black">
-                <canvas
-                  ref={canvasRef}
-                  className="w-full h-96 object-cover"
-                  style={{ maxHeight: '384px' }}
-                />
-              </div>
 
               {/* Controls */}
               <div className="p-6 bg-gray-50">
@@ -627,7 +914,7 @@ export const LiveCapturePage: React.FC = () => {
                   {challengeState === 'waiting' && (
                     <button
                       onClick={startChallenge}
-                      disabled={!faceDetected || loading}
+                      disabled={!faceDetected || loading || livenessScore < 0.6 || faceStability < 0.8}
                       className="bg-green-600 text-white py-4 px-8 rounded-xl hover:bg-green-700 disabled:bg-gray-400 transition flex items-center justify-center mx-auto"
                     >
                       {!faceDetected ? (
@@ -639,6 +926,16 @@ export const LiveCapturePage: React.FC = () => {
                         <>
                           <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" />
                           Processing...
+                        </>
+                      ) : livenessScore < 0.6 ? (
+                        <>
+                          <ExclamationTriangleIcon className="w-5 h-5 mr-2" />
+                          Improve Lighting
+                        </>
+                      ) : faceStability < 0.8 ? (
+                        <>
+                          <ExclamationTriangleIcon className="w-5 h-5 mr-2" />
+                          Hold Steady
                         </>
                       ) : (
                         <>

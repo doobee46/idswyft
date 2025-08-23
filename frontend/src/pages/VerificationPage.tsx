@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { API_BASE_URL, shouldUseSandbox } from '../config/api';
+import { BackOfIdUpload } from '../components/BackOfIdUpload';
 
 
 interface Document {
@@ -43,6 +44,8 @@ const VerificationPage: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [backOfIdUploaded, setBackOfIdUploaded] = useState(false);
+  const [documentType, setDocumentType] = useState<string>('');
   
   // Demo form fields
   const [apiKey, setApiKey] = useState(urlApiKey || '');
@@ -191,7 +194,7 @@ const VerificationPage: React.FC = () => {
       const formData = new FormData();
       formData.append('document', selectedFile);
       formData.append('verification_id', verificationId);
-      formData.append('document_type', 'national_id');
+      formData.append('document_type', documentType || 'national_id');
       
       const useSandbox = shouldUseSandbox();
       
@@ -411,6 +414,25 @@ const VerificationPage: React.FC = () => {
             </p>
 
             <div className="space-y-6">
+              {/* Document Type Selection */}
+              <div className="max-w-md mx-auto">
+                <label htmlFor="document-type" className="block text-sm font-medium text-gray-700 mb-2">
+                  Document Type
+                </label>
+                <select
+                  id="document-type"
+                  value={documentType}
+                  onChange={(e) => setDocumentType(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                >
+                  <option value="">Select document type</option>
+                  <option value="national_id">National ID</option>
+                  <option value="drivers_license">Driver's License</option>
+                  <option value="passport">Passport</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 sm:p-8 text-center">
                 <input
                   type="file"
@@ -462,11 +484,17 @@ const VerificationPage: React.FC = () => {
               {selectedFile && (
                 <button
                   onClick={uploadDocument}
-                  disabled={isLoading}
+                  disabled={isLoading || !documentType}
                   className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {isLoading ? 'Uploading...' : 'Upload Document'}
                 </button>
+              )}
+              
+              {selectedFile && !documentType && (
+                <p className="text-red-600 text-sm text-center">
+                  Please select a document type before uploading.
+                </p>
               )}
             </div>
           </div>
@@ -532,6 +560,38 @@ const VerificationPage: React.FC = () => {
               <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-6">
                 <p className="text-yellow-800">
                   Document information could not be extracted automatically.
+                </p>
+              </div>
+            )}
+
+            {/* Back-of-ID Upload Section */}
+            {!backOfIdUploaded && (
+              <div className="mb-8">
+                <BackOfIdUpload
+                  verificationId={verificationId!}
+                  documentType={documentType || 'national_id'}
+                  apiKey={apiKey}
+                  onUploadComplete={(result) => {
+                    console.log('Back-of-ID upload completed:', result);
+                    setBackOfIdUploaded(true);
+                    toast.success('Back-of-ID uploaded successfully!');
+                  }}
+                  onUploadError={(error) => {
+                    console.error('Back-of-ID upload error:', error);
+                    toast.error(error);
+                  }}
+                />
+              </div>
+            )}
+
+            {backOfIdUploaded && (
+              <div className="mb-8 bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-center space-x-2 text-green-800">
+                  <span className="text-lg">✅</span>
+                  <span className="font-medium">Enhanced Verification Complete</span>
+                </div>
+                <p className="mt-1 text-green-700 text-sm">
+                  Back-of-ID successfully processed with barcode/QR scanning and cross-validation.
                 </p>
               </div>
             )}
@@ -611,7 +671,14 @@ const VerificationPage: React.FC = () => {
             )}
 
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => {
+                // Clear URL parameters and reset state for new verification
+                const newUrl = new URL(window.location.href);
+                newUrl.searchParams.delete('verification_id');
+                newUrl.searchParams.delete('step');
+                newUrl.searchParams.set('step', '1');
+                window.location.href = newUrl.toString();
+              }}
               className="mt-6 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
             >
               Start New Verification
