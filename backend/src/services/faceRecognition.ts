@@ -10,9 +10,26 @@ export class FaceRecognitionService {
   private storageService: StorageService;
   private isInitialized = false;
   private faceModel: tf.GraphModel | null = null;
+  private useAiFaceMatching: boolean;
+  private useAiLivenessDetection: boolean;
   
   constructor() {
     this.storageService = new StorageService();
+    // Use AI-powered features if OpenAI API key is available
+    this.useAiFaceMatching = !!process.env.OPENAI_API_KEY;
+    this.useAiLivenessDetection = !!process.env.OPENAI_API_KEY;
+    
+    if (this.useAiFaceMatching) {
+      console.log('🤖 AI-powered face matching enabled (OpenAI GPT-4o Vision)');
+    } else {
+      console.log('🔍 Traditional face matching enabled (feature comparison)');
+    }
+    
+    if (this.useAiLivenessDetection) {
+      console.log('🤖 AI-powered liveness detection enabled (OpenAI GPT-4o Vision)');
+    } else {
+      console.log('🔍 Traditional liveness detection enabled (image analysis)');
+    }
   }
   
   private async initialize(): Promise<void> {
@@ -37,47 +54,180 @@ export class FaceRecognitionService {
     
     logger.info('Starting face comparison', {
       documentPath,
-      selfiePath
+      selfiePath,
+      method: this.useAiFaceMatching ? 'AI' : 'Traditional'
     });
     
     try {
-      // Download both images
-      const [documentBuffer, selfieBuffer] = await Promise.all([
-        this.storageService.downloadFile(documentPath),
-        this.storageService.downloadFile(selfiePath)
-      ]);
-      
-      // Process images with Jimp
-      const [documentImage, selfieImage] = await Promise.all([
-        Jimp.read(documentBuffer),
-        Jimp.read(selfieBuffer)
-      ]);
-      
-      // Resize images to standard size for comparison
-      const targetSize = 224;
-      documentImage.resize(targetSize, targetSize);
-      selfieImage.resize(targetSize, targetSize);
-      
-      // Extract features using simple image analysis
-      const documentFeatures = await this.extractSimpleFeatures(documentImage);
-      const selfieFeatures = await this.extractSimpleFeatures(selfieImage);
-      
-      // Calculate similarity using cosine similarity
-      const similarity = this.calculateCosineSimilarity(documentFeatures, selfieFeatures);
-      
-      logger.info('Face comparison completed', {
-        similarity,
-        documentPath,
-        selfiePath
-      });
-      
-      return Math.max(0, Math.min(1, similarity));
+      if (this.useAiFaceMatching) {
+        console.log('🤖 Using AI-powered face matching...');
+        return await this.compareWithAI(documentPath, selfiePath);
+      } else {
+        console.log('🔍 Using traditional face matching...');
+        return await this.compareWithTraditional(documentPath, selfiePath);
+      }
     } catch (error) {
       logger.error('Face comparison failed:', error);
       
       // Return mock result on error for MVP
       return this.mockFaceComparison();
     }
+  }
+  
+  private async compareWithAI(documentPath: string, selfiePath: string): Promise<number> {
+    try {
+      console.log('🤖 Starting AI face comparison...');
+      
+      // Download both images
+      const [documentBuffer, selfieBuffer] = await Promise.all([
+        this.storageService.downloadFile(documentPath),
+        this.storageService.downloadFile(selfiePath)
+      ]);
+      
+      // Convert images to base64
+      const documentBase64 = documentBuffer.toString('base64');
+      const selfieBase64 = selfieBuffer.toString('base64');
+      
+      const documentMimeType = this.detectMimeType(documentBuffer);
+      const selfieMimeType = this.detectMimeType(selfieBuffer);
+      
+      console.log('🤖 Sending face comparison request to OpenAI GPT-4o...');
+      
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: `Compare the faces in these two images:
+
+1. First image is from an ID document - extract the person's face from this document
+2. Second image is a selfie of a person
+
+Please analyze and provide a response in JSON format:
+{
+  "face_match_score": <number between 0 and 1>,
+  "confidence": <number between 0 and 1>,
+  "analysis": {
+    "id_face_detected": <true/false>,
+    "selfie_face_detected": <true/false>,
+    "same_person": <true/false>,
+    "key_similarities": ["feature1", "feature2", ...],
+    "differences_noted": ["difference1", "difference2", ...]
+  },
+  "reasoning": "detailed explanation of the comparison"
+}
+
+Important guidelines:
+- Look for facial features: eyes, nose, mouth, face shape, skin tone
+- Consider age differences (ID might be older/newer than selfie)
+- Account for lighting, angle, and photo quality differences
+- A score of 0.9+ means very high confidence same person
+- A score of 0.7-0.89 means likely same person
+- A score of 0.5-0.69 means uncertain/inconclusive  
+- A score of 0.3-0.49 means likely different person
+- A score of 0.0-0.29 means very high confidence different person`
+                },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: `data:${documentMimeType};base64,${documentBase64}`,
+                    detail: 'high'
+                  }
+                },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: `data:${selfieMimeType};base64,${selfieBase64}`,
+                    detail: 'high'
+                  }
+                }
+              ]
+            }
+          ],
+          max_tokens: 1000,
+          temperature: 0.1
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(`OpenAI API error: ${JSON.stringify(error)}`);
+      }
+      
+      const result = await response.json();
+      const analysisText = result.choices[0].message.content;
+      
+      console.log('🤖 AI face comparison completed', {
+        responseLength: analysisText.length,
+        preview: analysisText.substring(0, 200) + '...'
+      });
+      
+      // Parse the AI response
+      const comparison = this.parseAIFaceComparison(analysisText);
+      
+      logger.info('AI face comparison completed', {
+        documentPath,
+        selfiePath,
+        matchScore: comparison.face_match_score,
+        confidence: comparison.confidence,
+        samePerson: comparison.analysis?.same_person
+      });
+      
+      return comparison.face_match_score;
+      
+    } catch (error) {
+      console.error('🤖 AI face comparison failed:', error);
+      logger.error('AI face comparison failed', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      // Fallback to traditional method
+      console.log('🔍 Falling back to traditional face comparison...');
+      return await this.compareWithTraditional(documentPath, selfiePath);
+    }
+  }
+  
+  private async compareWithTraditional(documentPath: string, selfiePath: string): Promise<number> {
+    // Download both images
+    const [documentBuffer, selfieBuffer] = await Promise.all([
+      this.storageService.downloadFile(documentPath),
+      this.storageService.downloadFile(selfiePath)
+    ]);
+    
+    // Process images with Jimp
+    const [documentImage, selfieImage] = await Promise.all([
+      Jimp.read(documentBuffer),
+      Jimp.read(selfieBuffer)
+    ]);
+    
+    // Resize images to standard size for comparison
+    const targetSize = 224;
+    documentImage.resize(targetSize, targetSize);
+    selfieImage.resize(targetSize, targetSize);
+    
+    // Extract features using simple image analysis
+    const documentFeatures = await this.extractSimpleFeatures(documentImage);
+    const selfieFeatures = await this.extractSimpleFeatures(selfieImage);
+    
+    // Calculate similarity using cosine similarity
+    const similarity = this.calculateCosineSimilarity(documentFeatures, selfieFeatures);
+    
+    logger.info('Traditional face comparison completed', {
+      similarity,
+      documentPath,
+      selfiePath
+    });
+    
+    return Math.max(0, Math.min(1, similarity));
   }
   
   private async extractSimpleFeatures(image: Jimp): Promise<number[]> {
@@ -190,36 +340,169 @@ export class FaceRecognitionService {
   async detectLiveness(imagePath: string, challengeResponse?: string): Promise<number> {
     await this.initialize();
     
-    logger.info('Starting liveness detection', { imagePath, challengeResponse });
+    logger.info('Starting liveness detection', { 
+      imagePath, 
+      challengeResponse,
+      method: this.useAiLivenessDetection ? 'AI' : 'Traditional'
+    });
     
     try {
-      const imageBuffer = await this.storageService.downloadFile(imagePath);
-      const image = await Jimp.read(imageBuffer);
-      
-      // Analyze image for liveness indicators
-      const livenessScore = await this.analyzeLivenessFeatures(image);
-      
-      // Factor in challenge response if provided
-      let challengeBonus = 0;
-      if (challengeResponse) {
-        challengeBonus = this.validateChallengeResponse(challengeResponse, image);
+      if (this.useAiLivenessDetection) {
+        console.log('🤖 Using AI-powered liveness detection...');
+        return await this.detectLivenessWithAI(imagePath, challengeResponse);
+      } else {
+        console.log('🔍 Using traditional liveness detection...');
+        return await this.detectLivenessWithTraditional(imagePath, challengeResponse);
       }
-      
-      const finalScore = Math.min(1, livenessScore + challengeBonus);
-      
-      logger.info('Liveness detection completed', {
-        imagePath,
-        challengeResponse,
-        livenessScore,
-        challengeBonus,
-        finalScore
-      });
-      
-      return finalScore;
     } catch (error) {
       logger.error('Liveness detection failed:', error);
       return this.mockLivenessScore();
     }
+  }
+
+  private async detectLivenessWithAI(imagePath: string, challengeResponse?: string): Promise<number> {
+    try {
+      console.log('🤖 Starting AI liveness detection...');
+      
+      // Download image
+      const imageBuffer = await this.storageService.downloadFile(imagePath);
+      const imageBase64 = imageBuffer.toString('base64');
+      const mimeType = this.detectMimeType(imageBuffer);
+      
+      console.log('🤖 Sending liveness detection request to OpenAI GPT-4o...');
+      
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: `Analyze this image for liveness detection. Determine if this is a live person vs a photo/screen/mask:
+
+Please analyze for these liveness indicators:
+1. **Facial Features**: Natural skin texture, realistic lighting, facial depth
+2. **Eye Analysis**: Natural eye movements, pupil reactions, eye reflections
+3. **Image Quality**: Camera noise, compression artifacts, screen moiré patterns
+4. **Lighting**: Natural vs artificial lighting, shadow consistency
+5. **Depth & Dimension**: 3D facial structure vs flat 2D appearance
+6. **Micro-expressions**: Natural facial expressions and muscle movement
+7. **Digital Artifacts**: Signs of screen display, photo edges, digital manipulation
+
+${challengeResponse ? `
+The user was asked to perform this challenge: "${challengeResponse}"
+Please verify if the image shows completion of this challenge.
+` : ''}
+
+Provide response in JSON format:
+{
+  "liveness_score": <number between 0 and 1>,
+  "confidence": <number between 0 and 1>,
+  "analysis": {
+    "is_live_person": <true/false>,
+    "facial_depth_detected": <true/false>,
+    "natural_lighting": <true/false>,
+    "eye_authenticity": <true/false>,
+    "skin_texture_natural": <true/false>,
+    "no_screen_artifacts": <true/false>,
+    "challenge_completed": <true/false if challenge provided>
+  },
+  "risk_factors": ["array of detected risk factors"],
+  "liveness_indicators": ["array of positive liveness signs"],
+  "reasoning": "detailed explanation of the analysis"
+}
+
+Scoring guide:
+- 0.9-1.0: Very high confidence live person
+- 0.7-0.89: Likely live person
+- 0.5-0.69: Uncertain/inconclusive
+- 0.3-0.49: Likely photo/screen/spoof
+- 0.0-0.29: Very high confidence fake/spoof`
+                },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: `data:${mimeType};base64,${imageBase64}`,
+                    detail: 'high'
+                  }
+                }
+              ]
+            }
+          ],
+          max_tokens: 1000,
+          temperature: 0.1
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(`OpenAI API error: ${JSON.stringify(error)}`);
+      }
+
+      const result = await response.json();
+      const analysisText = result.choices[0].message.content;
+      
+      console.log('🤖 AI liveness detection completed', {
+        responseLength: analysisText.length,
+        preview: analysisText.substring(0, 200) + '...'
+      });
+
+      // Parse the AI response
+      const livenessResult = this.parseAILivenessResponse(analysisText);
+      
+      logger.info('AI liveness detection completed', {
+        imagePath,
+        challengeResponse,
+        livenessScore: livenessResult.liveness_score,
+        confidence: livenessResult.confidence,
+        isLivePerson: livenessResult.analysis?.is_live_person
+      });
+
+      return livenessResult.liveness_score;
+
+    } catch (error) {
+      console.error('🤖 AI liveness detection failed:', error);
+      logger.error('AI liveness detection failed', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      // Fallback to traditional method
+      console.log('🔍 Falling back to traditional liveness detection...');
+      return await this.detectLivenessWithTraditional(imagePath, challengeResponse);
+    }
+  }
+
+  private async detectLivenessWithTraditional(imagePath: string, challengeResponse?: string): Promise<number> {
+    const imageBuffer = await this.storageService.downloadFile(imagePath);
+    const image = await Jimp.read(imageBuffer);
+    
+    // Analyze image for liveness indicators
+    const livenessScore = await this.analyzeLivenessFeatures(image);
+    
+    // Factor in challenge response if provided
+    let challengeBonus = 0;
+    if (challengeResponse) {
+      challengeBonus = this.validateChallengeResponse(challengeResponse, image);
+    }
+    
+    const finalScore = Math.min(1, livenessScore + challengeBonus);
+    
+    logger.info('Traditional liveness detection completed', {
+      imagePath,
+      challengeResponse,
+      livenessScore,
+      challengeBonus,
+      finalScore
+    });
+    
+    return finalScore;
   }
 
   async detectLivenessDetailed(imagePath: string): Promise<{
@@ -230,38 +513,200 @@ export class FaceRecognitionService {
       headMovement: boolean;
       eyeGaze: boolean;
     };
+    aiAnalysis?: {
+      facial_depth_detected: boolean;
+      natural_lighting: boolean;
+      eye_authenticity: boolean;
+      skin_texture_natural: boolean;
+      no_screen_artifacts: boolean;
+    };
+    risk_factors?: string[];
+    liveness_indicators?: string[];
   }> {
     await this.initialize();
     
-    logger.info('Starting detailed liveness detection', { imagePath });
+    logger.info('Starting detailed liveness detection', { 
+      imagePath,
+      method: this.useAiLivenessDetection ? 'AI' : 'Traditional'
+    });
     
     try {
-      const imageBuffer = await this.storageService.downloadFile(imagePath);
-      const image = await Jimp.read(imageBuffer);
-      
-      // Analyze image for liveness indicators
-      const livenessScore = await this.analyzeLivenessFeatures(image);
-      
-      const result = {
-        isLive: livenessScore > 0.6,
-        confidence: livenessScore,
-        checks: {
-          blinkDetected: this.detectImageQuality(image) > 0.7,
-          headMovement: this.analyzeImageSharpness(image) > 0.5,
-          eyeGaze: this.checkImageNaturalness(image) > 0.6
-        }
-      };
-      
-      logger.info('Detailed liveness detection completed', {
-        imagePath,
-        result
-      });
-      
-      return result;
+      if (this.useAiLivenessDetection) {
+        console.log('🤖 Using AI-powered detailed liveness detection...');
+        return await this.detectLivenessDetailedWithAI(imagePath);
+      } else {
+        console.log('🔍 Using traditional detailed liveness detection...');
+        return await this.detectLivenessDetailedWithTraditional(imagePath);
+      }
     } catch (error) {
       logger.error('Detailed liveness detection failed:', error);
       return this.mockLivenessDetection();
     }
+  }
+
+  private async detectLivenessDetailedWithAI(imagePath: string): Promise<{
+    isLive: boolean;
+    confidence: number;
+    checks: {
+      blinkDetected: boolean;
+      headMovement: boolean;
+      eyeGaze: boolean;
+    };
+    aiAnalysis: {
+      facial_depth_detected: boolean;
+      natural_lighting: boolean;
+      eye_authenticity: boolean;
+      skin_texture_natural: boolean;
+      no_screen_artifacts: boolean;
+    };
+    risk_factors: string[];
+    liveness_indicators: string[];
+  }> {
+    try {
+      // Download image
+      const imageBuffer = await this.storageService.downloadFile(imagePath);
+      const imageBase64 = imageBuffer.toString('base64');
+      const mimeType = this.detectMimeType(imageBuffer);
+      
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: `Perform detailed liveness detection analysis on this image. Provide comprehensive assessment:
+
+Analyze these specific aspects:
+1. **Facial Depth**: 3D structure, shadows, facial contours
+2. **Eye Analysis**: Natural reflections, pupil behavior, eye movement traces
+3. **Skin Texture**: Natural pores, skin imperfections, texture depth
+4. **Lighting Analysis**: Shadow consistency, light source naturalness
+5. **Digital Artifacts**: Screen glare, pixelation, digital borders
+6. **Micro-expressions**: Natural muscle movements, facial asymmetry
+7. **Challenge Evidence**: Signs of movement, blinking, or other liveness actions
+
+Provide response in JSON format:
+{
+  "liveness_score": <number between 0 and 1>,
+  "confidence": <number between 0 and 1>,
+  "is_live_person": <true/false>,
+  "detailed_analysis": {
+    "facial_depth_detected": <true/false>,
+    "natural_lighting": <true/false>,
+    "eye_authenticity": <true/false>,
+    "skin_texture_natural": <true/false>,
+    "no_screen_artifacts": <true/false>
+  },
+  "traditional_checks": {
+    "blink_detected": <true/false>,
+    "head_movement": <true/false>,
+    "eye_gaze_natural": <true/false>
+  },
+  "risk_factors": ["array of specific spoofing risks detected"],
+  "liveness_indicators": ["array of positive liveness signs found"],
+  "reasoning": "detailed technical explanation"
+}`
+                },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: `data:${mimeType};base64,${imageBase64}`,
+                    detail: 'high'
+                  }
+                }
+              ]
+            }
+          ],
+          max_tokens: 1200,
+          temperature: 0.1
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(`OpenAI API error: ${JSON.stringify(error)}`);
+      }
+
+      const result = await response.json();
+      const analysisText = result.choices[0].message.content;
+      
+      // Parse the AI response
+      const aiResult = this.parseAILivenessResponse(analysisText);
+      
+      const detailedResult = {
+        isLive: aiResult.analysis?.is_live_person || false,
+        confidence: aiResult.confidence,
+        checks: {
+          blinkDetected: aiResult.analysis?.challenge_completed || false,
+          headMovement: aiResult.analysis?.facial_depth_detected || false,
+          eyeGaze: aiResult.analysis?.eye_authenticity || false
+        },
+        aiAnalysis: {
+          facial_depth_detected: aiResult.analysis?.facial_depth_detected || false,
+          natural_lighting: aiResult.analysis?.natural_lighting || false,
+          eye_authenticity: aiResult.analysis?.eye_authenticity || false,
+          skin_texture_natural: aiResult.analysis?.skin_texture_natural || false,
+          no_screen_artifacts: aiResult.analysis?.no_screen_artifacts || false
+        },
+        risk_factors: aiResult.risk_factors || [],
+        liveness_indicators: aiResult.liveness_indicators || []
+      };
+
+      logger.info('AI detailed liveness detection completed', {
+        imagePath,
+        isLive: detailedResult.isLive,
+        confidence: detailedResult.confidence,
+        riskFactors: detailedResult.risk_factors.length
+      });
+
+      return detailedResult;
+
+    } catch (error) {
+      console.error('🤖 AI detailed liveness detection failed:', error);
+      // Fallback to traditional method
+      return await this.detectLivenessDetailedWithTraditional(imagePath);
+    }
+  }
+
+  private async detectLivenessDetailedWithTraditional(imagePath: string): Promise<{
+    isLive: boolean;
+    confidence: number;
+    checks: {
+      blinkDetected: boolean;
+      headMovement: boolean;
+      eyeGaze: boolean;
+    };
+  }> {
+    const imageBuffer = await this.storageService.downloadFile(imagePath);
+    const image = await Jimp.read(imageBuffer);
+    
+    // Analyze image for liveness indicators
+    const livenessScore = await this.analyzeLivenessFeatures(image);
+    
+    const result = {
+      isLive: livenessScore > 0.6,
+      confidence: livenessScore,
+      checks: {
+        blinkDetected: this.detectImageQuality(image) > 0.7,
+        headMovement: this.analyzeImageSharpness(image) > 0.5,
+        eyeGaze: this.checkImageNaturalness(image) > 0.6
+      }
+    };
+    
+    logger.info('Traditional detailed liveness detection completed', {
+      imagePath,
+      result
+    });
+    
+    return result;
   }
   
   private async analyzeLivenessFeatures(image: Jimp): Promise<number> {
@@ -574,6 +1019,236 @@ export class FaceRecognitionService {
     });
     
     return mockResult;
+  }
+  
+  private detectMimeType(buffer: Buffer): string {
+    const signatures = {
+      'image/jpeg': [0xFF, 0xD8, 0xFF],
+      'image/png': [0x89, 0x50, 0x4E, 0x47],
+      'image/webp': [0x52, 0x49, 0x46, 0x46]
+    };
+    
+    for (const [mimeType, signature] of Object.entries(signatures)) {
+      if (signature.every((byte, index) => buffer[index] === byte)) {
+        return mimeType;
+      }
+    }
+    
+    return 'image/jpeg'; // Default fallback
+  }
+  
+  private parseAIFaceComparison(aiResponse: string): {
+    face_match_score: number;
+    confidence: number;
+    analysis?: any;
+    reasoning?: string;
+  } {
+    try {
+      // Clean the response - sometimes AI adds markdown formatting
+      let cleanResponse = aiResponse.trim();
+      if (cleanResponse.startsWith('```json')) {
+        cleanResponse = cleanResponse.replace(/```json\n?/, '').replace(/```$/, '');
+      }
+      if (cleanResponse.startsWith('```')) {
+        cleanResponse = cleanResponse.replace(/```\n?/, '').replace(/```$/, '');
+      }
+      
+      try {
+        const parsed = JSON.parse(cleanResponse);
+        
+        // Validate and normalize the response
+        const faceMatchScore = Math.max(0, Math.min(1, parsed.face_match_score || 0));
+        const confidence = Math.max(0, Math.min(1, parsed.confidence || 0.5));
+        
+        console.log('🤖 AI face comparison parsed successfully:', {
+          faceMatchScore,
+          confidence,
+          samePerson: parsed.analysis?.same_person,
+          reasoning: parsed.reasoning?.substring(0, 100) + '...'
+        });
+        
+        return {
+          face_match_score: faceMatchScore,
+          confidence: confidence,
+          analysis: parsed.analysis,
+          reasoning: parsed.reasoning
+        };
+        
+      } catch (jsonError) {
+        console.warn('🤖 AI face comparison response not valid JSON, extracting score from text:', jsonError);
+        return this.extractScoreFromText(aiResponse);
+      }
+      
+    } catch (error) {
+      console.error('🤖 Failed to parse AI face comparison response:', error);
+      return {
+        face_match_score: 0.5,
+        confidence: 0.3
+      };
+    }
+  }
+  
+  private extractScoreFromText(text: string): {
+    face_match_score: number;
+    confidence: number;
+  } {
+    // Try to extract numeric scores from text if JSON parsing fails
+    const scoreMatches = text.match(/(?:score|match|similarity).*?(\d+\.?\d*)/gi);
+    let score = 0.5;
+    
+    if (scoreMatches && scoreMatches.length > 0) {
+      const numbers = scoreMatches[0].match(/\d+\.?\d*/);
+      if (numbers) {
+        const extractedScore = parseFloat(numbers[0]);
+        // If the number seems to be a percentage (>1), convert to 0-1 scale
+        score = extractedScore > 1 ? extractedScore / 100 : extractedScore;
+        score = Math.max(0, Math.min(1, score));
+      }
+    }
+    
+    console.log('🤖 Extracted face match score from text:', {
+      score,
+      originalText: text.substring(0, 200) + '...'
+    });
+    
+    return {
+      face_match_score: score,
+      confidence: 0.7 // Assume reasonable confidence when we can extract a score
+    };
+  }
+  
+  private parseAILivenessResponse(aiResponse: string): {
+    liveness_score: number;
+    confidence: number;
+    analysis?: {
+      is_live_person?: boolean;
+      facial_depth_detected?: boolean;
+      natural_lighting?: boolean;
+      eye_authenticity?: boolean;
+      skin_texture_natural?: boolean;
+      no_screen_artifacts?: boolean;
+      challenge_completed?: boolean;
+    };
+    risk_factors?: string[];
+    liveness_indicators?: string[];
+    reasoning?: string;
+  } {
+    try {
+      // Clean the response - sometimes AI adds markdown formatting
+      let cleanResponse = aiResponse.trim();
+      if (cleanResponse.startsWith('```json')) {
+        cleanResponse = cleanResponse.replace(/```json\n?/, '').replace(/```$/, '');
+      }
+      if (cleanResponse.startsWith('```')) {
+        cleanResponse = cleanResponse.replace(/```\n?/, '').replace(/```$/, '');
+      }
+      
+      try {
+        const parsed = JSON.parse(cleanResponse);
+        
+        // Validate and normalize the response
+        const livenessScore = Math.max(0, Math.min(1, parsed.liveness_score || 0.5));
+        const confidence = Math.max(0, Math.min(1, parsed.confidence || 0.5));
+        
+        console.log('🤖 AI liveness detection parsed successfully:', {
+          livenessScore,
+          confidence,
+          isLivePerson: parsed.analysis?.is_live_person || parsed.is_live_person,
+          riskFactors: parsed.risk_factors?.length || 0,
+          livenessIndicators: parsed.liveness_indicators?.length || 0
+        });
+        
+        return {
+          liveness_score: livenessScore,
+          confidence: confidence,
+          analysis: {
+            is_live_person: parsed.analysis?.is_live_person || parsed.is_live_person,
+            facial_depth_detected: parsed.analysis?.facial_depth_detected || parsed.detailed_analysis?.facial_depth_detected,
+            natural_lighting: parsed.analysis?.natural_lighting || parsed.detailed_analysis?.natural_lighting,
+            eye_authenticity: parsed.analysis?.eye_authenticity || parsed.detailed_analysis?.eye_authenticity,
+            skin_texture_natural: parsed.analysis?.skin_texture_natural || parsed.detailed_analysis?.skin_texture_natural,
+            no_screen_artifacts: parsed.analysis?.no_screen_artifacts || parsed.detailed_analysis?.no_screen_artifacts,
+            challenge_completed: parsed.analysis?.challenge_completed || parsed.traditional_checks?.blink_detected
+          },
+          risk_factors: parsed.risk_factors || [],
+          liveness_indicators: parsed.liveness_indicators || [],
+          reasoning: parsed.reasoning
+        };
+        
+      } catch (jsonError) {
+        console.warn('🤖 AI liveness response not valid JSON, extracting data from text:', jsonError);
+        return this.extractLivenessFromText(aiResponse);
+      }
+      
+    } catch (error) {
+      console.error('🤖 Failed to parse AI liveness response:', error);
+      return {
+        liveness_score: 0.5,
+        confidence: 0.3,
+        analysis: {
+          is_live_person: false
+        },
+        risk_factors: ['AI parsing failed'],
+        liveness_indicators: []
+      };
+    }
+  }
+  
+  private extractLivenessFromText(text: string): {
+    liveness_score: number;
+    confidence: number;
+    analysis: {
+      is_live_person: boolean;
+    };
+    risk_factors: string[];
+    liveness_indicators: string[];
+  } {
+    // Try to extract liveness indicators from unstructured AI response
+    const liveKeywords = ['live person', 'real person', 'authentic', 'natural', 'genuine'];
+    const fakeKeywords = ['photo', 'screen', 'fake', 'spoof', 'artificial', 'digital'];
+    
+    const textLower = text.toLowerCase();
+    let liveCount = 0;
+    let fakeCount = 0;
+    
+    liveKeywords.forEach(keyword => {
+      if (textLower.includes(keyword)) liveCount++;
+    });
+    
+    fakeKeywords.forEach(keyword => {
+      if (textLower.includes(keyword)) fakeCount++;
+    });
+    
+    // Extract score if present
+    const scoreMatch = text.match(/(?:score|confidence).*?(\d+\.?\d*)/i);
+    let score = 0.5;
+    
+    if (scoreMatch) {
+      const extractedScore = parseFloat(scoreMatch[1]);
+      score = extractedScore > 1 ? extractedScore / 100 : extractedScore;
+      score = Math.max(0, Math.min(1, score));
+    } else if (liveCount > fakeCount) {
+      score = 0.7;
+    } else if (fakeCount > liveCount) {
+      score = 0.3;
+    }
+    
+    console.log('🤖 Extracted liveness data from text:', {
+      score,
+      liveKeywords: liveCount,
+      fakeKeywords: fakeCount,
+      textPreview: text.substring(0, 200) + '...'
+    });
+    
+    return {
+      liveness_score: score,
+      confidence: 0.6,
+      analysis: {
+        is_live_person: liveCount > fakeCount
+      },
+      risk_factors: fakeCount > 0 ? ['Possible spoofing indicators detected'] : [],
+      liveness_indicators: liveCount > 0 ? ['Natural features detected'] : []
+    };
   }
   
   async extractFaceImage(imagePath: string): Promise<Buffer | null> {

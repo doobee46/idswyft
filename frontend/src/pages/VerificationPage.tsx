@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { API_BASE_URL, shouldUseSandbox } from '../config/api';
+import { BackOfIdUpload } from '../components/BackOfIdUpload';
 
 
 interface Document {
@@ -43,6 +44,8 @@ const VerificationPage: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [backOfIdUploaded, setBackOfIdUploaded] = useState(false);
+  const [documentType, setDocumentType] = useState<string>('');
   
   // Demo form fields
   const [apiKey, setApiKey] = useState(urlApiKey || '');
@@ -69,7 +72,12 @@ const VerificationPage: React.FC = () => {
 
   const loadVerificationResults = async (verificationId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/verify/results/${verificationId}`, {
+      const url = new URL(`${API_BASE_URL}/api/verify/results/${verificationId}`);
+      if (shouldUseSandbox()) {
+        url.searchParams.append('sandbox', 'true');
+      }
+      
+      const response = await fetch(url.toString(), {
         headers: {
           'X-API-Key': apiKey,
         },
@@ -100,23 +108,35 @@ const VerificationPage: React.FC = () => {
       return;
     }
 
+
     setIsLoading(true);
     try {
+      const useSandbox = shouldUseSandbox();
+      const requestBody = {
+        user_id: userId,
+        ...(useSandbox && { sandbox: true })
+      };
+
+      console.log('🔧 Start Verification Debug:');
+      console.log('🔧 Sandbox mode:', useSandbox);
+      console.log('🔧 API Key (first 10):', apiKey?.substring(0, 10));
+      console.log('🔧 Request body:', requestBody);
+
       const response = await fetch(`${API_BASE_URL}/api/verify/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-API-Key': apiKey,
         },
-        body: JSON.stringify({
-          user_id: userId,
-          ...(shouldUseSandbox() && { sandbox: true })
-        }),
+        body: JSON.stringify(requestBody),
       });
+
+      console.log('🔧 Start verification response status:', response.status);
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to start verification');
+        console.log('🔧 Start verification error response:', errorData);
+        throw new Error(errorData.error || errorData.message || 'Failed to start verification');
       }
 
       const data = await response.json();
@@ -174,12 +194,26 @@ const VerificationPage: React.FC = () => {
       const formData = new FormData();
       formData.append('document', selectedFile);
       formData.append('verification_id', verificationId);
-      formData.append('document_type', 'national_id');
-      if (shouldUseSandbox()) {
-        formData.append('sandbox', 'true');
+      formData.append('document_type', documentType || 'national_id');
+      
+      const useSandbox = shouldUseSandbox();
+      
+      // Build URL with sandbox query parameter if needed
+      const url = new URL(`${API_BASE_URL}/api/verify/document`);
+      if (useSandbox) {
+        url.searchParams.append('sandbox', 'true');
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/verify/document`, {
+      console.log('🔧 Document Upload Debug:');
+      console.log('🔧 Sandbox mode:', useSandbox);
+      console.log('🔧 API Key (first 10):', apiKey?.substring(0, 10));
+      console.log('🔧 Verification ID:', verificationId);
+      console.log('🔧 Upload URL:', url.toString());
+      console.log('🔧 FormData entries:', Array.from(formData.entries()).map(([key, value]) => 
+        key === 'document' ? [key, `${value.constructor.name} (${value.size} bytes)`] : [key, value]
+      ));
+
+      const response = await fetch(url.toString(), {
         method: 'POST',
         headers: {
           'X-API-Key': apiKey,
@@ -187,9 +221,12 @@ const VerificationPage: React.FC = () => {
         body: formData,
       });
 
+      console.log('🔧 Upload response status:', response.status);
+
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to upload document');
+        console.log('🔧 Upload error response:', errorData);
+        throw new Error(errorData.error || errorData.message || 'Failed to upload document');
       }
 
       const data = await response.json();
@@ -212,7 +249,12 @@ const VerificationPage: React.FC = () => {
   const pollForOCRResults = () => {
     const pollInterval = setInterval(async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/verify/results/${verificationId}`, {
+        const url = new URL(`${API_BASE_URL}/api/verify/results/${verificationId}`);
+        if (shouldUseSandbox()) {
+          url.searchParams.append('sandbox', 'true');
+        }
+        
+        const response = await fetch(url.toString(), {
           headers: {
             'X-API-Key': apiKey,
           },
@@ -253,7 +295,12 @@ const VerificationPage: React.FC = () => {
   const skipLiveCapture = async () => {
     try {
       // Get results from the verification
-      const response = await fetch(`${API_BASE_URL}/api/verify/results/${verificationId}`, {
+      const url = new URL(`${API_BASE_URL}/api/verify/results/${verificationId}`);
+      if (shouldUseSandbox()) {
+        url.searchParams.append('sandbox', 'true');
+      }
+      
+      const response = await fetch(url.toString(), {
         headers: {
           'X-API-Key': apiKey,
         },
@@ -367,6 +414,25 @@ const VerificationPage: React.FC = () => {
             </p>
 
             <div className="space-y-6">
+              {/* Document Type Selection */}
+              <div className="max-w-md mx-auto">
+                <label htmlFor="document-type" className="block text-sm font-medium text-gray-700 mb-2">
+                  Document Type
+                </label>
+                <select
+                  id="document-type"
+                  value={documentType}
+                  onChange={(e) => setDocumentType(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                >
+                  <option value="">Select document type</option>
+                  <option value="national_id">National ID</option>
+                  <option value="drivers_license">Driver's License</option>
+                  <option value="passport">Passport</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 sm:p-8 text-center">
                 <input
                   type="file"
@@ -418,11 +484,17 @@ const VerificationPage: React.FC = () => {
               {selectedFile && (
                 <button
                   onClick={uploadDocument}
-                  disabled={isLoading}
+                  disabled={isLoading || !documentType}
                   className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {isLoading ? 'Uploading...' : 'Upload Document'}
                 </button>
+              )}
+              
+              {selectedFile && !documentType && (
+                <p className="text-red-600 text-sm text-center">
+                  Please select a document type before uploading.
+                </p>
               )}
             </div>
           </div>
@@ -492,28 +564,78 @@ const VerificationPage: React.FC = () => {
               </div>
             )}
 
-            <div className="text-center">
-              <h3 className="text-lg font-semibold mb-4">Take a Selfie</h3>
-              <p className="text-gray-600 mb-6">
-                Now we need to verify that you're the person in the document.
-              </p>
-              
-              <div className="space-y-4">
-                <button
-                  onClick={handleLiveCapture}
-                  className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-                >
-                  Take Selfie
-                </button>
-                
-                <button
-                  onClick={skipLiveCapture}
-                  className="w-full bg-gray-300 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-400 transition-colors"
-                >
-                  Skip Selfie (Complete Verification)
-                </button>
+            {/* Back-of-ID Upload Section */}
+            {!backOfIdUploaded && (
+              <div className="mb-8">
+                <BackOfIdUpload
+                  verificationId={verificationId!}
+                  documentType={documentType || 'national_id'}
+                  apiKey={apiKey}
+                  onUploadComplete={(result) => {
+                    console.log('Back-of-ID upload completed:', result);
+                    setBackOfIdUploaded(true);
+                    toast.success('Back-of-ID uploaded successfully!');
+                  }}
+                  onUploadError={(error) => {
+                    console.error('Back-of-ID upload error:', error);
+                    toast.error(error);
+                  }}
+                />
               </div>
-            </div>
+            )}
+
+            {backOfIdUploaded && (
+              <div className="mb-8 bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-center space-x-2 text-green-800">
+                  <span className="text-lg">✅</span>
+                  <span className="font-medium">Enhanced Verification Complete</span>
+                </div>
+                <p className="mt-1 text-green-700 text-sm">
+                  Back-of-ID successfully processed with barcode/QR scanning and cross-validation.
+                </p>
+              </div>
+            )}
+
+            {/* Liveness Challenge - Only show after back-of-ID is uploaded */}
+            {backOfIdUploaded && (
+              <div className="text-center">
+                <h3 className="text-lg font-semibold mb-4">Take a Selfie</h3>
+                <p className="text-gray-600 mb-6">
+                  Now we need to verify that you're the person in the document.
+                </p>
+                
+                <div className="space-y-4">
+                  <button
+                    onClick={handleLiveCapture}
+                    className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                  >
+                    Take Selfie
+                  </button>
+                  
+                  <button
+                    onClick={skipLiveCapture}
+                    className="w-full bg-gray-300 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-400 transition-colors"
+                  >
+                    Skip Selfie (Complete Verification)
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Instructions when back-of-ID is not uploaded */}
+            {!backOfIdUploaded && (
+              <div className="text-center bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <div className="text-blue-600 mb-2">
+                  <svg className="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-blue-900 mb-2">Next Step: Upload Back-of-ID</h3>
+                <p className="text-blue-700 text-sm">
+                  Please upload the back of your ID above for enhanced verification with QR/barcode scanning and cross-validation before proceeding to the liveness challenge.
+                </p>
+              </div>
+            )}
           </div>
         );
 
@@ -567,7 +689,14 @@ const VerificationPage: React.FC = () => {
             )}
 
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => {
+                // Clear URL parameters and reset state for new verification
+                const newUrl = new URL(window.location.href);
+                newUrl.searchParams.delete('verification_id');
+                newUrl.searchParams.delete('step');
+                newUrl.searchParams.set('step', '1');
+                window.location.href = newUrl.toString();
+              }}
               className="mt-6 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
             >
               Start New Verification

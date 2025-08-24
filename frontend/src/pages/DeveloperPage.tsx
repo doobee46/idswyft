@@ -925,12 +925,25 @@ export const DeveloperPage: React.FC = () => {
           <div className="space-y-6">
             {/* Documentation */}
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">API Documentation</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                <ClipboardDocumentIcon className="h-6 w-6 text-blue-600 mr-2" />
+                AI-Powered API Documentation
+              </h2>
+              
+              <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-xl p-4 mb-6">
+                <h3 className="text-lg font-semibold text-purple-900 mb-2 flex items-center">
+                  <CpuChipIcon className="h-5 w-5 mr-2" />
+                  🚀 Enhanced with AI Features
+                </h3>
+                <p className="text-purple-800 text-sm">
+                  GPT-4o Vision OCR • AI Liveness Detection • Smart Face Matching • Back-of-ID QR/Barcode Scanning
+                </p>
+              </div>
               
               <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Complete Verification Flow</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Enhanced Verification Flow</h3>
                 <p className="text-gray-600 mb-6">
-                  Our new verification API provides a streamlined 4-step process for document verification with live camera capture.
+                  Our AI-powered verification API provides a comprehensive process with optional back-of-ID scanning for enhanced accuracy.
                 </p>
                 
                 <div className="space-y-6">
@@ -948,20 +961,46 @@ export const DeveloperPage: React.FC = () => {
                   </div>
                   
                   <div>
-                    <h4 className="text-lg font-medium text-gray-900 mb-2">2. Upload Document</h4>
+                    <h4 className="text-lg font-medium text-gray-900 mb-2 flex items-center">
+                      2. Upload Front Document 
+                      <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">AI-Enhanced OCR</span>
+                    </h4>
                     <div className="bg-gray-50 rounded-xl p-4">
                       <pre className="text-sm overflow-x-auto">
 {`curl -X POST ${apiUrl}/api/verify/document \\
   -H "X-API-Key: YOUR_API_KEY" \\
   -H "Content-Type: multipart/form-data" \\
   -F "verification_id=verif_abc123" \\
-  -F "document_type=passport" \\
-  -F "document=@passport.jpg"`}</pre>
+  -F "document_type=drivers_license" \\
+  -F "document=@drivers_license_front.jpg"`}</pre>
                     </div>
                   </div>
                   
                   <div>
-                    <h4 className="text-lg font-medium text-gray-900 mb-2">3. Live Camera Capture</h4>
+                    <h4 className="text-lg font-medium text-gray-900 mb-2 flex items-center">
+                      2b. Upload Back-of-ID 
+                      <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">NEW</span>
+                      <span className="ml-1 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full">Optional</span>
+                    </h4>
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <pre className="text-sm overflow-x-auto">
+{`curl -X POST ${apiUrl}/api/verify/back-of-id \\
+  -H "X-API-Key: YOUR_API_KEY" \\
+  -H "Content-Type: multipart/form-data" \\
+  -F "verification_id=verif_abc123" \\
+  -F "document_type=drivers_license" \\
+  -F "back_of_id=@drivers_license_back.jpg"`}</pre>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-2">
+                      📊 Enables QR/barcode scanning and cross-validation for enhanced accuracy
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <h4 className="text-lg font-medium text-gray-900 mb-2 flex items-center">
+                      3. Live Camera Capture 
+                      <span className="ml-2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full">AI Liveness</span>
+                    </h4>
                     <div className="bg-gray-50 rounded-xl p-4">
                       <pre className="text-sm overflow-x-auto">
 {`curl -X POST ${apiUrl}/api/verify/live-capture \\
@@ -973,10 +1012,13 @@ export const DeveloperPage: React.FC = () => {
     "challenge_response": "smile"
   }'`}</pre>
                     </div>
+                    <p className="text-xs text-gray-600 mt-2">
+                      🤖 AI analyzes facial depth, skin texture, and micro-expressions for bulletproof security
+                    </p>
                   </div>
                   
                   <div>
-                    <h4 className="text-lg font-medium text-gray-900 mb-2">4. Get Verification Results</h4>
+                    <h4 className="text-lg font-medium text-gray-900 mb-2">4. Get Enhanced Verification Results</h4>
                     <div className="bg-gray-50 rounded-xl p-4">
                       <pre className="text-sm overflow-x-auto">
 {`curl -X GET ${apiUrl}/api/verify/results/verif_abc123 \\
@@ -987,27 +1029,73 @@ export const DeveloperPage: React.FC = () => {
               </div>
               
               <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">Response Example</h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                  Enhanced Response Example
+                  <span className="ml-2 bg-gradient-to-r from-purple-100 to-blue-100 text-purple-800 text-xs px-3 py-1 rounded-full">AI-Powered</span>
+                </h3>
                 <div className="bg-gray-50 rounded-xl p-4">
                   <pre className="text-sm overflow-x-auto">
 {`{
   "verification_id": "verif_abc123",
   "user_id": "user_123",
   "status": "verified",
+  "created_at": "2024-01-01T12:00:00Z",
+  "updated_at": "2024-01-01T12:05:30Z",
+  
+  // AI-Enhanced Front Document Results
   "document_uploaded": true,
-  "document_type": "passport",
-  "live_capture_completed": true,
+  "document_type": "drivers_license",
   "ocr_data": {
     "name": "John Doe",
     "date_of_birth": "1990-01-01",
-    "document_number": "P123456789"
+    "document_number": "DL123456789",
+    "expiration_date": "2030-01-01",
+    "address": "123 Main St, Anytown, US",
+    "ai_extraction_confidence": 0.98
   },
-  "liveness_score": 0.94,
-  "face_match_score": 0.92,
-  "confidence_score": 0.93,
-  "next_steps": ["Verification complete"]
+  "quality_analysis": {
+    "ai_authenticity_score": 0.96,
+    "overallQuality": "excellent"
+  },
+  
+  // Back-of-ID Results (Enhanced Verification)
+  "back_of_id_uploaded": true,
+  "barcode_data": {
+    "qr_code": "DL|123456789|DOE,JOHN|1990-01-01|...",
+    "verification_codes": ["VER123", "CHK456"],
+    "security_features": ["Hologram detected", "UV pattern verified"]
+  },
+  "cross_validation_results": {
+    "match_score": 0.98,
+    "overall_consistency": true,
+    "discrepancies": []
+  },
+  "enhanced_verification_completed": true,
+  
+  // AI Live Capture Results
+  "live_capture_completed": true,
+  "liveness_score": 0.96,
+  "face_match_score": 0.94,
+  "confidence_score": 0.96,
+  
+  "next_steps": ["Enhanced verification complete with AI analysis"]
 }`}</pre>
                 </div>
+              </div>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mt-6">
+                <h4 className="font-semibold text-blue-900 mb-2">🔗 Full Documentation</h4>
+                <p className="text-blue-800 text-sm mb-3">
+                  For comprehensive API documentation with all endpoints, parameters, and examples:
+                </p>
+                <a 
+                  href="/docs" 
+                  target="_blank"
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <ClipboardDocumentIcon className="h-4 w-4 mr-2" />
+                  View Complete Documentation
+                </a>
               </div>
             </div>
           </div>

@@ -9,7 +9,10 @@ import { VerificationService } from '@/services/verification.js';
 import { StorageService } from '@/services/storage.js';
 import { OCRService } from '@/services/ocr.js';
 import { FaceRecognitionService } from '@/services/faceRecognition.js';
+import { opencvFaceDetectionService } from '@/services/opencvFaceDetection.js';
+import { BarcodeService } from '@/services/barcode.js';
 import { logger, logVerificationEvent } from '@/utils/logger.js';
+import { supabase } from '@/config/database.js';
 
 const router = express.Router();
 
@@ -71,6 +74,7 @@ const verificationService = new VerificationService();
 const storageService = new StorageService();
 const ocrService = new OCRService();
 const faceRecognitionService = new FaceRecognitionService();
+const barcodeService = new BarcodeService();
 
 // Route: POST /api/verify/start - Start a new verification session
 router.post('/start',
@@ -434,6 +438,299 @@ router.post('/selfie',
   })
 );
 
+// Route: POST /api/verify/back-of-id - Upload back-of-ID for enhanced verification
+router.post('/back-of-id',
+  authenticateAPIKey,
+  checkSandboxMode,
+  verificationRateLimit,
+  upload.single('back_of_id'),
+  [
+    body('verification_id')
+      .isUUID()
+      .withMessage('Verification ID must be a valid UUID'),
+    body('document_type')
+      .isIn(['passport', 'drivers_license', 'national_id', 'other'])
+      .withMessage('Document type must match the front-of-ID document type'),
+    body('sandbox')
+      .optional()
+      .isBoolean()
+      .withMessage('Sandbox must be a boolean')
+  ],
+  catchAsync(async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      throw new ValidationError('Validation failed', 'multiple', errors.array());
+    }
+    
+    const { verification_id, document_type } = req.body;
+    const file = req.file;
+    
+    if (!file) {
+      throw new FileUploadError('Back-of-ID file is required');
+    }
+    
+    // Get verification request
+    const verificationRequest = await verificationService.getVerificationRequest(verification_id);
+    if (!verificationRequest) {
+      throw new ValidationError('Verification request not found', 'verification_id', verification_id);
+    }
+    
+    // Authenticate user
+    req.body.user_id = verificationRequest.user_id;
+    await new Promise((resolve, reject) => {
+      authenticateUser(req as any, res as any, (err: any) => {
+        if (err) reject(err);
+        else resolve(true);
+      });
+    });
+
+    // Check if front-of-ID exists
+    const frontDocument = await verificationService.getDocumentByVerificationId(verification_id);
+    if (!frontDocument) {
+      throw new ValidationError('Front-of-ID must be uploaded before back-of-ID', 'front_document', 'missing');
+    }
+
+    if (frontDocument.document_type !== document_type) {
+      throw new ValidationError('Back-of-ID document type must match front-of-ID', 'document_type', document_type);
+    }
+    
+    logVerificationEvent('back_of_id_upload_started', verification_id, {
+      userId: verificationRequest.user_id,
+      documentType: document_type,
+      fileSize: file.size,
+      mimeType: file.mimetype,
+      developerId: (req as any).developer?.id,
+      isSandbox: req.isSandbox
+    });
+    
+    try {
+      // Store back-of-ID file
+      const backOfIdPath = await storageService.storeDocument(
+        file.buffer,
+        `back_${file.originalname}`,
+        file.mimetype,
+        verificationRequest.id
+      );
+      
+      // Create back-of-ID document record
+      const backOfIdDocument = await verificationService.createDocument({
+        verification_request_id: verificationRequest.id,
+        file_path: backOfIdPath,
+        file_name: `back_${file.originalname}`,
+        file_size: file.size,
+        mime_type: file.mimetype,
+        document_type,
+        is_back_of_id: true
+      });
+
+      // Process back-of-ID scanning asynchronously
+      if (!req.isSandbox && file.mimetype.startsWith('image/')) {
+        console.log('🔄 Starting back-of-ID barcode/QR scanning...', {
+          backDocumentId: backOfIdDocument.id,
+          backOfIdPath,
+          documentType: document_type,
+          verificationId: verificationRequest.id
+        });
+
+        barcodeService.scanBackOfId(backOfIdPath)
+          .then(async (backOfIdData) => {
+            console.log('✅ Back-of-ID scanning succeeded:', { 
+              verificationId: verificationRequest.id,
+              backDocumentId: backOfIdDocument.id,
+              qrCodeFound: !!backOfIdData.qr_code,
+              barcodeFound: !!backOfIdData.barcode_data,
+              verificationCodes: backOfIdData.verification_codes?.length || 0
+            });
+
+            // Store barcode data in the back-of-ID document
+            await verificationService.updateDocument(backOfIdDocument.id, {
+              barcode_data: backOfIdData
+            });
+
+            // Cross-validate with front-of-ID
+            if (frontDocument.ocr_data) {
+              const crossValidation = await barcodeService.crossValidateWithFrontId(
+                frontDocument.ocr_data,
+                backOfIdData
+              );
+
+              console.log('🔄 Cross-validation completed:', {
+                verificationId: verificationRequest.id,
+                matchScore: crossValidation.match_score,
+                overallConsistency: crossValidation.validation_results.overall_consistency,
+                discrepancies: crossValidation.discrepancies.length
+              });
+
+              // Update front document with cross-validation results
+              await verificationService.updateDocument(frontDocument.id, {
+                cross_validation_results: crossValidation
+              });
+
+              // Update verification request with cross-validation score
+              const finalStatus = crossValidation.validation_results.overall_consistency && 
+                                crossValidation.match_score > 0.7 ? 'verified' : 
+                                crossValidation.discrepancies.length > 0 ? 'manual_review' : 
+                                verificationRequest.status;
+
+              await verificationService.updateVerificationRequest(verificationRequest.id, {
+                cross_validation_score: crossValidation.match_score,
+                enhanced_verification_completed: true,
+                status: finalStatus,
+                manual_review_reason: crossValidation.discrepancies.length > 0 ? 
+                  `Cross-validation discrepancies: ${crossValidation.discrepancies.join('; ')}` : 
+                  verificationRequest.manual_review_reason
+              });
+
+              logVerificationEvent('enhanced_verification_completed', verificationRequest.id, {
+                backDocumentId: backOfIdDocument.id,
+                crossValidationScore: crossValidation.match_score,
+                finalStatus,
+                discrepancies: crossValidation.discrepancies
+              });
+            }
+          })
+          .catch((error) => {
+            console.error('🚨 Back-of-ID scanning failed:', error);
+            logger.error('Back-of-ID scanning failed:', error);
+            
+            verificationService.updateVerificationRequest(verificationRequest.id, {
+              status: 'manual_review',
+              manual_review_reason: 'Back-of-ID scanning failed'
+            });
+
+            logVerificationEvent('back_of_id_scanning_failed', verificationRequest.id, {
+              backDocumentId: backOfIdDocument.id,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
+          });
+      } else if (req.isSandbox) {
+        // For sandbox: Try real AI scanning first, fallback to mock data if it fails
+        console.log('🔧 Sandbox mode: Attempting real AI barcode scanning...');
+        
+        try {
+          const backOfIdData = await barcodeService.scanBackOfId(backOfIdPath);
+          
+          console.log('✅ Sandbox AI barcode scanning succeeded:', { 
+            verificationId: verificationRequest.id,
+            backDocumentId: backOfIdDocument.id,
+            qrCodeFound: !!backOfIdData.qr_code,
+            barcodeFound: !!backOfIdData.barcode_data,
+            securityFeatures: backOfIdData.security_features?.length || 0
+          });
+
+          await verificationService.updateDocument(backOfIdDocument.id, {
+            barcode_data: backOfIdData
+          });
+
+          // Cross-validation with front document (if available)
+          if (frontDocument?.ocr_data) {
+            const crossValidation = await barcodeService.crossValidateWithFrontId(
+              frontDocument.ocr_data,
+              backOfIdData
+            );
+            
+            await verificationService.updateDocument(backOfIdDocument.id, {
+              cross_validation_results: crossValidation
+            });
+
+            await verificationService.updateVerificationRequest(verificationRequest.id, {
+              cross_validation_score: crossValidation.match_score,
+              enhanced_verification_completed: true,
+              status: crossValidation.match_score >= 0.7 ? 'verified' : 'failed'
+            });
+
+            logVerificationEvent('back_of_id_cross_validation_completed', verificationRequest.id, {
+              backDocumentId: backOfIdDocument.id,
+              crossValidationScore: crossValidation.match_score,
+              finalStatus: crossValidation.match_score >= 0.7 ? 'verified' : 'failed',
+              discrepancies: crossValidation.discrepancies
+            });
+          } else {
+            // No front document to cross-validate, just complete with back-of-ID data
+            await verificationService.updateVerificationRequest(verificationRequest.id, {
+              enhanced_verification_completed: true,
+              status: 'verified'
+            });
+          }
+
+        } catch (error) {
+          console.error('🔧 Sandbox AI barcode scanning failed, using mock data:', error);
+          // Fallback to mock data for sandbox
+          setTimeout(async () => {
+          const mockBackOfIdData = {
+            qr_code: 'MOCK_QR_CODE_DATA_ABC123',
+            barcode_data: 'MOCK_BARCODE_456789',
+            parsed_data: {
+              id_number: frontDocument.ocr_data?.id_number || 'MOCK123456',
+              expiry_date: frontDocument.ocr_data?.expiry_date || '2025-12-31',
+              issuing_authority: 'Mock Department of Motor Vehicles'
+            },
+            verification_codes: ['VER123', 'CHK456'],
+            security_features: ['Mock security pattern', 'Mock hologram']
+          };
+
+          await verificationService.updateDocument(backOfIdDocument.id, {
+            barcode_data: mockBackOfIdData
+          });
+
+          // Mock cross-validation with perfect match
+          const mockCrossValidation = {
+            match_score: 0.95,
+            validation_results: {
+              id_number_match: true,
+              expiry_date_match: true,
+              issuing_authority_match: true,
+              overall_consistency: true
+            },
+            discrepancies: []
+          };
+
+          await verificationService.updateDocument(frontDocument.id, {
+            cross_validation_results: mockCrossValidation
+          });
+
+          await verificationService.updateVerificationRequest(verificationRequest.id, {
+            cross_validation_score: mockCrossValidation.match_score,
+            enhanced_verification_completed: true,
+            status: 'verified'
+          });
+
+          logVerificationEvent('mock_enhanced_verification_completed', verificationRequest.id, {
+            backDocumentId: backOfIdDocument.id,
+            crossValidationScore: mockCrossValidation.match_score
+          });
+        }, 2000);
+        }
+      }
+
+      const response: any = {
+        verification_id: verificationRequest.id,
+        back_of_id_document_id: backOfIdDocument.id,
+        status: 'processing',
+        message: 'Back-of-ID uploaded successfully. Enhanced verification processing started.',
+        next_steps: [
+          'Processing barcode/QR code scanning',
+          'Cross-validating with front-of-ID data', 
+          `Check results with GET /api/verify/results/${verification_id}`
+        ],
+        enhanced_verification: {
+          barcode_scanning_enabled: true,
+          cross_validation_enabled: true,
+          ai_powered: barcodeService.useAiBarcodeReading || false
+        }
+      };
+
+      res.status(201).json(response);
+      
+    } catch (error) {
+      logVerificationEvent('back_of_id_upload_failed', verification_id, {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      throw error;
+    }
+  })
+);
+
 // Route: GET /api/verify/results/:verification_id - Get complete verification results
 router.get('/results/:verification_id',
   authenticateAPIKey,
@@ -461,8 +758,17 @@ router.get('/results/:verification_id',
       });
     }
     
-    // Get associated document and selfie data
-    const document = await verificationService.getDocumentByVerificationId(verification_id);
+    // Get all documents for this verification
+    const { data: documents } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('verification_request_id', verification_id)
+      .order('created_at', { ascending: true });
+    
+    // Separate front and back documents
+    // First document is front, second is back (if exists)
+    const document = documents?.[0] || null;
+    const backOfIdDocument = documents?.[1] || null;
     
     // Build comprehensive response
     const responseData: any = {
@@ -478,6 +784,13 @@ router.get('/results/:verification_id',
       ocr_data: document?.ocr_data || null,
       quality_analysis: document?.quality_analysis || null,
       
+      // Back-of-ID verification results
+      back_of_id_uploaded: !!backOfIdDocument,
+      barcode_data: backOfIdDocument?.barcode_data || null,
+      cross_validation_results: document?.cross_validation_results || null,
+      cross_validation_score: verificationRequest.cross_validation_score || null,
+      enhanced_verification_completed: verificationRequest.enhanced_verification_completed || false,
+      
       // Live capture results
       live_capture_completed: verificationRequest.live_capture_completed || false,
       liveness_score: verificationRequest.liveness_score || null,
@@ -488,7 +801,7 @@ router.get('/results/:verification_id',
       manual_review_reason: verificationRequest.manual_review_reason || null,
       
       // Next steps based on current state
-      next_steps: getNextSteps(verificationRequest, document)
+      next_steps: getNextSteps(verificationRequest, document, backOfIdDocument)
     };
     
     res.json(responseData);
@@ -496,11 +809,13 @@ router.get('/results/:verification_id',
 );
 
 // Helper function to determine next steps
-function getNextSteps(verification: any, document: any) {
+function getNextSteps(verification: any, document: any, backOfIdDocument?: any) {
   const steps = [];
   
   if (!document) {
     steps.push('Upload document with POST /api/verify/document');
+  } else if (!backOfIdDocument) {
+    steps.push('Upload back-of-ID for enhanced verification with POST /api/verify/back-of-id (optional)');
   }
   
   if (!verification.live_capture_completed) {
@@ -516,7 +831,11 @@ function getNextSteps(verification: any, document: any) {
   }
   
   if (verification.status === 'verified' || verification.status === 'failed') {
-    steps.push('Verification complete');
+    if (backOfIdDocument && verification.enhanced_verification_completed) {
+      steps.push('Enhanced verification complete with back-of-ID cross-validation');
+    } else {
+      steps.push('Verification complete');
+    }
   }
   
   return steps;

@@ -2,17 +2,22 @@
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 // Determine if we should use sandbox mode
-export const shouldUseSandbox = () => {
-  // Use sandbox mode for local development
-  const isLocalDevelopment = API_BASE_URL.includes('localhost') || API_BASE_URL.includes('127.0.0.1');
-  // Allow override via environment variable
+export const shouldUseSandbox = (apiKey?: string) => {
+  // First check explicit environment override
   const sandboxOverride = import.meta.env.VITE_SANDBOX_MODE;
-  
   if (sandboxOverride !== undefined) {
     return sandboxOverride === 'true';
   }
   
-  return isLocalDevelopment;
+  // For local development, always use sandbox mode
+  // This ensures that sandbox API keys work properly in development
+  const isLocalDevelopment = API_BASE_URL.includes('localhost') || API_BASE_URL.includes('127.0.0.1');
+  if (isLocalDevelopment) {
+    return true;
+  }
+  
+  // In production, check the environment or default to false
+  return false;
 };
 
 // Get the production URL for documentation (remove localhost for docs)

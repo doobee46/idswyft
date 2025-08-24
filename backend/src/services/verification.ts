@@ -53,10 +53,7 @@ export class VerificationService {
   
   async updateVerificationRequest(
     id: string, 
-    updates: Partial<VerificationRequest & {
-      liveness_score?: number;
-      live_capture_completed?: boolean;
-    }>
+    updates: Partial<VerificationRequest>
   ): Promise<VerificationRequest> {
     const { data: verification, error } = await supabase
       .from('verification_requests')
@@ -130,6 +127,7 @@ export class VerificationService {
     file_size: number;
     mime_type: string;
     document_type: string;
+    is_back_of_id?: boolean;
   }): Promise<Document> {
     const { data: document, error } = await supabase
       .from('documents')
