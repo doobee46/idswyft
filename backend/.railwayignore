@@ -1,0 +1,38 @@
+# Railway ignore file for backend deployment
+
+# Development files
+src/
+*.ts
+tsconfig.json
+.env.local
+.env.development
+
+# Build artifacts
+node_modules/
+temp/
+
+# Documentation
+*.md
+docs/
+
+# Test files
+test/
+*.test.*
+*.spec.*
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Coverage
+coverage/

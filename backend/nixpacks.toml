@@ -1,0 +1,29 @@
+# Nixpacks configuration for Railway deployment with OpenCV support
+
+[phases.setup]
+nixPkgs = [
+    # System dependencies for OpenCV
+    'cmake',
+    'gcc',
+    'python3',
+    'pkg-config',
+    'opencv4',
+    'pkgconf'
+]
+
+[phases.install]
+# Set environment variables for opencv4nodejs compilation
+nixpkgsArchive = "https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz"
+cmds = [
+    'export OPENCV4NODEJS_DISABLE_AUTOBUILD=1',
+    'export OPENCV_INCLUDE_DIR=/nix/store/*/include',
+    'export OPENCV_LIB_DIR=/nix/store/*/lib',
+    'export PKG_CONFIG_PATH=/nix/store/*/lib/pkgconfig',
+    'npm ci'
+]
+
+[phases.build]
+cmds = ['npm run build']
+
+[start]
+cmd = 'npm start'

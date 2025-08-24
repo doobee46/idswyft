@@ -53,8 +53,7 @@ class OpenCVFaceDetectionService {
       // Load Haar cascade classifiers
       const cascadeDir = path.join(__dirname, '../../models');
       
-      // You'll need to download these cascade files:
-      // https://github.com/opencv/opencv/tree/master/data/haarcascades
+      // Haar cascade files are already included in the models directory
       const faceCascadePath = path.join(cascadeDir, 'haarcascade_frontalface_default.xml');
       const eyeCascadePath = path.join(cascadeDir, 'haarcascade_eye.xml');
       
