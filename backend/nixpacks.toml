@@ -2,24 +2,27 @@
 
 [phases.setup]
 nixPkgs = [
-    # System dependencies for OpenCV
+    'nodejs-18_x',
+    'python3',
     'cmake',
     'gcc',
-    'python3',
+    'gnumake',
     'pkg-config',
     'opencv4',
-    'pkgconf'
+    'libopencv',
+    'glib',
+    'glibc'
 ]
 
 [phases.install]
-# Set environment variables for opencv4nodejs compilation
-nixpkgsArchive = "https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz"
 cmds = [
+    # Set up proper environment for opencv4nodejs
     'export OPENCV4NODEJS_DISABLE_AUTOBUILD=1',
-    'export OPENCV_INCLUDE_DIR=/nix/store/*/include',
-    'export OPENCV_LIB_DIR=/nix/store/*/lib',
-    'export PKG_CONFIG_PATH=/nix/store/*/lib/pkgconfig',
-    'npm ci'
+    'export OPENCV_INCLUDE_DIR="/nix/store/$(ls /nix/store | grep opencv4 | head -1)/include/opencv4"',
+    'export OPENCV_LIB_DIR="/nix/store/$(ls /nix/store | grep opencv4 | head -1)/lib"',
+    'export PKG_CONFIG_PATH="/nix/store/$(ls /nix/store | grep opencv4 | head -1)/lib/pkgconfig:$PKG_CONFIG_PATH"',
+    # Install dependencies with proper environment
+    'npm ci --verbose'
 ]
 
 [phases.build]
