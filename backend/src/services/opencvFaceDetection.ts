@@ -1,4 +1,10 @@
-import cv from 'opencv4nodejs';
+// Conditional import for opencv4nodejs - may not be available in some deployments
+let cv: any = null;
+try {
+  cv = require('opencv4nodejs');
+} catch (error) {
+  console.warn('OpenCV4NodeJS not available - advanced face detection features will be disabled');
+}
 import { logger } from '@/utils/logger.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -38,9 +44,10 @@ interface LivenessResult {
 }
 
 class OpenCVFaceDetectionService {
-  private faceClassifier: cv.CascadeClassifier | null = null;
-  private eyeClassifier: cv.CascadeClassifier | null = null;
+  private faceClassifier: any | null = null;
+  private eyeClassifier: any | null = null;
   private initialized = false;
+  private opencvAvailable = false;
 
   constructor() {
     this.initialize();
@@ -49,6 +56,15 @@ class OpenCVFaceDetectionService {
   private async initialize() {
     try {
       logger.info('Initializing OpenCV face detection service');
+      
+      if (!cv) {
+        logger.warn('OpenCV4NodeJS not available - service will operate in limited mode');
+        this.opencvAvailable = false;
+        this.initialized = true;
+        return;
+      }
+
+      this.opencvAvailable = true;
       
       // Load Haar cascade classifiers
       const cascadeDir = path.join(__dirname, '../../models');
@@ -67,11 +83,15 @@ class OpenCVFaceDetectionService {
       }
       
       this.initialized = true;
-      logger.info('OpenCV face detection service initialized');
+      logger.info('OpenCV face detection service initialized', {
+        opencvAvailable: this.opencvAvailable,
+        classifiersLoaded: !!(this.faceClassifier && this.eyeClassifier)
+      });
       
     } catch (error) {
       logger.error('Failed to initialize OpenCV face detection service:', error);
-      throw error;
+      this.initialized = true;
+      this.opencvAvailable = false;
     }
   }
 
@@ -81,6 +101,10 @@ class OpenCVFaceDetectionService {
   async detectFaces(imageBuffer: Buffer): Promise<FaceDetectionResult> {
     if (!this.initialized) {
       throw new Error('OpenCV service not initialized');
+    }
+    
+    if (!this.opencvAvailable) {
+      throw new Error('OpenCV not available - advanced face detection disabled. Please use AI-powered liveness detection instead.');
     }
 
     try {
@@ -138,6 +162,10 @@ class OpenCVFaceDetectionService {
   async performLivenessCheck(imageBuffer: Buffer): Promise<LivenessResult> {
     if (!this.initialized) {
       throw new Error('OpenCV service not initialized');
+    }
+    
+    if (!this.opencvAvailable) {
+      throw new Error('OpenCV not available - advanced liveness detection disabled. Please use AI-powered liveness detection instead.');
     }
 
     try {
@@ -202,7 +230,7 @@ class OpenCVFaceDetectionService {
     }
   }
 
-  private async detectFacesInMat(grayMat: cv.Mat): Promise<cv.Rect[]> {
+  private async detectFacesInMat(grayMat: any): Promise<any[]> {
     if (this.faceClassifier) {
       // Use Haar cascade detection
       return this.faceClassifier.detectMultiScale(grayMat, {
@@ -216,13 +244,13 @@ class OpenCVFaceDetectionService {
     }
   }
 
-  private fallbackFaceDetection(grayMat: cv.Mat): cv.Rect[] {
+  private fallbackFaceDetection(grayMat: any): any[] {
     // Basic fallback using contour detection and face-like shape analysis
     const blurred = grayMat.gaussianBlur(new cv.Size(5, 5), 1.4);
     const edges = blurred.canny(50, 150);
     
     const contours = edges.findContours(cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-    const faces: cv.Rect[] = [];
+    const faces: any[] = [];
     
     for (const contour of contours) {
       const rect = contour.boundingRect();
@@ -241,7 +269,7 @@ class OpenCVFaceDetectionService {
     return faces.slice(0, 1); // Return only the largest face
   }
 
-  private analyzeImageQuality(colorMat: cv.Mat, grayMat: cv.Mat) {
+  private analyzeImageQuality(colorMat: any, grayMat: any) {
     // Calculate brightness (mean intensity)
     const brightness = grayMat.mean()[0];
     
@@ -264,7 +292,7 @@ class OpenCVFaceDetectionService {
     };
   }
 
-  private calculateConfidence(face: cv.Rect, mat: cv.Mat): number {
+  private calculateConfidence(face: any, mat: any): number {
     const faceArea = face.width * face.height;
     const imageArea = mat.rows * mat.cols;
     const areaRatio = faceArea / imageArea;
@@ -276,7 +304,7 @@ class OpenCVFaceDetectionService {
     return Math.round(sizeScore * 100);
   }
 
-  private async checkEyeMovement(faceROI: cv.Mat): Promise<boolean> {
+  private async checkEyeMovement(faceROI: any): Promise<boolean> {
     if (!this.eyeClassifier) {
       return true; // Skip if no eye classifier available
     }
@@ -295,7 +323,7 @@ class OpenCVFaceDetectionService {
     }
   }
 
-  private checkFaceSymmetry(faceROI: cv.Mat): boolean {
+  private checkFaceSymmetry(faceROI: any): boolean {
     const centerX = Math.floor(faceROI.cols / 2);
     
     // Split face into left and right halves
@@ -318,7 +346,7 @@ class OpenCVFaceDetectionService {
     return similarity > 100;
   }
 
-  private performTextureAnalysis(faceROI: cv.Mat): boolean {
+  private performTextureAnalysis(faceROI: any): boolean {
     // Use Local Binary Pattern (LBP) like analysis
     const blurred = faceROI.gaussianBlur(new cv.Size(3, 3), 1);
     const edges = blurred.canny(30, 100);
@@ -335,7 +363,7 @@ class OpenCVFaceDetectionService {
     return textureDensity > 0.05 && textureDensity < 0.3;
   }
 
-  private checkDepthConsistency(colorMat: cv.Mat, faceRect: cv.Rect): boolean {
+  private checkDepthConsistency(colorMat: any, faceRect: any): boolean {
     // Analyze color distribution for depth cues
     const faceROI = colorMat.getRegion(faceRect);
     const hsvROI = faceROI.cvtColor(cv.COLOR_BGR2HSV);
