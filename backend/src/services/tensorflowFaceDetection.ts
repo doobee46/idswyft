@@ -1,6 +1,25 @@
-import * as tf from '@tensorflow/tfjs-node';
 import { logger } from '@/utils/logger.js';
 import { StorageService } from './storage.js';
+
+// Optional dependency imports with graceful fallbacks
+let tf: any = null;
+let blazeface: any = null;
+
+// Type definitions for optional dependencies
+type TensorFlow3D = any;
+type TensorFlow2D = any;
+
+try {
+  tf = await import('@tensorflow/tfjs-node');
+} catch (error) {
+  logger.warn('TensorFlow.js not available, falling back to AI detection');
+}
+
+try {
+  blazeface = await import('@tensorflow-models/blazeface');
+} catch (error) {
+  logger.warn('BlazeFace model not available, falling back to AI detection');
+}
 
 interface FaceDetectionResult {
   faceDetected: boolean;
@@ -61,6 +80,13 @@ class TensorFlowFaceDetectionService {
     try {
       logger.info('Initializing TensorFlow.js face detection service');
 
+      // Check if TensorFlow.js is available
+      if (!tf || !blazeface) {
+        logger.warn('TensorFlow.js dependencies not available, service will use AI fallback only');
+        this.initialized = true;
+        return;
+      }
+
       // Load BlazeFace model for face detection
       await this.loadBlazeFaceModel();
       
@@ -70,15 +96,19 @@ class TensorFlowFaceDetectionService {
       });
     } catch (error) {
       logger.error('Failed to initialize TensorFlow.js face detection service:', error);
-      // Initialize anyway to allow fallback tensor operations
+      // Initialize anyway to allow fallback operations
       this.initialized = true;
     }
   }
 
   private async loadBlazeFaceModel() {
     try {
+      if (!blazeface) {
+        logger.warn('BlazeFace not available, skipping model load');
+        return;
+      }
+      
       // Use TensorFlow.js BlazeFace model for efficient face detection
-      const blazeface = await import('@tensorflow-models/blazeface');
       this.blazeFaceModel = await blazeface.load();
       logger.info('BlazeFace model loaded successfully');
     } catch (error) {
@@ -95,9 +125,14 @@ class TensorFlowFaceDetectionService {
       throw new Error('TensorFlow face detection service not initialized');
     }
 
+    // If TensorFlow.js is not available, throw error to trigger AI fallback
+    if (!tf) {
+      throw new Error('TensorFlow.js not available, using AI fallback');
+    }
+
     try {
       // Decode image to tensor
-      const imageTensor = tf.node.decodeImage(imageBuffer, 3) as tf.Tensor3D;
+      const imageTensor = tf.node.decodeImage(imageBuffer, 3) as any;
       
       let result: FaceDetectionResult;
 
@@ -135,8 +170,13 @@ class TensorFlowFaceDetectionService {
       throw new Error('TensorFlow face detection service not initialized');
     }
 
+    // If TensorFlow.js is not available, throw error to trigger AI fallback
+    if (!tf) {
+      throw new Error('TensorFlow.js not available, using AI fallback');
+    }
+
     try {
-      const imageTensor = tf.node.decodeImage(imageBuffer, 3) as tf.Tensor3D;
+      const imageTensor = tf.node.decodeImage(imageBuffer, 3) as any;
 
       // Perform face detection first
       const faceResult = this.blazeFaceModel 
@@ -206,7 +246,7 @@ class TensorFlowFaceDetectionService {
     }
   }
 
-  private async detectFacesWithBlazeFace(imageTensor: tf.Tensor3D): Promise<FaceDetectionResult> {
+  private async detectFacesWithBlazeFace(imageTensor: TensorFlow3D): Promise<FaceDetectionResult> {
     const predictions = await this.blazeFaceModel.estimateFaces(imageTensor, false);
     
     const qualityChecks = this.analyzeImageQuality(imageTensor);
@@ -247,21 +287,21 @@ class TensorFlowFaceDetectionService {
     };
   }
 
-  private async detectFacesWithTensorOps(imageTensor: tf.Tensor3D): Promise<FaceDetectionResult> {
+  private async detectFacesWithTensorOps(imageTensor: TensorFlow3D): Promise<FaceDetectionResult> {
     // Convert to grayscale for processing
-    const grayscale = tf.image.rgbToGrayscale(imageTensor);
+    const grayscale = tf?.image.rgbToGrayscale(imageTensor);
     
     // Basic edge detection using simple convolution
-    const edgeKernel = tf.tensor2d([
+    const edgeKernel = tf?.tensor2d([
       [-1, -1, -1],
       [-1,  8, -1],
       [-1, -1, -1]
     ], [3, 3]);
     
-    const edges = tf.conv2d(grayscale.expandDims(2) as tf.Tensor4D, edgeKernel.expandDims(2).expandDims(3) as tf.Tensor4D, 1, 'same');
+    const edges = tf?.conv2d(grayscale.expandDims(2) as any, edgeKernel.expandDims(2).expandDims(3) as any, 1, 'same');
     
     // Simple face-like region detection using image statistics
-    const edgeStats = await this.analyzeEdgePatterns(edges.squeeze() as tf.Tensor);
+    const edgeStats = await this.analyzeEdgePatterns(edges.squeeze() as any);
     const qualityChecks = this.analyzeImageQuality(imageTensor);
     
     // Cleanup intermediate tensors
@@ -288,7 +328,7 @@ class TensorFlowFaceDetectionService {
     };
   }
 
-  private async analyzeEdgePatterns(edgeTensor: tf.Tensor): Promise<{complexity: number, symmetry: number}> {
+  private async analyzeEdgePatterns(edgeTensor: any): Promise<{complexity: number, symmetry: number}> {
     // Calculate edge complexity (amount of detail in the image)
     const edgeSum = tf.sum(edgeTensor);
     const totalPixels = edgeTensor.size;
@@ -316,10 +356,10 @@ class TensorFlowFaceDetectionService {
     return { complexity, symmetry };
   }
 
-  private analyzeImageQuality(imageTensor: tf.Tensor3D) {
+  private analyzeImageQuality(imageTensor: TensorFlow3D) {
     return tf.tidy(() => {
       // Convert to grayscale for quality analysis
-      const gray = tf.image.rgbToGrayscale(imageTensor);
+      const gray = tf?.image.rgbToGrayscale(imageTensor);
       
       // Calculate brightness (mean pixel value)
       const brightness = tf.mean(gray);
@@ -332,13 +372,13 @@ class TensorFlowFaceDetectionService {
       const contrastValue = contrast.dataSync()[0] * 255;
       
       // Estimate sharpness using Laplacian variance
-      const laplacianKernel = tf.tensor2d([
+      const laplacianKernel = tf?.tensor2d([
         [0, -1, 0],
         [-1, 4, -1],
         [0, -1, 0]
       ], [3, 3]);
       
-      const laplacian = tf.conv2d(gray.expandDims(2) as tf.Tensor4D, laplacianKernel.expandDims(2).expandDims(3) as tf.Tensor4D, 1, 'same');
+      const laplacian = tf?.conv2d(gray.expandDims(2) as any, laplacianKernel.expandDims(2).expandDims(3) as any, 1, 'same');
       const sharpness = tf.mean(tf.square(laplacian));
       const sharpnessValue = sharpness.dataSync()[0] * 10000; // Scale for readability
       
@@ -352,7 +392,7 @@ class TensorFlowFaceDetectionService {
     });
   }
 
-  private async performTensorLivenessChecks(imageTensor: tf.Tensor3D, boundingBox?: any): Promise<{
+  private async performTensorLivenessChecks(imageTensor: TensorFlow3D, boundingBox?: any): Promise<{
     confidence: number;
     eyeMovement: boolean;
     faceSymmetry: boolean;
@@ -362,7 +402,7 @@ class TensorFlowFaceDetectionService {
     livenessIndicators: string[];
   }> {
     return tf.tidy(() => {
-      const gray = tf.image.rgbToGrayscale(imageTensor);
+      const gray = tf?.image.rgbToGrayscale(imageTensor);
       
       // Face symmetry analysis
       const [height, width] = gray.shape.slice(0, 2);
@@ -375,18 +415,18 @@ class TensorFlowFaceDetectionService {
       const faceSymmetry = symmetryDiff.dataSync()[0] < 0.1;
 
       // Texture analysis using simple convolution
-      const blurKernel = tf.tensor2d([
+      const blurKernel = tf?.tensor2d([
         [1, 1, 1],
         [1, 1, 1],
         [1, 1, 1]
       ], [3, 3]).div(9);
       
-      const blurred = tf.conv2d(gray.expandDims(2) as tf.Tensor4D, blurKernel.expandDims(2).expandDims(3) as tf.Tensor4D, 1, 'same').squeeze();
-      const textureVariance = tf.mean(tf.square(tf.sub(gray.squeeze(), blurred as tf.Tensor3D)));
+      const blurred = tf?.conv2d(gray.expandDims(2) as any, blurKernel.expandDims(2).expandDims(3) as any, 1, 'same').squeeze();
+      const textureVariance = tf.mean(tf.square(tf.sub(gray.squeeze(), blurred as TensorFlow3D)));
       const textureAnalysis = textureVariance.dataSync()[0] > 0.01 && textureVariance.dataSync()[0] < 0.1;
       
       blurKernel.dispose();
-      (blurred as tf.Tensor).dispose();
+      (blurred as any).dispose();
 
       // Basic depth consistency through color distribution
       const meanR = tf.mean(tf.slice(imageTensor, [0, 0, 0], [-1, -1, 1]));
@@ -553,8 +593,13 @@ Return JSON analysis:
     confidence: number;
     boundingBox?: { x: number; y: number; width: number; height: number };
   }> {
+    // If TensorFlow.js is not available, throw error to trigger AI fallback
+    if (!tf) {
+      throw new Error('TensorFlow.js not available, using AI fallback');
+    }
+
     try {
-      const imageTensor = tf.node.decodeImage(frameBuffer, 3) as tf.Tensor3D;
+      const imageTensor = tf.node.decodeImage(frameBuffer, 3) as any;
       
       let result;
       if (this.blazeFaceModel) {

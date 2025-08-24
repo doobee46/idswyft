@@ -1,15 +1,33 @@
-import * as tf from '@tensorflow/tfjs-node';
-import Jimp from 'jimp';
 import { logger } from '@/utils/logger.js';
 import { StorageService } from './storage.js';
 import config from '@/config/index.js';
 import path from 'path';
 import fs from 'fs/promises';
 
+// Optional dependency imports with graceful fallbacks
+let tf: any = null;
+let Jimp: any = null;
+
+// Type definitions for optional dependencies
+type JimpImage = any;
+type TensorFlowModel = any;
+
+try {
+  tf = await import('@tensorflow/tfjs-node');
+} catch (error) {
+  logger.warn('TensorFlow.js not available, using AI-only face recognition');
+}
+
+try {
+  Jimp = (await import('jimp')).default;
+} catch (error) {
+  logger.warn('Jimp not available, using AI-only face recognition');
+}
+
 export class FaceRecognitionService {
   private storageService: StorageService;
   private isInitialized = false;
-  private faceModel: tf.GraphModel | null = null;
+  private faceModel: TensorFlowModel | null = null;
   private useAiFaceMatching: boolean;
   private useAiLivenessDetection: boolean;
   
@@ -36,13 +54,21 @@ export class FaceRecognitionService {
     if (this.isInitialized) return;
     
     try {
-      logger.info('Initializing TensorFlow.js face recognition service...');
+      logger.info('Initializing face recognition service...');
+      
+      if (!tf || !Jimp) {
+        logger.warn('TensorFlow.js or Jimp not available, using AI-only face recognition');
+      }
       
       // For MVP, we'll use a simplified approach without complex models
       // In production, you could load a pre-trained face detection model
       this.isInitialized = true;
       
-      logger.info('Face recognition service initialized successfully');
+      logger.info('Face recognition service initialized successfully', {
+        tensorflowAvailable: !!tf,
+        jimpAvailable: !!Jimp,
+        aiEnabled: this.useAiFaceMatching
+      });
     } catch (error) {
       logger.error('Failed to initialize face recognition service:', error);
       throw new Error('Face recognition service initialization failed');
@@ -230,7 +256,7 @@ Important guidelines:
     return Math.max(0, Math.min(1, similarity));
   }
   
-  private async extractSimpleFeatures(image: Jimp): Promise<number[]> {
+  private async extractSimpleFeatures(image: JimpImage): Promise<number[]> {
     // Convert image to grayscale and extract simple features
     const grayImage = image.clone().greyscale();
     const { width, height } = grayImage.bitmap;
@@ -260,7 +286,7 @@ Important guidelines:
     return features;
   }
   
-  private calculateGradients(image: Jimp): number[] {
+  private calculateGradients(image: JimpImage): number[] {
     const { width, height } = image.bitmap;
     const gradients: number[] = [];
     
@@ -720,7 +746,7 @@ Provide response in JSON format:
     return result;
   }
   
-  private async analyzeLivenessFeatures(image: Jimp): Promise<number> {
+  private async analyzeLivenessFeatures(image: JimpImage): Promise<number> {
     // Analyze image characteristics that indicate liveness
     let score = 0.5; // Base score
     
@@ -735,7 +761,7 @@ Provide response in JSON format:
     return Math.min(1, score);
   }
   
-  private detectImageQuality(image: Jimp): number {
+  private detectImageQuality(image: JimpImage): number {
     const { width, height } = image.bitmap;
     
     // Calculate image sharpness using variance of Laplacian
@@ -783,7 +809,7 @@ Provide response in JSON format:
     return Math.min(1, variance / 10000);
   }
   
-  private analyzeImageSharpness(image: Jimp): number {
+  private analyzeImageSharpness(image: JimpImage): number {
     // Simple sharpness analysis using edge detection
     const { width, height } = image.bitmap;
     let edgeCount = 0;
@@ -807,7 +833,7 @@ Provide response in JSON format:
     return Math.min(1, edgeDensity * 100);
   }
   
-  private checkImageNaturalness(image: Jimp): number {
+  private checkImageNaturalness(image: JimpImage): number {
     // Check for natural color variations that suggest a real photo
     const { width, height } = image.bitmap;
     const samples = Math.min(1000, width * height / 100);
@@ -831,7 +857,7 @@ Provide response in JSON format:
     return colorVariations / samples;
   }
   
-  private validateChallengeResponse(challengeType: string, image: Jimp): number {
+  private validateChallengeResponse(challengeType: string, image: JimpImage): number {
     // Analyze image for specific challenge completion
     // This is a simplified implementation - in production you'd use more sophisticated ML models
     
@@ -863,7 +889,7 @@ Provide response in JSON format:
     return Math.min(0.3, challengeScore); // Cap challenge bonus at 0.3
   }
 
-  private detectEyeActivity(image: Jimp): number {
+  private detectEyeActivity(image: JimpImage): number {
     // Simple check for eye region activity (mock implementation)
     const brightness = this.getAverageBrightness(image);
     const contrast = this.getImageContrast(image);
@@ -872,13 +898,13 @@ Provide response in JSON format:
     return Math.min(0.25, (contrast * brightness) / 10000);
   }
 
-  private detectHeadMovement(image: Jimp): number {
+  private detectHeadMovement(image: JimpImage): number {
     // Check for asymmetry that might indicate head turn
     const asymmetry = this.detectFaceAsymmetry(image);
     return Math.min(0.2, asymmetry);
   }
 
-  private detectSmile(image: Jimp): number {
+  private detectSmile(image: JimpImage): number {
     // Look for curved features in lower face region
     const { width, height } = image.bitmap;
     const lowerFace = image.clone().crop(0, height * 0.6, width, height * 0.4);
@@ -886,13 +912,13 @@ Provide response in JSON format:
     return Math.min(0.2, curvature);
   }
 
-  private detectGazeDirection(image: Jimp): number {
+  private detectGazeDirection(image: JimpImage): number {
     // Simple gaze detection based on eye region analysis
     const eyeRegionAnalysis = this.analyzeEyeRegions(image);
     return Math.min(0.2, eyeRegionAnalysis);
   }
 
-  private getAverageBrightness(image: Jimp): number {
+  private getAverageBrightness(image: JimpImage): number {
     const { width, height } = image.bitmap;
     let totalBrightness = 0;
     let pixelCount = 0;
@@ -908,7 +934,7 @@ Provide response in JSON format:
     return totalBrightness / pixelCount;
   }
 
-  private getImageContrast(image: Jimp): number {
+  private getImageContrast(image: JimpImage): number {
     const { width, height } = image.bitmap;
     let minBrightness = 255;
     let maxBrightness = 0;
@@ -925,7 +951,7 @@ Provide response in JSON format:
     return maxBrightness - minBrightness;
   }
 
-  private detectFaceAsymmetry(image: Jimp): number {
+  private detectFaceAsymmetry(image: JimpImage): number {
     const { width, height } = image.bitmap;
     const centerX = width / 2;
     
@@ -949,7 +975,7 @@ Provide response in JSON format:
     return samples > 0 ? (asymmetryScore / samples) / 255 : 0;
   }
 
-  private detectCurvature(image: Jimp): number {
+  private detectCurvature(image: JimpImage): number {
     // Simple curvature detection using edge gradients
     const { width, height } = image.bitmap;
     let curvatureScore = 0;
@@ -977,7 +1003,7 @@ Provide response in JSON format:
     return edgeCount > 0 ? curvatureScore / edgeCount : 0;
   }
 
-  private analyzeEyeRegions(image: Jimp): number {
+  private analyzeEyeRegions(image: JimpImage): number {
     // Focus on upper portion of image where eyes would be
     const { width, height } = image.bitmap;
     const eyeRegion = image.clone().crop(0, height * 0.2, width, height * 0.3);
@@ -986,7 +1012,7 @@ Provide response in JSON format:
     let darkPixels = 0;
     let totalPixels = 0;
 
-    eyeRegion.scan(0, 0, eyeRegion.bitmap.width, eyeRegion.bitmap.height, function(x, y, idx) {
+    eyeRegion.scan(0, 0, eyeRegion.bitmap.width, eyeRegion.bitmap.height, function(x: any, y: any, idx: any) {
       const pixel = Jimp.intToRGBA(eyeRegion.getPixelColor(x, y));
       const brightness = (pixel.r + pixel.g + pixel.b) / 3;
       

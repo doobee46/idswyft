@@ -1,6 +1,24 @@
-import Jimp from 'jimp';
 import { logger } from '@/utils/logger.js';
 import { StorageService } from './storage.js';
+
+// Optional dependency imports with graceful fallbacks
+let Jimp: any = null;
+let Tesseract: any = null;
+
+// Type definitions for optional dependencies
+type JimpImage = any;
+
+try {
+  Jimp = (await import('jimp')).default;
+} catch (error) {
+  logger.warn('Jimp not available, using AI-only processing');
+}
+
+try {
+  Tesseract = await import('tesseract.js');
+} catch (error) {
+  logger.warn('Tesseract.js not available, using AI-only processing');
+}
 
 export interface BarcodeResult {
   type: 'qr_code' | 'barcode' | 'pdf417' | 'datamatrix';
@@ -233,7 +251,7 @@ This is for document verification and security analysis purposes.`
     }
   }
 
-  private async detectBarcodesInImage(image: Jimp): Promise<BarcodeResult[]> {
+  private async detectBarcodesInImage(image: JimpImage): Promise<BarcodeResult[]> {
     // Simplified barcode detection using edge detection and pattern analysis
     const { width, height } = image.bitmap;
     const barcodes: BarcodeResult[] = [];
@@ -255,7 +273,7 @@ This is for document verification and security analysis purposes.`
     return barcodes;
   }
 
-  private async detectQRCodesInImage(image: Jimp): Promise<BarcodeResult[]> {
+  private async detectQRCodesInImage(image: JimpImage): Promise<BarcodeResult[]> {
     // Simplified QR code detection using corner detection
     const qrCodes: BarcodeResult[] = [];
     
@@ -273,7 +291,7 @@ This is for document verification and security analysis purposes.`
     return qrCodes;
   }
 
-  private analyzeHorizontalLine(image: Jimp, startY: number, endY: number): {
+  private analyzeHorizontalLine(image: JimpImage, startY: number, endY: number): {
     isBarcodePattern: boolean;
     extractedData?: string;
     confidence: number;
@@ -313,7 +331,7 @@ This is for document verification and security analysis purposes.`
     };
   }
 
-  private detectSquareCorners(image: Jimp): Array<{ x: number; y: number; width: number; height: number }> {
+  private detectSquareCorners(image: JimpImage): Array<{ x: number; y: number; width: number; height: number }> {
     const { width, height } = image.bitmap;
     const corners: Array<{ x: number; y: number; width: number; height: number }> = [];
     
@@ -337,7 +355,7 @@ This is for document verification and security analysis purposes.`
     return corners;
   }
 
-  private isSquarePattern(image: Jimp, startX: number, startY: number, size: number): boolean {
+  private isSquarePattern(image: JimpImage, startX: number, startY: number, size: number): boolean {
     // Check if there's a square pattern (dark border with lighter center)
     let borderPixels = 0;
     let darkBorderPixels = 0;
@@ -366,7 +384,7 @@ This is for document verification and security analysis purposes.`
     return darkRatio > 0.6; // At least 60% of border should be dark for a square pattern
   }
 
-  private async extractTextFromBackOfId(image: Jimp): Promise<any> {
+  private async extractTextFromBackOfId(image: JimpImage): Promise<any> {
     // Extract basic text patterns that might appear on back of IDs
     // This is a simplified implementation - in production you'd use proper OCR
     
@@ -395,7 +413,7 @@ This is for document verification and security analysis purposes.`
     return codes;
   }
 
-  private detectSecurityFeatures(image: Jimp): string[] {
+  private detectSecurityFeatures(image: JimpImage): string[] {
     const features: string[] = [];
     
     // Analyze image for potential security features
@@ -418,7 +436,7 @@ This is for document verification and security analysis purposes.`
     return features;
   }
 
-  private getAverageBrightness(image: Jimp): number {
+  private getAverageBrightness(image: JimpImage): number {
     const { width, height } = image.bitmap;
     let totalBrightness = 0;
     let pixelCount = 0;
@@ -434,7 +452,7 @@ This is for document verification and security analysis purposes.`
     return totalBrightness / pixelCount;
   }
 
-  private getImageContrast(image: Jimp): number {
+  private getImageContrast(image: JimpImage): number {
     const { width, height } = image.bitmap;
     let minBrightness = 255;
     let maxBrightness = 0;
@@ -451,7 +469,7 @@ This is for document verification and security analysis purposes.`
     return maxBrightness - minBrightness;
   }
 
-  private hasRepeatingPatterns(image: Jimp): boolean {
+  private hasRepeatingPatterns(image: JimpImage): boolean {
     // Simple pattern detection - look for repeating elements
     const { width, height } = image.bitmap;
     const sampleSize = Math.min(50, width / 4);
@@ -474,7 +492,7 @@ This is for document verification and security analysis purposes.`
     return similarSections > totalComparisons * 0.3; // 30% similarity threshold
   }
 
-  private compareSections(image: Jimp, x1: number, y1: number, x2: number, y2: number, size: number): boolean {
+  private compareSections(image: JimpImage, x1: number, y1: number, x2: number, y2: number, size: number): boolean {
     let differences = 0;
     const threshold = size * size * 0.1; // Allow 10% difference
     
@@ -587,23 +605,20 @@ This is for document verification and security analysis purposes.`
     try {
       console.log('🔍 Starting local OCR for back-of-ID scanning...');
       
+      // Check if required dependencies are available
+      if (!Tesseract || !Jimp) {
+        console.warn('🔍 Required OCR dependencies not available, using AI fallback');
+        throw new Error('OCR dependencies not available in production environment');
+      }
+      
       // Download and preprocess image
       const imageBuffer = await this.storageService.downloadFile(imagePath);
       const processedBuffer = await this.preprocessImageForBackOfId(imageBuffer);
       
-      // Import Tesseract dynamically with fallback
-      let Tesseract;
-      try {
-        Tesseract = await import('tesseract.js');
-      } catch (error) {
-        console.error('🔍 Tesseract.js not available, falling back to AI scanning:', error);
-        throw new Error('Tesseract.js not available in production environment');
-      }
-      
       // Create Tesseract worker optimized for back-of-ID scanning
       console.log('🔍 Creating OCR worker for back-of-ID...');
       const worker = await Tesseract.createWorker('eng', 1, {
-        logger: m => {
+        logger: (m: any) => {
           if (m.status === 'recognizing text') {
             console.log(`🔍 OCR Progress: ${Math.round(m.progress * 100)}%`);
           }
@@ -677,17 +692,14 @@ This is for document verification and security analysis purposes.`
     try {
       console.log('🔧 Preprocessing image for back-of-ID OCR...');
       
-      // Import Jimp dynamically with fallback
-      let Jimp;
-      try {
-        Jimp = await import('jimp');
-      } catch (error) {
-        console.warn('⚠️ Jimp not available, skipping preprocessing:', error);
-        return imageBuffer; // Return original image if Jimp fails
+      // Check if Jimp is available
+      if (!Jimp) {
+        console.warn('⚠️ Jimp not available, skipping preprocessing');
+        return imageBuffer; // Return original image if Jimp not available
       }
       
       // Load and process image
-      const image = await Jimp.default.read(imageBuffer);
+      const image = await Jimp.read(imageBuffer);
       
       // More aggressive preprocessing for back-of-ID cards (they're often harder to read)
       const enhancedImage = image

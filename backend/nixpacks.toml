@@ -2,26 +2,12 @@
 
 [phases.setup]
 nixPkgs = [
-    'nodejs-18_x',
-    'python3',
-    'pkg-config',
-    'vips',
-    'glib',
-    'libvips',
-    'make',
-    'gcc',
-    'g++',
-    'cmake',
-    'libjpeg',
-    'libpng',
-    'libtiff',
-    'libwebp',
-    'tesseract'
+    'nodejs-18_x'
 ]
 
 [phases.install]
 cmds = [
-    'npm ci --only=production --no-audit --no-fund'
+    'npm ci --only=production --no-audit --no-fund --ignore-optional || npm ci --only=production --no-audit --no-fund'
 ]
 
 [variables]
