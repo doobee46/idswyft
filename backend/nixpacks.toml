@@ -1,15 +1,33 @@
-# Nixpacks configuration for Railway deployment with TensorFlow.js support
+# Nixpacks configuration for Railway deployment with TensorFlow.js and image processing support
 
 [phases.setup]
 nixPkgs = [
     'nodejs-18_x',
-    'python3'
+    'python3',
+    'pkg-config',
+    'vips',
+    'glib',
+    'libvips',
+    'make',
+    'gcc',
+    'g++',
+    'cmake',
+    'libjpeg',
+    'libpng',
+    'libtiff',
+    'libwebp',
+    'tesseract'
 ]
 
 [phases.install]
 cmds = [
-    'npm install'
+    'npm ci --only=production --no-audit --no-fund'
 ]
+
+[variables]
+NODE_ENV = 'production'
+NPM_CONFIG_CACHE = '/tmp/.npm'
+PYTHON = 'python3'
 
 [phases.build]
 cmds = ['npm run build']

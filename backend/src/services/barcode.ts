@@ -49,15 +49,31 @@ export class BarcodeService {
   async scanBackOfId(imagePath: string): Promise<BackOfIdData> {
     logger.info('Starting back-of-ID scanning', { 
       imagePath,
-      method: 'Local OCR + Traditional Barcode'
+      method: 'Local OCR with AI fallback'
     });
 
     try {
-      console.log('🔍 Using local OCR for clean structured data extraction...');
+      console.log('🔍 Attempting local OCR for structured data extraction...');
       return await this.scanWithLocalOCR(imagePath);
-    } catch (error) {
-      logger.error('Back-of-ID scanning failed:', error);
-      throw new Error('Failed to scan back-of-ID');
+    } catch (localError) {
+      console.warn('🔍 Local OCR failed, falling back to AI scanning:', localError);
+      logger.warn('Local OCR failed, using AI fallback', {
+        error: localError instanceof Error ? localError.message : 'Unknown error'
+      });
+      
+      // Fallback to AI scanning if Tesseract is not available
+      if (this.useAiBarcodeReading) {
+        try {
+          console.log('🤖 Using AI-powered back-of-ID scanning as fallback...');
+          return await this.scanWithAI(imagePath);
+        } catch (aiError) {
+          logger.error('Both local OCR and AI scanning failed:', aiError);
+          throw new Error('All back-of-ID scanning methods failed');
+        }
+      } else {
+        logger.error('Back-of-ID scanning failed and no AI fallback available');
+        throw new Error('Back-of-ID scanning failed - no fallback available');
+      }
     }
   }
 
@@ -575,8 +591,14 @@ This is for document verification and security analysis purposes.`
       const imageBuffer = await this.storageService.downloadFile(imagePath);
       const processedBuffer = await this.preprocessImageForBackOfId(imageBuffer);
       
-      // Import Tesseract dynamically
-      const Tesseract = await import('tesseract.js');
+      // Import Tesseract dynamically with fallback
+      let Tesseract;
+      try {
+        Tesseract = await import('tesseract.js');
+      } catch (error) {
+        console.error('🔍 Tesseract.js not available, falling back to AI scanning:', error);
+        throw new Error('Tesseract.js not available in production environment');
+      }
       
       // Create Tesseract worker optimized for back-of-ID scanning
       console.log('🔍 Creating OCR worker for back-of-ID...');
@@ -640,8 +662,9 @@ This is for document verification and security analysis purposes.`
       return {
         parsed_data: {
           additional_info: { 
-            error: 'Local OCR failed, manual review required',
-            error_message: error instanceof Error ? error.message : 'Unknown error'
+            error: 'Local OCR failed, using fallback',
+            error_message: error instanceof Error ? error.message : 'Unknown error',
+            scan_method: 'fallback'
           }
         },
         verification_codes: [],
@@ -654,8 +677,14 @@ This is for document verification and security analysis purposes.`
     try {
       console.log('🔧 Preprocessing image for back-of-ID OCR...');
       
-      // Import Jimp dynamically 
-      const Jimp = await import('jimp');
+      // Import Jimp dynamically with fallback
+      let Jimp;
+      try {
+        Jimp = await import('jimp');
+      } catch (error) {
+        console.warn('⚠️ Jimp not available, skipping preprocessing:', error);
+        return imageBuffer; // Return original image if Jimp fails
+      }
       
       // Load and process image
       const image = await Jimp.default.read(imageBuffer);
