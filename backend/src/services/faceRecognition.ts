@@ -552,15 +552,15 @@ Scoring guide:
       headMovement: boolean;
       eyeGaze: boolean;
     };
-    aiAnalysis: {
+    aiAnalysis?: {
       facial_depth_detected: boolean;
       natural_lighting: boolean;
       eye_authenticity: boolean;
       skin_texture_natural: boolean;
       no_screen_artifacts: boolean;
     };
-    risk_factors: string[];
-    liveness_indicators: string[];
+    risk_factors?: string[];
+    liveness_indicators?: string[];
   }> {
     try {
       // Download image
@@ -684,6 +684,15 @@ Provide response in JSON format:
       headMovement: boolean;
       eyeGaze: boolean;
     };
+    aiAnalysis?: {
+      facial_depth_detected: boolean;
+      natural_lighting: boolean;
+      eye_authenticity: boolean;
+      skin_texture_natural: boolean;
+      no_screen_artifacts: boolean;
+    };
+    risk_factors?: string[];
+    liveness_indicators?: string[];
   }> {
     const imageBuffer = await this.storageService.downloadFile(imagePath);
     const image = await Jimp.read(imageBuffer);
@@ -698,7 +707,9 @@ Provide response in JSON format:
         blinkDetected: this.detectImageQuality(image) > 0.7,
         headMovement: this.analyzeImageSharpness(image) > 0.5,
         eyeGaze: this.checkImageNaturalness(image) > 0.6
-      }
+      },
+      risk_factors: livenessScore < 0.5 ? ['Low liveness score from traditional analysis'] : [],
+      liveness_indicators: livenessScore > 0.6 ? ['Traditional image quality analysis passed'] : []
     };
     
     logger.info('Traditional detailed liveness detection completed', {

@@ -32,7 +32,7 @@ export interface BackOfIdData {
 
 export class BarcodeService {
   private storageService: StorageService;
-  private useAiBarcodeReading: boolean;
+  public useAiBarcodeReading: boolean;
   
   constructor() {
     this.storageService = new StorageService();

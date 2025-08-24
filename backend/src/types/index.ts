@@ -71,6 +71,12 @@ export interface OCRData {
   address?: string;
   raw_text?: string;
   confidence_scores?: Record<string, number>;
+  // Additional fields for comprehensive document processing
+  id_number?: string;
+  expiry_date?: string;
+  sex?: string;
+  height?: string;
+  eye_color?: string;
 }
 
 export interface APIKey {
