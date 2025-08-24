@@ -1,25 +1,14 @@
-# Nixpacks configuration for Railway deployment with OpenCV support
+# Nixpacks configuration for Railway deployment with TensorFlow.js support
 
 [phases.setup]
 nixPkgs = [
     'nodejs-18_x',
-    'python3',
-    'cmake',
-    'gcc',
-    'gnumake',
-    'pkg-config',
-    'opencv4'
+    'python3'
 ]
 
 [phases.install]
 cmds = [
-    # First install all other dependencies without opencv4nodejs
-    'npm install --ignore-scripts --omit=optional',
-    # Then try to install opencv4nodejs separately with fallback
-    'export OPENCV4NODEJS_DISABLE_AUTOBUILD=1',
-    'npm install opencv4nodejs@5.6.0 --ignore-scripts || echo "OpenCV install failed, continuing without it"',
-    # Ensure we have a package-lock.json for consistency
-    'npm shrinkwrap || true'
+    'npm install'
 ]
 
 [phases.build]

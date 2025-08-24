@@ -49,17 +49,12 @@ export class BarcodeService {
   async scanBackOfId(imagePath: string): Promise<BackOfIdData> {
     logger.info('Starting back-of-ID scanning', { 
       imagePath,
-      method: this.useAiBarcodeReading ? 'AI' : 'Traditional'
+      method: 'Local OCR + Traditional Barcode'
     });
 
     try {
-      if (this.useAiBarcodeReading) {
-        console.log('🤖 Using AI-powered barcode/QR scanning...');
-        return await this.scanWithAI(imagePath);
-      } else {
-        console.log('📊 Using traditional barcode/QR scanning...');
-        return await this.scanWithTraditional(imagePath);
-      }
+      console.log('🔍 Using local OCR for clean structured data extraction...');
+      return await this.scanWithLocalOCR(imagePath);
     } catch (error) {
       logger.error('Back-of-ID scanning failed:', error);
       throw new Error('Failed to scan back-of-ID');
@@ -572,6 +567,334 @@ This is for document verification and security analysis purposes.`
     };
   }
 
+  private async scanWithLocalOCR(imagePath: string): Promise<BackOfIdData> {
+    try {
+      console.log('🔍 Starting local OCR for back-of-ID scanning...');
+      
+      // Download and preprocess image
+      const imageBuffer = await this.storageService.downloadFile(imagePath);
+      const processedBuffer = await this.preprocessImageForBackOfId(imageBuffer);
+      
+      // Import Tesseract dynamically
+      const Tesseract = await import('tesseract.js');
+      
+      // Create Tesseract worker optimized for back-of-ID scanning
+      console.log('🔍 Creating OCR worker for back-of-ID...');
+      const worker = await Tesseract.createWorker('eng', 1, {
+        logger: m => {
+          if (m.status === 'recognizing text') {
+            console.log(`🔍 OCR Progress: ${Math.round(m.progress * 100)}%`);
+          }
+        }
+      });
+      
+      // Configure Tesseract for optimal back-of-ID recognition
+      await worker.setParameters({
+        // Allow alphanumeric characters, common punctuation, and spaces
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,/- :()[]',
+        // Auto page segmentation works better for back-of-ID with mixed content
+        tessedit_pageseg_mode: Tesseract.PSM.AUTO,
+        preserve_interword_spaces: '1',
+        // Use both neural net and classic engine for better results
+        tessedit_ocr_engine_mode: Tesseract.OEM.DEFAULT,
+        // Improve character classification
+        classify_enable_learning: '0',
+        classify_enable_adaptive_matcher: '1',
+        // Better handling of mixed content
+        textord_really_old_xheight: '1',
+        // Improve word finding
+        textord_use_cjk_fp_model: '1'
+      });
+      
+      // Perform OCR
+      console.log('🔍 Performing OCR on back-of-ID...');
+      const { data } = await worker.recognize(processedBuffer);
+      await worker.terminate();
+      
+      console.log('🔍 OCR completed, extracting structured data...', {
+        textLength: data.text.length,
+        confidence: data.confidence,
+        textPreview: data.text.substring(0, 150) + '...'
+      });
+      
+      // Extract structured data from OCR text
+      const structuredData = this.extractBackOfIdStructuredData(data.text);
+      
+      console.log('✅ Local OCR extraction completed:', {
+        hasIdNumber: !!structuredData.parsed_data?.id_number,
+        hasExpiryDate: !!structuredData.parsed_data?.expiry_date,
+        hasAddress: !!structuredData.parsed_data?.address,
+        hasIssuer: !!structuredData.parsed_data?.issuing_authority,
+        verificationCodes: structuredData.verification_codes?.length || 0
+      });
+      
+      return structuredData;
+      
+    } catch (error) {
+      console.error('🔍 Local OCR scanning failed:', error);
+      logger.error('Local OCR back-of-ID scanning failed', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      // Return minimal structure indicating failure
+      return {
+        parsed_data: {
+          additional_info: { 
+            error: 'Local OCR failed, manual review required',
+            error_message: error instanceof Error ? error.message : 'Unknown error'
+          }
+        },
+        verification_codes: [],
+        security_features: []
+      };
+    }
+  }
+
+  private async preprocessImageForBackOfId(imageBuffer: Buffer): Promise<Buffer> {
+    try {
+      console.log('🔧 Preprocessing image for back-of-ID OCR...');
+      
+      // Import Jimp dynamically 
+      const Jimp = await import('jimp');
+      
+      // Load and process image
+      const image = await Jimp.default.read(imageBuffer);
+      
+      // More aggressive preprocessing for back-of-ID cards (they're often harder to read)
+      const enhancedImage = image
+        // Resize first to a good size for OCR (bigger is often better for back-of-ID)
+        .resize(
+          image.getWidth() < 1200 ? 1200 : Math.max(image.getWidth(), 1200), 
+          Jimp.default.AUTO
+        )
+        // Convert to grayscale
+        .greyscale()
+        // Much higher contrast for back-of-ID cards
+        .contrast(0.8)
+        // Adjust brightness more aggressively  
+        .brightness(0.3)
+        // Normalize colors
+        .normalize()
+        // Apply edge detection for better text clarity
+        .convolute([
+          [-1, -1, -1],
+          [-1,  9, -1],
+          [-1, -1, -1]
+        ])
+        // Apply another sharpening pass
+        .convolute([
+          [ 0, -1,  0],
+          [-1,  5, -1],
+          [ 0, -1,  0]
+        ]);
+      
+      const enhancedBuffer = await enhancedImage.getBufferAsync(Jimp.default.MIME_PNG);
+      
+      console.log('✅ Image preprocessing completed', {
+        originalSize: imageBuffer.length,
+        processedSize: enhancedBuffer.length,
+        dimensions: `${image.getWidth()}x${image.getHeight()}`
+      });
+      
+      return enhancedBuffer;
+      
+    } catch (error) {
+      console.warn('⚠️ Image preprocessing failed, using original:', error);
+      return imageBuffer;
+    }
+  }
+
+  private extractBackOfIdStructuredData(ocrText: string): BackOfIdData {
+    console.log('🔧 Extracting structured data from OCR text...');
+    
+    // Clean the text
+    const cleanText = ocrText.replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim();
+    console.log('🔧 Cleaned OCR text:', cleanText.substring(0, 200) + '...');
+    
+    const result: BackOfIdData = {
+      parsed_data: {},
+      verification_codes: [],
+      security_features: []
+    };
+    
+    // Extract ID/License Number - look for various patterns
+    const idPatterns = [
+      // Specific ID patterns first (more precise)
+      /(?:ID|DL|LICENSE)\s*(?:NO|NUM|NUMBER|#)?\s*:?\s*([A-Z0-9\-\s]{6,20})/i,
+      /([A-Z]{1,3}\s*\d{6,12})/g, // State format patterns with optional spaces
+      /(\d{3}\s*\d{3}\s*\d{3,6})/g, // Three-part number patterns like "793 398 654"
+      /([A-Z]\d{8,12})/g, // Letter followed by digits
+      /(\d{8,15})/g, // Long numeric sequences
+      /\b([A-Z0-9]{8,15})\b/g  // General alphanumeric IDs (last resort)
+    ];
+    
+    for (const pattern of idPatterns) {
+      const matches = cleanText.match(pattern);
+      if (matches) {
+        for (const match of matches) {
+          const candidate = Array.isArray(match) ? match[1] : match;
+          // Skip if it looks like a date, phone number, or common non-ID words
+          const skipWords = ['ENDORSEMENTS', 'RESTRICTIONS', 'VETERAN', 'DONOR', 'CLASS', 'NONE'];
+          const normalizedCandidate = candidate.toUpperCase().replace(/\s+/g, '');
+          
+          if (!candidate.match(/\d{2}[\/\-\.]\d{2}/) && 
+              !candidate.match(/^\d{10}$/) && 
+              !skipWords.some(word => normalizedCandidate.includes(word)) &&
+              normalizedCandidate.length >= 6) {
+            result.parsed_data!.id_number = normalizedCandidate;
+            console.log('✅ ID Number found:', result.parsed_data!.id_number);
+            break;
+          }
+        }
+        if (result.parsed_data!.id_number) break;
+      }
+    }
+    
+    // Extract Expiry/Expiration Date
+    const datePatterns = [
+      /(?:EXP|EXPIRES?|EXPIRY|VALID UNTIL)\s*:?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
+      /(\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4})/g
+    ];
+    
+    for (const pattern of datePatterns) {
+      const matches = cleanText.match(pattern);
+      if (matches) {
+        for (const match of matches) {
+          const dateStr = Array.isArray(match) ? match[1] : match;
+          const date = this.parseDate(dateStr);
+          // Only consider future dates as expiry dates
+          if (date && date > new Date()) {
+            result.parsed_data!.expiry_date = this.standardizeDateFormat(dateStr);
+            console.log('✅ Expiry Date found:', result.parsed_data!.expiry_date);
+            break;
+          }
+        }
+        if (result.parsed_data!.expiry_date) break;
+      }
+    }
+    
+    // Extract Address - look for structured address patterns
+    const addressPatterns = [
+      /(?:ADDRESS|ADDR|ADD)\s*:?\s*([0-9].{20,80}(?:ST|STREET|AVE|AVENUE|RD|ROAD|DR|DRIVE|BLVD|BOULEVARD|WAY|LANE|CT|COURT)[^A-Z]{0,30}[A-Z]{2}\s+\d{5})/i,
+      /(\d+\s+[A-Z\s]+(?:ST|STREET|AVE|AVENUE|RD|ROAD|DR|DRIVE|BLVD|BOULEVARD|WAY|LANE)\s+[A-Z\s]+,?\s*[A-Z]{2}\s+\d{5})/i
+    ];
+    
+    for (const pattern of addressPatterns) {
+      const match = cleanText.match(pattern);
+      if (match && match[1] && match[1].length > 10) {
+        result.parsed_data!.address = match[1].trim().replace(/\s+/g, ' ');
+        console.log('✅ Address found:', result.parsed_data!.address);
+        break;
+      }
+    }
+    
+    // Extract Issuing Authority
+    const authorityPatterns = [
+      /(?:ISSUED BY|ISSUER|AUTHORITY|DEPARTMENT OF|STATE OF)\s*:?\s*([A-Z\s]{5,50})/i,
+      /([A-Z\s]*DEPARTMENT[A-Z\s]*)/i,
+      /([A-Z\s]*DMV[A-Z\s]*)/i
+    ];
+    
+    for (const pattern of authorityPatterns) {
+      const match = cleanText.match(pattern);
+      if (match && match[1] && match[1].length > 3) {
+        result.parsed_data!.issuing_authority = match[1].trim().replace(/\s+/g, ' ');
+        console.log('✅ Issuing Authority found:', result.parsed_data!.issuing_authority);
+        break;
+      }
+    }
+    
+    // Extract verification codes (barcodes, magnetic stripe data, etc.)
+    const codePatterns = [
+      /\b([A-Z0-9]{15,})\b/g, // Long alphanumeric codes
+      /\b(\d{12,})\b/g        // Long numeric codes
+    ];
+    
+    const codes: string[] = [];
+    for (const pattern of codePatterns) {
+      const matches = cleanText.match(pattern);
+      if (matches) {
+        matches.forEach(code => {
+          if (code !== result.parsed_data!.id_number && !codes.includes(code)) {
+            codes.push(code);
+          }
+        });
+      }
+    }
+    result.verification_codes = codes.slice(0, 3); // Limit to first 3 codes
+    
+    // Detect security features mentioned in text
+    const securityKeywords = ['MAGNETIC', 'STRIPE', 'BARCODE', 'QR', 'HOLOGRAM', 'WATERMARK', 'SECURITY'];
+    result.security_features = securityKeywords.filter(keyword => 
+      cleanText.toUpperCase().includes(keyword)
+    );
+    
+    console.log('🔧 Structured data extraction completed:', {
+      hasIdNumber: !!result.parsed_data!.id_number,
+      hasExpiry: !!result.parsed_data!.expiry_date,
+      hasAddress: !!result.parsed_data!.address,
+      hasAuthority: !!result.parsed_data!.issuing_authority,
+      verificationCodes: result.verification_codes!.length,
+      securityFeatures: result.security_features!.length
+    });
+    
+    return result;
+  }
+
+  private parseDate(dateStr: string): Date | null {
+    try {
+      const cleaned = dateStr.replace(/[^\d\/\-\.]/g, '');
+      const parts = cleaned.split(/[\/\-\.]/);
+      
+      if (parts.length !== 3) return null;
+      
+      let [part1, part2, part3] = parts.map(p => parseInt(p));
+      
+      // Handle 2-digit years
+      if (part3 < 100) {
+        part3 = part3 > 30 ? 1900 + part3 : 2000 + part3;
+      }
+      
+      // Try MM/DD/YYYY first, then DD/MM/YYYY
+      const date1 = new Date(part3, part1 - 1, part2);
+      const date2 = new Date(part3, part2 - 1, part1);
+      
+      // Return the date that makes more sense (not invalid)
+      if (!isNaN(date1.getTime()) && date1.getMonth() === part1 - 1) {
+        return date1;
+      } else if (!isNaN(date2.getTime()) && date2.getMonth() === part2 - 1) {
+        return date2;
+      }
+      
+      return null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  private standardizeDateFormat(dateStr: string): string {
+    const date = this.parseDate(dateStr);
+    if (!date) return dateStr;
+    
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const year = date.getFullYear().toString();
+    
+    return `${month}/${day}/${year}`;
+  }
+
+  private normalizeDateForComparison(dateStr: string): string {
+    // Normalize date format for comparison (remove all non-digits)
+    const date = this.parseDate(dateStr);
+    if (!date) return dateStr.replace(/\D/g, ''); // fallback: remove all non-digits
+    
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const year = date.getFullYear().toString();
+    
+    return `${year}${month}${day}`; // YYYYMMDD format for reliable comparison
+  }
+
   async crossValidateWithFrontId(frontOcrData: any, backOfIdData: BackOfIdData): Promise<{
     match_score: number;
     validation_results: {
@@ -586,20 +909,38 @@ This is for document verification and security analysis purposes.`
     let matches = 0;
     let totalChecks = 0;
 
-    // Compare ID numbers
-    if (frontOcrData?.id_number && backOfIdData.parsed_data?.id_number) {
+    // Compare ID/Document numbers (normalize field names)
+    const frontIdNumber = frontOcrData?.document_number || frontOcrData?.id_number;
+    const backIdNumber = backOfIdData.parsed_data?.id_number;
+    
+    if (frontIdNumber && backIdNumber) {
       totalChecks++;
-      const idMatch = frontOcrData.id_number === backOfIdData.parsed_data.id_number;
-      if (idMatch) matches++;
-      else discrepancies.push(`ID number mismatch: front="${frontOcrData.id_number}" vs back="${backOfIdData.parsed_data.id_number}"`);
+      // Normalize both numbers by removing spaces and comparing
+      const frontIdNormalized = frontIdNumber.replace(/\s+/g, '');
+      const backIdNormalized = backIdNumber.replace(/\s+/g, '');
+      const idMatch = frontIdNormalized === backIdNormalized;
+      if (idMatch) {
+        matches++;
+      } else {
+        discrepancies.push(`ID number mismatch: front="${frontIdNumber}" vs back="${backIdNumber}"`);
+      }
     }
 
-    // Compare expiry dates
-    if (frontOcrData?.expiry_date && backOfIdData.parsed_data?.expiry_date) {
+    // Compare expiry dates (normalize field names)
+    const frontExpiryDate = frontOcrData?.expiration_date || frontOcrData?.expiry_date;
+    const backExpiryDate = backOfIdData.parsed_data?.expiry_date;
+    
+    if (frontExpiryDate && backExpiryDate) {
       totalChecks++;
-      const expiryMatch = frontOcrData.expiry_date === backOfIdData.parsed_data.expiry_date;
-      if (expiryMatch) matches++;
-      else discrepancies.push(`Expiry date mismatch: front="${frontOcrData.expiry_date}" vs back="${backOfIdData.parsed_data.expiry_date}"`);
+      // Normalize date formats for comparison
+      const frontDateNormalized = this.normalizeDateForComparison(frontExpiryDate);
+      const backDateNormalized = this.normalizeDateForComparison(backExpiryDate);
+      const expiryMatch = frontDateNormalized === backDateNormalized;
+      if (expiryMatch) {
+        matches++;
+      } else {
+        discrepancies.push(`Expiry date mismatch: front="${frontExpiryDate}" vs back="${backExpiryDate}"`);
+      }
     }
 
     // Compare issuing authority with intelligent matching

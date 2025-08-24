@@ -28,8 +28,7 @@ export const config: AppConfig = {
   },
   
   ocr: {
-    tesseractPath: process.env.TESSERACT_PATH || '/usr/bin/tesseract',
-    modelsPath: process.env.OPENCV_MODELS_PATH || './models'
+    tesseractPath: process.env.TESSERACT_PATH || '/usr/bin/tesseract'
   },
   
   externalApis: {

@@ -38,6 +38,15 @@ interface CaptureResult {
   face_matching_enabled: boolean;
 }
 
+interface VerificationResults {
+  verification_id: string;
+  status: 'pending' | 'processing' | 'verified' | 'failed' | 'manual_review';
+  face_match_score?: number;
+  liveness_score?: number;
+  confidence_score?: number;
+  manual_review_reason?: string;
+}
+
 export const LiveCapturePage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -47,6 +56,8 @@ export const LiveCapturePage: React.FC = () => {
   // State
   const [sessionData, setSessionData] = useState<LiveCaptureSession | null>(null);
   const [captureResult, setCaptureResult] = useState<CaptureResult | null>(null);
+  const [verificationResults, setVerificationResults] = useState<VerificationResults | null>(null);
+  const [isPolling, setIsPolling] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [cameraState, setCameraState] = useState<'prompt' | 'initializing' | 'ready' | 'error'>('prompt');
@@ -131,6 +142,64 @@ export const LiveCapturePage: React.FC = () => {
 
     return () => clearTimeout(timer);
   }, [token, verificationId, opencvReady]);
+
+  // Polling function to check verification status
+  const pollVerificationStatus = async (verificationId: string) => {
+    if (!apiKey) return;
+
+    setIsPolling(true);
+    let attempts = 0;
+    const maxAttempts = 60; // Poll for up to 5 minutes (5 seconds * 60)
+    
+    const poll = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/verify/results/${verificationId}`, {
+          headers: {
+            'X-API-Key': apiKey,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const results = await response.json();
+        setVerificationResults(results);
+        
+        // Check if verification is in a final state
+        const finalStates = ['verified', 'failed', 'manual_review'];
+        if (finalStates.includes(results.status)) {
+          setIsPolling(false);
+          return; // Stop polling
+        }
+        
+        // Continue polling if still processing
+        attempts++;
+        if (attempts < maxAttempts && results.status === 'processing') {
+          setTimeout(poll, 5000); // Poll every 5 seconds
+        } else {
+          setIsPolling(false);
+          if (attempts >= maxAttempts) {
+            setError('Verification is taking longer than expected. Please check results manually.');
+          }
+        }
+        
+      } catch (error) {
+        console.error('Failed to poll verification status:', error);
+        attempts++;
+        if (attempts < maxAttempts) {
+          setTimeout(poll, 5000);
+        } else {
+          setIsPolling(false);
+          setError('Failed to check verification status. Please try refreshing.');
+        }
+      }
+    };
+    
+    // Start polling immediately
+    poll();
+  };
 
   const loadFaceClassifier = async () => {
     try {
@@ -571,11 +640,12 @@ export const LiveCapturePage: React.FC = () => {
   const startChallenge = () => {
     // Enhanced challenge requirements
     if (challengeState !== 'waiting' || !faceDetected || livenessScore < 0.6 || faceStability < 0.8) {
-      if (faceDetected && livenessScore < 0.6) {
-        setError('Please ensure good lighting and face clearly visible');
-      }
-      if (faceDetected && faceStability < 0.8) {
-        setError('Please hold your face steady in the center');
+      if (!faceDetected) {
+        setError('No face detected. Please position your face clearly in the center of the frame.');
+      } else if (livenessScore < 0.6) {
+        setError('Please ensure good lighting and face clearly visible for liveness detection.');
+      } else if (faceStability < 0.8) {
+        setError('Please hold your face steady in the center of the frame.');
       }
       return;
     }
@@ -588,9 +658,24 @@ export const LiveCapturePage: React.FC = () => {
       setCountdown(prev => {
         if (prev === null || prev <= 1) {
           clearInterval(timer);
-          performCapture();
+          // Final face detection check before capture
+          if (faceDetected && livenessScore >= 0.6 && faceStability >= 0.8) {
+            performCapture();
+          } else {
+            setError('Face detection lost during countdown. Please try again.');
+            setChallengeState('waiting');
+          }
           return null;
         }
+        
+        // Continuously validate face detection during countdown
+        if (!faceDetected || livenessScore < 0.6 || faceStability < 0.8) {
+          clearInterval(timer);
+          setError('Face detection lost during countdown. Please ensure your face remains visible.');
+          setChallengeState('waiting');
+          return null;
+        }
+        
         return prev - 1;
       });
     }, 1000);
@@ -599,6 +684,14 @@ export const LiveCapturePage: React.FC = () => {
   const performCapture = async () => {
     if (!canvasRef.current || !sessionData || !apiKey) {
       setError('Missing required data for capture');
+      return;
+    }
+
+    // Critical security check - ensure face is still detected before capture
+    if (!faceDetected || livenessScore < 0.6 || faceStability < 0.8) {
+      setError('Face detection lost. Please ensure your face is clearly visible and try again.');
+      setChallengeState('waiting');
+      setCountdown(null);
       return;
     }
 
@@ -654,6 +747,12 @@ export const LiveCapturePage: React.FC = () => {
       setCaptureResult(result);
       setChallengeState('completed');
       cleanup();
+      
+      // Start polling for verification results if capture was successful
+      if (result.verification_id && result.status === 'processing') {
+        console.log('🔄 Starting verification status polling...');
+        pollVerificationStatus(result.verification_id);
+      }
 
     } catch (error: any) {
       console.error('📸 Capture failed:', error);
@@ -744,21 +843,77 @@ export const LiveCapturePage: React.FC = () => {
 
   // Render success
   if (captureResult) {
+    const finalResults = verificationResults || { status: captureResult.status };
+    const isProcessing = isPolling || (finalResults.status === 'processing' && !verificationResults);
+    const isVerified = finalResults.status === 'verified';
+    const isFailed = finalResults.status === 'failed';
+    const isManualReview = finalResults.status === 'manual_review';
+    
+    // Determine background and icon colors based on status
+    let bgGradient = 'from-green-50 via-white to-green-50';
+    let iconColor = 'text-green-500';
+    let statusColor = 'text-blue-600';
+    
+    if (isVerified) {
+      bgGradient = 'from-green-50 via-white to-green-50';
+      iconColor = 'text-green-500';
+      statusColor = 'text-green-600';
+    } else if (isFailed) {
+      bgGradient = 'from-red-50 via-white to-red-50';
+      iconColor = 'text-red-500';
+      statusColor = 'text-red-600';
+    } else if (isManualReview) {
+      bgGradient = 'from-yellow-50 via-white to-yellow-50';
+      iconColor = 'text-yellow-500';
+      statusColor = 'text-yellow-600';
+    } else if (isProcessing) {
+      bgGradient = 'from-blue-50 via-white to-blue-50';
+      iconColor = 'text-blue-500';
+      statusColor = 'text-blue-600';
+    }
+    
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-50 flex items-center justify-center">
+      <div className={`min-h-screen bg-gradient-to-br ${bgGradient} flex items-center justify-center`}>
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-4">
           <div className="text-center">
-            <CheckCircleIcon className="w-16 h-16 text-green-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Capture Complete!</h2>
+            {/* Icon with conditional rendering for processing spinner */}
+            <div className="w-16 h-16 mx-auto mb-4 relative">
+              {isProcessing ? (
+                <div className="w-16 h-16 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin"></div>
+              ) : (
+                <CheckCircleIcon className={`w-16 h-16 ${iconColor}`} />
+              )}
+            </div>
+
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              {isProcessing ? 'Processing...' : 'Capture Complete!'}
+            </h2>
+            
             <p className="text-gray-600 mb-4">
-              Your live capture has been successfully processed.
+              {isProcessing 
+                ? 'Please wait while we verify your identity. This may take a few moments...'
+                : isVerified 
+                  ? 'Your identity has been successfully verified.'
+                  : isFailed 
+                    ? 'Verification failed. Please try again.'
+                    : isManualReview 
+                      ? 'Your verification is under manual review.'
+                      : 'Your live capture has been successfully processed.'
+              }
             </p>
             
             <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left">
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Status:</span>
-                  <span className="font-semibold text-blue-600">{captureResult.status}</span>
+                  <div className="flex items-center">
+                    <span className={`font-semibold ${statusColor}`}>
+                      {isProcessing && !verificationResults ? 'processing' : finalResults.status}
+                    </span>
+                    {isProcessing && (
+                      <div className="ml-2 w-4 h-4 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Liveness Check:</span>
@@ -772,16 +927,69 @@ export const LiveCapturePage: React.FC = () => {
                     {captureResult.face_matching_enabled ? 'Enabled' : 'Disabled'}
                   </span>
                 </div>
+                
+                {/* Show additional verification details when available */}
+                {verificationResults && (
+                  <>
+                    {verificationResults.face_match_score !== undefined && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Face Match:</span>
+                        <span className="font-semibold text-green-600">
+                          {Math.round(verificationResults.face_match_score * 100)}%
+                        </span>
+                      </div>
+                    )}
+                    {verificationResults.liveness_score !== undefined && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Liveness Score:</span>
+                        <span className="font-semibold text-green-600">
+                          {Math.round(verificationResults.liveness_score * 100)}%
+                        </span>
+                      </div>
+                    )}
+                    {verificationResults.confidence_score !== undefined && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Confidence:</span>
+                        <span className="font-semibold text-green-600">
+                          {Math.round(verificationResults.confidence_score * 100)}%
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
 
             <div className="space-y-3">
-              <button
-                onClick={goToResults}
-                className="w-full bg-blue-600 text-white py-3 px-6 rounded-xl hover:bg-blue-700 transition"
-              >
-                View Full Results
-              </button>
+              {!isProcessing ? (
+                <button
+                  onClick={goToResults}
+                  className="w-full bg-blue-600 text-white py-3 px-6 rounded-xl hover:bg-blue-700 transition"
+                >
+                  View Full Results
+                </button>
+              ) : (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  <div className="flex items-center justify-center">
+                    <div className="w-5 h-5 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin mr-3"></div>
+                    <span className="text-blue-700 text-sm">
+                      {isPolling ? 'Checking verification status...' : 'Processing verification...'}
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                  <p className="text-red-700 text-sm">{error}</p>
+                  <button
+                    onClick={goToResults}
+                    className="mt-2 text-blue-600 hover:text-blue-700 text-sm underline"
+                  >
+                    Check results manually
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -886,6 +1094,31 @@ export const LiveCapturePage: React.FC = () => {
                     <h3 className="text-xl font-bold">Liveness Challenge</h3>
                     <p className="text-blue-100">{sessionData.liveness_challenge.instruction}</p>
                   </div>
+                </div>
+
+                {/* Face Detection Status Indicator */}
+                <div className={`flex items-center justify-center space-x-3 p-3 rounded-xl mb-4 ${
+                  faceDetected 
+                    ? 'bg-green-500/20 border border-green-400/30' 
+                    : 'bg-red-500/20 border border-red-400/30'
+                }`}>
+                  <div className={`w-3 h-3 rounded-full ${
+                    faceDetected ? 'bg-green-400 animate-pulse' : 'bg-red-400'
+                  }`}></div>
+                  <span className={`text-sm font-medium ${
+                    faceDetected ? 'text-green-100' : 'text-red-100'
+                  }`}>
+                    {faceDetected 
+                      ? '✓ Face Detected - Ready for Capture' 
+                      : '⚠ No Face Detected - Position Your Face in Frame'
+                    }
+                  </span>
+                  {faceDetected && (
+                    <div className="flex space-x-2 text-xs text-green-200">
+                      <span>Liveness: {Math.round(livenessScore * 100)}%</span>
+                      <span>Stability: {Math.round(faceStability * 100)}%</span>
+                    </div>
+                  )}
                 </div>
                 
                 {countdown !== null && (

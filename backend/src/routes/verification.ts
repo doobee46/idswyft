@@ -9,7 +9,6 @@ import { VerificationService } from '@/services/verification.js';
 import { StorageService } from '@/services/storage.js';
 import { OCRService } from '@/services/ocr.js';
 import { FaceRecognitionService } from '@/services/faceRecognition.js';
-import { opencvFaceDetectionService } from '@/services/opencvFaceDetection.js';
 import { BarcodeService } from '@/services/barcode.js';
 import { logger, logVerificationEvent } from '@/utils/logger.js';
 import { supabase } from '@/config/database.js';
@@ -568,16 +567,14 @@ router.post('/back-of-id',
 
               // Update verification request with cross-validation score
               const finalStatus = crossValidation.validation_results.overall_consistency && 
-                                crossValidation.match_score > 0.7 ? 'verified' : 
-                                crossValidation.discrepancies.length > 0 ? 'manual_review' : 
-                                verificationRequest.status;
+                                crossValidation.match_score >= 0.7 ? 'verified' : 'failed';
 
               await verificationService.updateVerificationRequest(verificationRequest.id, {
                 cross_validation_score: crossValidation.match_score,
                 enhanced_verification_completed: true,
                 status: finalStatus,
-                manual_review_reason: crossValidation.discrepancies.length > 0 ? 
-                  `Cross-validation discrepancies: ${crossValidation.discrepancies.join('; ')}` : 
+                manual_review_reason: finalStatus === 'failed' ? 
+                  `Back-of-ID cross-validation failed (score: ${crossValidation.match_score}): ${crossValidation.discrepancies.join('; ')}` : 
                   verificationRequest.manual_review_reason
               });
 
@@ -1075,7 +1072,22 @@ router.post('/live-capture',
             });
             
           } else {
-            throw new ValidationError('Document not found for verification', 'document', 'missing');
+            // No document found - this means user hasn't uploaded a document yet
+            logger.info('No document found for face matching. User needs to upload document first.', {
+              verificationId: verification_id
+            });
+            
+            // Update verification status to indicate missing document
+            await verificationService.updateVerificationRequest(verification_id, {
+              status: 'pending',
+              manual_review_reason: 'Live capture completed, but document upload is still required for face matching'
+            });
+            
+            logVerificationEvent('live_capture_partial', verification_id, {
+              liveCapture: liveCapture.id,
+              reason: 'Document not uploaded yet - face matching skipped',
+              status: 'pending'
+            });
           }
         } catch (error) {
           logger.error('Live capture processing failed:', error);
@@ -1085,23 +1097,76 @@ router.post('/live-capture',
           });
         }
       } else {
-        // Mock processing for sandbox
-        setTimeout(async () => {
-          const mockMatchScore = 0.92;
-          const mockLivenessScore = 0.88;
+        // Sandbox mode - perform REAL face matching but with additional logging
+        try {
+          console.log('🧪 Sandbox mode: Performing REAL face matching and liveness detection...');
           
+          // Get document for face matching
+          const document = await verificationService.getDocumentByVerificationId(verification_id);
+          
+          if (document) {
+            // Run REAL face recognition with liveness checks - no mocking!
+            const [matchScore, livenessScore] = await Promise.all([
+              faceRecognitionService.compareFaces(document.file_path, liveCapturePath),
+              faceRecognitionService.detectLiveness(liveCapturePath, challenge_response)
+            ]);
+            
+            console.log('🧪 Sandbox REAL results:', {
+              matchScore,
+              livenessScore,
+              document: document.file_path,
+              selfie: liveCapturePath
+            });
+            
+            // Determine final status based on REAL scores with sandbox-specific thresholds
+            const isLive = livenessScore > 0.6; // Slightly lower threshold for sandbox
+            const faceMatch = matchScore > 0.7; // Lower threshold for sandbox testing
+            const finalStatus = isLive && faceMatch ? 'verified' : 'failed';
+            
+            await verificationService.updateVerificationRequest(verification_id, {
+              face_match_score: matchScore,
+              liveness_score: livenessScore,
+              status: finalStatus,
+              manual_review_reason: !isLive ? 'Sandbox: Liveness detection failed' : 
+                                   !faceMatch ? 'Sandbox: Face matching failed' : undefined
+            });
+            
+            logVerificationEvent('sandbox_live_capture_processed', verification_id, {
+              liveCaptureId: liveCapture.id,
+              matchScore,
+              livenessScore,
+              finalStatus,
+              realComparison: true
+            });
+            
+          } else {
+            // No document found - this means user hasn't uploaded a document yet
+            console.log('🧪 Sandbox: No document found for face matching. User needs to upload document first.');
+            
+            // Update verification status to indicate missing document
+            await verificationService.updateVerificationRequest(verification_id, {
+              status: 'pending',
+              manual_review_reason: 'Sandbox: Live capture completed, but document upload is still required for face matching'
+            });
+            
+            logVerificationEvent('sandbox_live_capture_partial', verification_id, {
+              liveCaptureId: liveCapture.id,
+              reason: 'Document not uploaded yet - face matching skipped',
+              status: 'pending'
+            });
+          }
+        } catch (error) {
+          console.error('🧪 Sandbox face matching failed:', error);
           await verificationService.updateVerificationRequest(verification_id, {
-            face_match_score: mockMatchScore,
-            liveness_score: mockLivenessScore,
-            status: 'verified'
+            status: 'failed',
+            manual_review_reason: 'Sandbox: Face matching processing failed'
           });
           
-          logVerificationEvent('mock_live_capture_processed', verification_id, {
+          logVerificationEvent('sandbox_live_capture_failed', verification_id, {
             liveCaptureId: liveCapture.id,
-            matchScore: mockMatchScore,
-            livenessScore: mockLivenessScore
+            error: error instanceof Error ? error.message : 'Unknown error'
           });
-        }, 2000);
+        }
       }
       
       res.status(201).json({

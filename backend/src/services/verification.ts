@@ -144,22 +144,35 @@ export class VerificationService {
   }
   
   async getDocumentByVerificationId(verificationId: string): Promise<Document | null> {
-    const { data: document, error } = await supabase
+    // First try to get the front document (main document, not back-of-id)
+    const { data: documents, error } = await supabase
       .from('documents')
       .select('*')
       .eq('verification_request_id', verificationId)
-      .single();
+      .order('created_at', { ascending: true }); // Get the first uploaded document (front)
     
     if (error) {
-      if (error.code === 'PGRST116') {
-        return null;
-      }
-      logger.error('Failed to get document:', error);
-      throw new Error('Failed to get document');
+      logger.error('Failed to get documents:', error);
+      throw new Error('Failed to get documents');
     }
     
-    return document as Document;
+    if (!documents || documents.length === 0) {
+      console.log('❌ No documents found for verification_id:', verificationId);
+      return null;
+    }
+    
+    // Return the first document (should be the front document)
+    const frontDocument = documents[0] as Document;
+    console.log('✅ Found front document:', {
+      id: frontDocument.id,
+      verification_request_id: frontDocument.verification_request_id,
+      file_name: frontDocument.file_name,
+      created_at: frontDocument.created_at
+    });
+    
+    return frontDocument;
   }
+
   
   async updateDocument(
     id: string, 

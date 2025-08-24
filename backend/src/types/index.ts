@@ -243,7 +243,6 @@ export interface AppConfig {
   };
   ocr: {
     tesseractPath: string;
-    modelsPath: string;
   };
   externalApis: {
     persona?: {
