@@ -12,7 +12,7 @@
     "lint": "eslint src --ext .ts,.js",
     "type-check": "tsc --noEmit",
     "install:optional": "npm install --no-save --ignore-scripts @tensorflow/tfjs-node sharp jimp tesseract.js || echo 'Optional dependencies failed to install, using fallbacks'",
-    "railway:build": "npm run install:optional && npm run build",
+    "railway:build": "npm run build",
     "railway:start": "npm run start"
   },
   "dependencies": {

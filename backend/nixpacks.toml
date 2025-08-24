@@ -2,21 +2,36 @@
 
 [phases.setup]
 nixPkgs = [
-    'nodejs-18_x'
+    'nodejs-18_x',
+    'python3',
+    'pkg-config',
+    'make',
+    'gcc',
+    'g++',
+    'libjpeg',
+    'libpng'
 ]
 
 [phases.install]
 cmds = [
-    'npm ci --only=production --no-audit --no-fund --ignore-optional || npm ci --only=production --no-audit --no-fund'
+    'rm -rf node_modules/.cache || true',
+    'npm ci --only=production --no-audit --no-fund --ignore-optional --cache=/tmp/.npm'
 ]
 
 [variables]
 NODE_ENV = 'production'
 NPM_CONFIG_CACHE = '/tmp/.npm'
 PYTHON = 'python3'
+# Prevent cache conflicts in Railway builds
+NPM_CONFIG_UPDATE_NOTIFIER = 'false'
+NPM_CONFIG_FUND = 'false'
+NPM_CONFIG_AUDIT = 'false'
 
 [phases.build]
-cmds = ['npm run build']
+cmds = [
+    'rm -rf node_modules/.cache || true',
+    'npm run build'
+]
 
 [start]
 cmd = 'npm start'
