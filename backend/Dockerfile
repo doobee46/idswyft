@@ -1,21 +1,19 @@
-# Ultra-simple Railway Dockerfile - avoid Alpine and heavy deps
 FROM node:18-slim
 
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY package.json package-lock.json ./
 
-# Install only core dependencies, skip optional ones
-RUN npm ci --production --ignore-optional --no-audit
+# Install dependencies
+RUN npm install --production --omit=optional
 
-# Copy source code
+# Copy source
 COPY . .
 
-# Build application
+# Build
 RUN npm run build
 
+# Start
 EXPOSE 3001
-ENV NODE_ENV=production
-
 CMD ["npm", "start"]
