@@ -15,6 +15,9 @@ nixPkgs = [
 [phases.install]
 cmds = [
     'rm -rf node_modules/.cache || true',
+    'rm -rf node_modules || true',
+    'rm -rf .npm || true',
+    'npm cache clean --force || true',
     'npm ci --only=production --no-audit --no-fund --ignore-optional --cache=/tmp/.npm'
 ]
 
@@ -26,6 +29,8 @@ PYTHON = 'python3'
 NPM_CONFIG_UPDATE_NOTIFIER = 'false'
 NPM_CONFIG_FUND = 'false'
 NPM_CONFIG_AUDIT = 'false'
+# Force fresh build - timestamp: 2025-08-25T01:47:00Z
+BUILD_SIGNATURE = '20250825_FORCE_REBUILD_WITH_BACK_OF_ID_ROUTES'
 
 [phases.build]
 cmds = [
