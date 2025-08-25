@@ -1,18 +1,15 @@
 # Railway ignore file for backend deployment
 
-# Development files
-src/
-*.ts
-tsconfig.json
+# Cache and temporary files
+node_modules/.cache
+.npm
+temp/
+
+# Development environment files
 .env.local
 .env.development
 
-# Build artifacts
-node_modules/
-temp/
-
 # Documentation
-*.md
 docs/
 
 # Test files

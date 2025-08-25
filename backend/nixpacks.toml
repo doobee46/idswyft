@@ -1,4 +1,4 @@
-# Nixpacks configuration for Railway deployment with TensorFlow.js and image processing support
+# Nixpacks configuration for Railway deployment - no cache mounts to avoid exit code 240
 
 [phases.setup]
 nixPkgs = [
@@ -13,30 +13,19 @@ nixPkgs = [
 ]
 
 [phases.install]
-cmds = [
-    'rm -rf node_modules/.cache || true',
-    'rm -rf node_modules || true',
-    'rm -rf .npm || true',
-    'npm cache clean --force || true',
-    'npm ci --only=production --no-audit --no-fund --ignore-optional --cache=/tmp/.npm'
-]
+cmds = ['npm ci --only=production --no-audit --no-fund --ignore-optional']
+
+[phases.build] 
+cmds = ['npm run build']
 
 [variables]
 NODE_ENV = 'production'
-NPM_CONFIG_CACHE = '/tmp/.npm'
 PYTHON = 'python3'
-# Prevent cache conflicts in Railway builds
 NPM_CONFIG_UPDATE_NOTIFIER = 'false'
 NPM_CONFIG_FUND = 'false'
 NPM_CONFIG_AUDIT = 'false'
-# Force fresh build - timestamp: 2025-08-25T01:47:00Z
-BUILD_SIGNATURE = '20250825_FORCE_REBUILD_WITH_BACK_OF_ID_ROUTES'
-
-[phases.build]
-cmds = [
-    'rm -rf node_modules/.cache || true',
-    'npm run build'
-]
+# Build signature to ensure fresh deployment
+BUILD_SIGNATURE = '20250825_NO_CACHE_MOUNT_FIX'
 
 [start]
 cmd = 'npm start'
