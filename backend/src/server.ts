@@ -99,30 +99,62 @@ app.get('/', (req, res) => {
   });
 });
 
-// API documentation endpoint
+// API documentation endpoint - clean, user-facing routes
 app.get('/api/docs', (req, res) => {
   res.json({
     title: 'Idswyft API Documentation',
     version: '1.0.0',
+    generated: new Date().toISOString(),
     endpoints: {
-      health: 'GET /api/health - Health check',
+      health: {
+        'GET /api/health': 'Health check endpoint'
+      },
       verification: {
-        'POST /api/verify/document': 'Upload and verify identity document',
+        'POST /api/verify/start': 'Start a new verification session',
+        'POST /api/verify/document': 'Upload identity document for verification',
+        'POST /api/verify/back-of-id': 'Upload back-of-ID for enhanced verification',
         'POST /api/verify/selfie': 'Upload selfie for face matching',
-        'GET /api/verify/status/:user_id': 'Get verification status',
+        'POST /api/verify/live-capture': 'Upload live capture for liveness detection',
+        'GET /api/verify/results/:verification_id': 'Get complete verification results',
+        'GET /api/verify/status/:user_id': 'Get verification status (deprecated)',
+        'GET /api/verify/history/:user_id': 'Get verification history for user',
+        'POST /api/verify/generate-live-token': 'Generate live capture token'
       },
       developer: {
-        'POST /api/developer/register': 'Register as developer',
-        'POST /api/developer/api-key': 'Create API key',
+        'POST /api/developer/register': 'Register as a developer',
+        'POST /api/developer/api-key': 'Create new API key',
+        'GET /api/developer/api-keys': 'List API keys',
+        'DELETE /api/developer/api-key/:id': 'Delete API key',
+        'GET /api/developer/stats': 'Get usage statistics',
+        'GET /api/developer/activity': 'Get API activity logs'
+      },
+      admin: {
+        'GET /api/admin/verifications': 'List all verifications (admin)',
+        'GET /api/admin/verification/:id': 'Get verification details (admin)',
+        'PUT /api/admin/verification/:id/review': 'Update verification review (admin)',
+        'GET /api/admin/stats': 'Get admin statistics'
       },
       webhooks: {
         'POST /api/webhooks/register': 'Register webhook URL',
-        'GET /api/webhooks': 'List webhooks',
+        'GET /api/webhooks': 'List registered webhooks',
+        'DELETE /api/webhooks/:id': 'Delete webhook',
+        'POST /api/webhooks/:id/test': 'Test webhook delivery'
+      },
+      auth: {
+        'POST /api/auth/login': 'Admin login',
+        'POST /api/auth/logout': 'Admin logout',
+        'GET /api/auth/me': 'Get current user info'
       }
     },
     authentication: {
       'API Key': 'Include X-API-Key header with your API key',
       'Admin': 'Include Authorization header with Bearer token'
+    },
+    notes: {
+      'Rate Limiting': 'All endpoints are rate limited',
+      'CORS': 'Cross-origin requests are supported', 
+      'Sandbox Mode': 'Use sandbox=true parameter for testing',
+      'Enhanced Verification': 'back-of-id endpoint provides additional security validation'
     }
   });
 });
