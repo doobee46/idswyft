@@ -65,7 +65,7 @@ export const BackOfIdUpload: React.FC<BackOfIdUploadProps> = ({
       formData.append('document_type', documentType);
 
       // Build URL with sandbox query parameter if needed
-      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
       const url = new URL(`${baseUrl}/api/verify/back-of-id`);
       if (shouldUseSandbox()) {
         url.searchParams.append('sandbox', 'true');
