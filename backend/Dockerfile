@@ -2,18 +2,18 @@ FROM node:18-slim
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json package-lock.json ./
+# Copy only production package.json
+COPY package.json ./
 
-# Install dependencies
-RUN npm install --production --omit=optional
+# Install only runtime dependencies - NO BUILD STEP
+RUN npm install --production --omit=optional --omit=dev
 
-# Copy source
-COPY . .
+# Copy pre-built dist folder and other runtime files
+COPY dist/ ./dist/
+COPY uploads/ ./uploads/ 2>/dev/null || true
 
-# Build
-RUN npm run build
-
-# Start
+# Expose port
 EXPOSE 3001
-CMD ["npm", "start"]
+
+# Start the pre-built app
+CMD ["node", "dist/server.js"]
