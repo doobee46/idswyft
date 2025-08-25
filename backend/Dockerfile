@@ -1,19 +1,26 @@
-FROM node:18-slim
-
+# Base image
+FROM node:18-alpine AS base
 WORKDIR /app
 
-# Copy only production package.json
-COPY package.json ./
+# Install dependencies
+COPY package*.json ./
+RUN npm ci
 
-# Install only runtime dependencies - NO BUILD STEP
-RUN npm install --production --omit=optional --omit=dev
+# Copy source code
+COPY . .
 
-# Copy pre-built dist folder and other runtime files
-COPY dist/ ./dist/
-COPY uploads/ ./uploads/ 2>/dev/null || true
+# Build phase
+RUN rm -rf /app/node_modules/.cache
+RUN npm run build
 
-# Expose port
-EXPOSE 3001
+# Production image
+FROM node:18-alpine AS prod
+WORKDIR /app
 
-# Start the pre-built app
-CMD ["node", "dist/server.js"]
+# Only copy production node_modules and build
+COPY --from=base /app/node_modules ./node_modules
+COPY --from=base /app/dist ./dist
+COPY package*.json ./
+
+# Start the app
+CMD ["npm", "start"]
