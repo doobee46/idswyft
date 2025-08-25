@@ -1,35 +1,27 @@
-# Railway ignore file for backend deployment
-
-# Cache and temporary files
-node_modules/.cache
-.npm
-temp/
-
-# Development environment files
+# Development files
 .env.local
 .env.development
 
-# Documentation
-docs/
-
-# Test files
-test/
-*.test.*
-*.spec.*
+# Build cache
+node_modules/.cache
+.npm
 
 # IDE files
 .vscode/
 .idea/
-*.swp
-*.swo
 
 # OS files
 .DS_Store
 Thumbs.db
 
 # Logs
-logs/
 *.log
+logs/
 
-# Coverage
+# Test files
+test/
 coverage/
+
+# Documentation
+README.md
+docs/

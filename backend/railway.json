@@ -6,6 +6,6 @@
   "deploy": {
     "startCommand": "npm start",
     "healthcheckPath": "/api/health",
-    "healthcheckTimeout": 100
+    "healthcheckTimeout": 300
   }
 }
