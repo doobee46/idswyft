@@ -851,13 +851,13 @@ export const LiveCapturePage: React.FC = () => {
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-4">
           <div className="text-center">
             <ExclamationTriangleIcon className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Session Expired</h2>
-            <p className="text-gray-600 mb-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Session Expired</h2>
+            <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6 px-2">
               Your live capture session has expired. Please start a new verification.
             </p>
             <button
               onClick={() => navigate('/verify')}
-              className="w-full bg-blue-600 text-white py-3 px-6 rounded-xl hover:bg-blue-700 transition"
+              className="w-full bg-blue-600 text-white py-3 px-6 rounded-xl hover:bg-blue-700 transition text-sm sm:text-base min-h-[48px]"
             >
               Start New Verification
             </button>
@@ -911,11 +911,11 @@ export const LiveCapturePage: React.FC = () => {
               )}
             </div>
 
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
               {isProcessing ? 'Processing...' : 'Capture Complete!'}
             </h2>
             
-            <p className="text-gray-600 mb-4">
+            <p className="text-sm sm:text-base text-gray-600 mb-4 px-2">
               {isProcessing 
                 ? 'Please wait while we verify your identity. This may take a few moments...'
                 : isVerified 
@@ -990,7 +990,7 @@ export const LiveCapturePage: React.FC = () => {
               {!isProcessing ? (
                 <button
                   onClick={goToResults}
-                  className="w-full bg-blue-600 text-white py-3 px-6 rounded-xl hover:bg-blue-700 transition"
+                  className="w-full bg-blue-600 text-white py-3 px-6 rounded-xl hover:bg-blue-700 transition text-sm sm:text-base min-h-[48px]"
                 >
                   View Full Results
                 </button>
@@ -1026,11 +1026,11 @@ export const LiveCapturePage: React.FC = () => {
   // Main camera interface
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="max-w-4xl mx-auto p-6">
+      <div className="max-w-4xl mx-auto p-3 sm:p-6">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Live Identity Verification</h1>
-          <p className="text-xl text-gray-600">Complete your verification with live face capture</p>
+        <div className="text-center mb-4 sm:mb-8">
+          <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-2 sm:mb-4">Live Identity Verification</h1>
+          <p className="text-base sm:text-xl text-gray-600 px-4 sm:px-0">Complete your verification with live face capture</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
@@ -1041,8 +1041,8 @@ export const LiveCapturePage: React.FC = () => {
                 ref={canvasRef}
                 width={640}
                 height={480}
-                className="w-full h-96 object-cover"
-                style={{ maxHeight: '384px' }}
+                className="w-full h-64 sm:h-96 object-cover"
+                style={{ maxHeight: window.innerWidth < 640 ? '256px' : '384px' }}
               />
             </div>
           )}
@@ -1059,30 +1059,32 @@ export const LiveCapturePage: React.FC = () => {
           
           {/* Camera Permission Prompt */}
           {cameraState === 'prompt' && (
-            <div className="p-8 text-center">
-              <CameraIcon className="w-16 h-16 text-blue-500 mx-auto mb-6" />
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Camera Access Required</h2>
-              <p className="text-gray-600 mb-6">
-                We need access to your camera for live identity verification using OpenCV technology.
+            <div className="p-4 sm:p-8 text-center">
+              <CameraIcon className="w-12 h-12 sm:w-16 sm:h-16 text-blue-500 mx-auto mb-4 sm:mb-6" />
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 sm:mb-4">Camera Access Required</h2>
+              <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6 px-2">
+                We need access to your camera for live identity verification using Face-API technology.
               </p>
               <button
                 onClick={initializeCamera}
                 disabled={!opencvReady || loading}
-                className="bg-blue-600 text-white py-4 px-8 rounded-xl hover:bg-blue-700 disabled:bg-gray-400 transition flex items-center justify-center mx-auto"
+                className="bg-blue-600 text-white py-3 px-6 sm:py-4 sm:px-8 rounded-xl hover:bg-blue-700 disabled:bg-gray-400 transition flex items-center justify-center mx-auto text-sm sm:text-base min-h-[48px]"
               >
                 {!opencvReady ? (
                   <>
-                    <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" />
-                    Loading OpenCV...
+                    <ArrowPathIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2 animate-spin" />
+                    <span className="hidden sm:inline">Loading Face-API...</span>
+                    <span className="sm:hidden">Loading...</span>
                   </>
                 ) : loading ? (
                   <>
-                    <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" />
-                    Initializing Camera...
+                    <ArrowPathIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2 animate-spin" />
+                    <span className="hidden sm:inline">Initializing Camera...</span>
+                    <span className="sm:hidden">Starting...</span>
                   </>
                 ) : (
                   <>
-                    <CameraIcon className="w-5 h-5 mr-2" />
+                    <CameraIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                     Enable Camera
                   </>
                 )}
@@ -1092,14 +1094,14 @@ export const LiveCapturePage: React.FC = () => {
 
           {/* Camera Error */}
           {cameraState === 'error' && (
-            <div className="p-8 text-center">
-              <ExclamationTriangleIcon className="w-16 h-16 text-red-500 mx-auto mb-6" />
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Camera Access Failed</h2>
-              <p className="text-gray-600 mb-6">{error}</p>
+            <div className="p-4 sm:p-8 text-center">
+              <ExclamationTriangleIcon className="w-12 h-12 sm:w-16 sm:h-16 text-red-500 mx-auto mb-4 sm:mb-6" />
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 sm:mb-4">Camera Access Failed</h2>
+              <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6 px-2">{error}</p>
               <div className="space-y-3">
                 <button
                   onClick={retryCamera}
-                  className="bg-blue-600 text-white py-3 px-6 rounded-xl hover:bg-blue-700 transition"
+                  className="bg-blue-600 text-white py-3 px-6 rounded-xl hover:bg-blue-700 transition text-sm sm:text-base min-h-[48px]"
                 >
                   Try Again
                 </button>
@@ -1111,43 +1113,43 @@ export const LiveCapturePage: React.FC = () => {
           {cameraState === 'ready' && sessionData && (
             <div className="relative">
               {/* Challenge Info */}
-              <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white">
-                <div className="flex items-center justify-center space-x-4 mb-4">
-                  <div className="p-3 bg-white/20 rounded-full">
-                    <EyeIcon className="w-8 h-8" />
+              <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 sm:p-6 text-white">
+                <div className="flex flex-col sm:flex-row items-center justify-center sm:space-x-4 mb-4">
+                  <div className="p-2 sm:p-3 bg-white/20 rounded-full mb-2 sm:mb-0">
+                    <EyeIcon className="w-6 h-6 sm:w-8 sm:h-8" />
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold">Liveness Challenge</h3>
-                    <p className="text-blue-100">{sessionData.liveness_challenge.instruction}</p>
+                  <div className="text-center sm:text-left">
+                    <h3 className="text-lg sm:text-xl font-bold">Liveness Challenge</h3>
+                    <p className="text-sm sm:text-base text-blue-100 mt-1">{sessionData.liveness_challenge.instruction}</p>
                   </div>
                 </div>
 
                 {/* Face Detection Status Indicator */}
-                <div className={`flex flex-col items-center justify-center space-y-2 p-4 rounded-xl mb-4 ${
+                <div className={`flex flex-col items-center justify-center space-y-2 p-3 sm:p-4 rounded-xl mb-4 ${
                   faceDetected 
                     ? 'bg-green-500/20 border border-green-400/30' 
                     : 'bg-red-500/20 border border-red-400/30'
                 }`}>
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-3 h-3 rounded-full ${
+                  <div className="flex items-center space-x-2 sm:space-x-3">
+                    <div className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full ${
                       faceDetected ? 'bg-green-400 animate-pulse' : 'bg-red-400'
                     }`}></div>
-                    <span className={`text-sm font-medium text-center ${
+                    <span className={`text-xs sm:text-sm font-medium text-center ${
                       faceDetected ? 'text-green-100' : 'text-red-100'
                     }`}>
                       {faceDetected 
-                        ? '✓ Face Detected - Ready for Capture' 
+                        ? '✓ Face Detected - Ready' 
                         : '⚠ No Face Detected'
                       }
                     </span>
                   </div>
                   {!faceDetected && (
-                    <div className="text-xs text-red-200 text-center">
+                    <div className="text-xs text-red-200 text-center px-2">
                       Position Your Face in Frame
                     </div>
                   )}
                   {faceDetected && (
-                    <div className="flex space-x-4 text-xs text-green-200">
+                    <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-4 text-xs text-green-200 text-center">
                       <span>Liveness: {Math.round(livenessScore * 100)}%</span>
                       <span>Stability: {Math.round(faceStability * 100)}%</span>
                     </div>
@@ -1156,22 +1158,24 @@ export const LiveCapturePage: React.FC = () => {
                 
                 {countdown !== null && (
                   <div className="text-center">
-                    <div className="text-4xl font-bold mb-2">{countdown}</div>
-                    <p className="text-blue-100">Get ready...</p>
+                    <div className="text-3xl sm:text-4xl font-bold mb-2">{countdown}</div>
+                    <p className="text-sm sm:text-base text-blue-100">Get ready...</p>
                   </div>
                 )}
               </div>
 
 
               {/* Controls */}
-              <div className="p-6 bg-gray-50">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="text-sm text-gray-600">
+              <div className="p-4 sm:p-6 bg-gray-50">
+                <div className="flex flex-col sm:flex-row items-center justify-between mb-4 space-y-2 sm:space-y-0">
+                  <div className="text-xs sm:text-sm text-gray-600">
                     Attempts: {captureAttempts}/3
                   </div>
                   {sessionData && (
-                    <div className="text-sm text-gray-600">
-                      Session expires: {new Date(sessionData.expires_at).toLocaleTimeString()}
+                    <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-right">
+                      <span className="hidden sm:inline">Session expires: </span>
+                      <span className="sm:hidden">Expires: </span>
+                      {new Date(sessionData.expires_at).toLocaleTimeString()}
                     </div>
                   )}
                 </div>
@@ -1181,31 +1185,33 @@ export const LiveCapturePage: React.FC = () => {
                     <button
                       onClick={startChallenge}
                       disabled={!faceDetected || loading || livenessScore < 0.4 || faceStability < 0.5}
-                      className="bg-green-600 text-white py-4 px-8 rounded-xl hover:bg-green-700 disabled:bg-gray-400 transition flex items-center justify-center mx-auto"
+                      className="bg-green-600 text-white py-3 px-6 sm:py-4 sm:px-8 rounded-xl hover:bg-green-700 disabled:bg-gray-400 transition flex items-center justify-center mx-auto text-sm sm:text-base min-h-[48px] w-full sm:w-auto max-w-xs"
                     >
                       {!faceDetected ? (
                         <>
-                          <ExclamationTriangleIcon className="w-5 h-5 mr-2" />
-                          Position Your Face
+                          <ExclamationTriangleIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                          <span className="hidden sm:inline">Position Your Face</span>
+                          <span className="sm:hidden">Position Face</span>
                         </>
                       ) : loading ? (
                         <>
-                          <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" />
+                          <ArrowPathIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2 animate-spin" />
                           Processing...
                         </>
                       ) : livenessScore < 0.4 ? (
                         <>
-                          <ExclamationTriangleIcon className="w-5 h-5 mr-2" />
-                          Improve Lighting
+                          <ExclamationTriangleIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                          <span className="hidden sm:inline">Improve Lighting</span>
+                          <span className="sm:hidden">More Light</span>
                         </>
                       ) : faceStability < 0.5 ? (
                         <>
-                          <ExclamationTriangleIcon className="w-5 h-5 mr-2" />
+                          <ExclamationTriangleIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                           Hold Steady
                         </>
                       ) : (
                         <>
-                          <CameraIcon className="w-5 h-5 mr-2" />
+                          <CameraIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                           Start Capture
                         </>
                       )}
@@ -1213,8 +1219,8 @@ export const LiveCapturePage: React.FC = () => {
                   )}
 
                   {challengeState === 'active' && (
-                    <div className="text-center">
-                      <div className="text-lg font-semibold text-gray-900 mb-2">
+                    <div className="text-center px-2">
+                      <div className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
                         Performing challenge...
                       </div>
                       <div className="text-sm text-gray-600">
@@ -1229,44 +1235,44 @@ export const LiveCapturePage: React.FC = () => {
 
           {/* Error Display */}
           {error && cameraState !== 'error' && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg m-6">
+            <div className="p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg m-3 sm:m-6">
               <div className="flex">
-                <XMarkIcon className="w-5 h-5 text-red-400 mr-2 mt-0.5" />
-                <p className="text-red-700 text-sm">{error}</p>
+                <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5 text-red-400 mr-2 mt-0.5 flex-shrink-0" />
+                <p className="text-red-700 text-xs sm:text-sm">{error}</p>
               </div>
             </div>
           )}
         </div>
 
         {/* Instructions */}
-        <div className="mt-8 bg-blue-50 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-blue-900 mb-4">🔧 OpenCV Live Capture</h3>
-          <ul className="text-blue-800 space-y-2">
+        <div className="mt-4 sm:mt-8 bg-blue-50 rounded-xl p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-blue-900 mb-3 sm:mb-4">📱 Face-API Live Capture</h3>
+          <ul className="text-blue-800 space-y-2 text-sm sm:text-base">
             <li className="flex items-start">
-              <span className="text-blue-500 mr-2 mt-1">•</span>
-              <span>This system uses OpenCV for reliable camera processing</span>
+              <span className="text-blue-500 mr-2 mt-1 flex-shrink-0">•</span>
+              <span>Uses Face-API for reliable camera processing</span>
             </li>
             <li className="flex items-start">
-              <span className="text-blue-500 mr-2 mt-1">•</span>
+              <span className="text-blue-500 mr-2 mt-1 flex-shrink-0">•</span>
               <span>Ensure good lighting on your face</span>
             </li>
             <li className="flex items-start">
-              <span className="text-blue-500 mr-2 mt-1">•</span>
-              <span>Position your face in the center circle</span>
+              <span className="text-blue-500 mr-2 mt-1 flex-shrink-0">•</span>
+              <span>Position your face in the center of frame</span>
             </li>
             <li className="flex items-start">
-              <span className="text-blue-500 mr-2 mt-1">•</span>
-              <span>Wait for the green circle indicating face detection</span>
+              <span className="text-blue-500 mr-2 mt-1 flex-shrink-0">•</span>
+              <span>Wait for green indicator showing face detection</span>
             </li>
           </ul>
           
           {debugInfo && (
             <div className="mt-4 p-3 bg-gray-100 rounded-lg">
-              <p className="text-sm text-gray-600">Status: {debugInfo}</p>
+              <p className="text-xs sm:text-sm text-gray-600">Status: {debugInfo}</p>
               {cameraState === 'ready' && (
                 <button
                   onClick={retryCamera}
-                  className="mt-2 px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+                  className="mt-2 px-3 py-2 text-xs sm:text-sm bg-blue-500 text-white rounded hover:bg-blue-600 min-h-[36px]"
                 >
                   Restart Camera
                 </button>
