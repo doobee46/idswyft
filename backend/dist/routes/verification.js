@@ -522,10 +522,13 @@ router.post('/back-of-id', authenticateAPIKey, checkSandboxMode, verificationRat
                     await verificationService.updateDocument(backOfIdDocument.id, {
                         cross_validation_results: crossValidation
                     });
+                    const crossValidationPassed = crossValidation.match_score >= 0.7;
                     await verificationService.updateVerificationRequest(verificationRequest.id, {
                         cross_validation_score: crossValidation.match_score,
                         enhanced_verification_completed: true,
-                        status: crossValidation.match_score >= 0.7 ? 'verified' : 'failed'
+                        status: crossValidationPassed ? 'verified' : 'failed',
+                        failure_reason: !crossValidationPassed ?
+                            `Cross-validation failed - front and back ID data mismatch (score: ${crossValidation.match_score.toFixed(2)})` : undefined
                     });
                     logVerificationEvent('back_of_id_cross_validation_completed', verificationRequest.id, {
                         backDocumentId: backOfIdDocument.id,
@@ -666,6 +669,8 @@ router.get('/results/:verification_id', authenticateAPIKey, [
         // Overall assessment
         confidence_score: verificationRequest.confidence_score || null,
         manual_review_reason: verificationRequest.manual_review_reason || null,
+        failure_reason: verificationRequest.status === 'failed' ?
+            (verificationRequest.failure_reason || getFailureReason(verificationRequest, document, backOfIdDocument)) : null,
         // Next steps based on current state
         next_steps: getNextSteps(verificationRequest, document, backOfIdDocument)
     };
@@ -698,6 +703,55 @@ function getNextSteps(verification, document, backOfIdDocument) {
         }
     }
     return steps;
+}
+// Helper function to determine failure reason based on verification data
+function getFailureReason(verification, document, backOfIdDocument) {
+    // Determine if this is sandbox mode (we can infer from more lenient thresholds)
+    const isSandbox = verification.liveness_score !== null && verification.liveness_score <= 0.7 && verification.status === 'verified';
+    // Check for document-related failures
+    if (!document) {
+        return 'No document was uploaded for verification';
+    }
+    // Check for OCR failures
+    if (!document.ocr_data || Object.keys(document.ocr_data).length === 0) {
+        return 'Document could not be read - image quality may be too poor or document type unsupported';
+    }
+    // Check for live capture failures
+    if (!verification.live_capture_completed) {
+        return 'Live capture was not completed - selfie photo is required for verification';
+    }
+    // Check for liveness detection failures
+    if (verification.liveness_score !== null) {
+        const livenessThreshold = isSandbox ? 0.65 : 0.75;
+        const isLive = verification.liveness_score > livenessThreshold;
+        if (!isLive) {
+            return `Liveness detection failed - score ${verification.liveness_score.toFixed(2)} is below required threshold (${livenessThreshold}). Please ensure you are a live person taking a real-time selfie.`;
+        }
+    }
+    // Check for face matching failures
+    if (verification.face_match_score !== null) {
+        const faceMatchThreshold = isSandbox ? 0.8 : 0.85;
+        const faceMatch = verification.face_match_score > faceMatchThreshold;
+        if (!faceMatch) {
+            return `Face matching failed - score ${verification.face_match_score.toFixed(2)} is below required threshold (${faceMatchThreshold}). The photo in your document does not sufficiently match your live selfie.`;
+        }
+    }
+    // Check for cross-validation failures (enhanced verification)
+    if (backOfIdDocument && verification.enhanced_verification_completed) {
+        if (verification.cross_validation_score !== null && verification.cross_validation_score < 0.7) {
+            return `Document validation failed - front and back of ID information does not match sufficiently (score: ${verification.cross_validation_score.toFixed(2)}).`;
+        }
+        // Check for barcode reading failures
+        if (!backOfIdDocument.barcode_data || Object.keys(backOfIdDocument.barcode_data.parsed_data || {}).length === 0) {
+            return 'Back of ID could not be processed - barcode/magnetic stripe is unreadable or damaged';
+        }
+    }
+    // Check for quality issues
+    if (document.quality_analysis && document.quality_analysis.overall_score < 0.5) {
+        return 'Document quality is insufficient for verification - please provide a clearer, well-lit photo';
+    }
+    // Generic failure reason if no specific cause is identified
+    return 'Verification failed - one or more verification checks did not meet the required thresholds';
 }
 // Route: GET /api/verify/status/:user_id - Get latest verification for user (deprecated but kept for backward compatibility)
 router.get('/status/:user_id', authenticateAPIKey, validateStatusQuery, catchAsync(async (req, res) => {
@@ -889,7 +943,9 @@ router.post('/live-capture', authenticateAPIKey, checkSandboxMode, verificationR
                         liveness_score: livenessScore,
                         status: finalStatus,
                         manual_review_reason: !isLive ? 'Liveness detection failed' :
-                            !faceMatch ? 'Face matching failed' : undefined
+                            !faceMatch ? 'Face matching failed' : undefined,
+                        failure_reason: !isLive ? `Liveness detection failed - score ${livenessScore.toFixed(2)} below threshold 0.75` :
+                            !faceMatch ? `Face matching failed - score ${matchScore.toFixed(2)} below threshold 0.85` : undefined
                     });
                     logVerificationEvent('live_capture_processed', verification_id, {
                         liveCapture: liveCapture.id,
@@ -978,7 +1034,9 @@ router.post('/live-capture', authenticateAPIKey, checkSandboxMode, verificationR
                         liveness_score: livenessScore,
                         status: finalStatus,
                         manual_review_reason: !isLive ? 'Sandbox: Liveness detection failed' :
-                            !faceMatch ? 'Sandbox: Face matching failed' : undefined
+                            !faceMatch ? 'Sandbox: Face matching failed' : undefined,
+                        failure_reason: !isLive ? `Liveness detection failed - score ${livenessScore.toFixed(2)} below sandbox threshold 0.65` :
+                            !faceMatch ? `Face matching failed - score ${matchScore.toFixed(2)} below sandbox threshold 0.8` : undefined
                     });
                     logVerificationEvent('sandbox_live_capture_processed', verification_id, {
                         liveCaptureId: liveCapture.id,
@@ -1007,7 +1065,8 @@ router.post('/live-capture', authenticateAPIKey, checkSandboxMode, verificationR
                 console.error('🧪 Sandbox face matching failed:', error);
                 await verificationService.updateVerificationRequest(verification_id, {
                     status: 'failed',
-                    manual_review_reason: 'Sandbox: Face matching processing failed'
+                    manual_review_reason: 'Sandbox: Face matching processing failed',
+                    failure_reason: 'Technical error during face matching - please try again or contact support'
                 });
                 logVerificationEvent('sandbox_live_capture_failed', verification_id, {
                     liveCaptureId: liveCapture.id,

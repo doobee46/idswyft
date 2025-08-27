@@ -16,6 +16,7 @@ export interface VerificationRequest {
   confidence_score?: number;
   live_capture_completed?: boolean;
   manual_review_reason?: string;
+  failure_reason?: string;
   external_verification_id?: string;
   // Enhanced verification fields
   back_of_id_uploaded?: boolean;
@@ -136,6 +137,7 @@ export interface WebhookPayload {
     ocr_data?: OCRData;
     face_match_score?: number;
     manual_review_reason?: string;
+    failure_reason?: string;
   };
 }
 
@@ -185,6 +187,7 @@ export interface VerifyStatusResponse {
     ocr_data?: OCRData;
     face_match_score?: number;
     manual_review_reason?: string;
+    failure_reason?: string;
   };
 }
 

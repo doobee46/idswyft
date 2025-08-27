@@ -15,6 +15,7 @@ export interface VerificationRequest {
     confidence_score?: number;
     live_capture_completed?: boolean;
     manual_review_reason?: string;
+    failure_reason?: string;
     external_verification_id?: string;
     back_of_id_uploaded?: boolean;
     cross_validation_score?: number;
@@ -122,6 +123,7 @@ export interface WebhookPayload {
         ocr_data?: OCRData;
         face_match_score?: number;
         manual_review_reason?: string;
+        failure_reason?: string;
     };
 }
 export interface RateLimitRecord {
@@ -164,6 +166,7 @@ export interface VerifyStatusResponse {
         ocr_data?: OCRData;
         face_match_score?: number;
         manual_review_reason?: string;
+        failure_reason?: string;
     };
 }
 export interface CreateAPIKeyRequest {
