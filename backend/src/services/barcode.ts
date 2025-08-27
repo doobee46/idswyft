@@ -1,5 +1,6 @@
 import { logger } from '@/utils/logger.js';
 import { StorageService } from './storage.js';
+// @ts-ignore - No types available for parse-usdl
 import { parse as parseUSDL } from 'parse-usdl';
 
 // Optional dependency imports with graceful fallbacks
@@ -74,11 +75,15 @@ export interface BackOfIdData {
   qr_code?: string;
   barcode_data?: string;
   pdf417_data?: PDF417Data;
+  raw_text?: string;
   parsed_data?: {
     id_number?: string;
     expiry_date?: string;
     issuing_authority?: string;
     address?: string;
+    first_name?: string;
+    last_name?: string;
+    date_of_birth?: string;
     additional_info?: any;
   };
   verification_codes?: string[];
@@ -580,7 +585,7 @@ IMPORTANT: Extract the complete raw text data exactly as it appears in the barco
           }
           
         } catch (readerError) {
-          console.log(`📄 ${reader.constructor.name} failed:`, readerError.message);
+          console.log(`📄 ${reader.constructor.name} failed:`, readerError instanceof Error ? readerError.message : String(readerError));
         }
       }
       
@@ -1919,9 +1924,10 @@ This is for document verification and security analysis purposes.`
       
       // Assess PDF417 data quality
       const criticalFields = ['firstName', 'lastName', 'licenseNumber', 'dateOfBirth', 'expirationDate'];
-      const presentCriticalFields = criticalFields.filter(field => 
-        pdf417[field] && pdf417[field].toString().trim().length > 0
-      ).length;
+      const presentCriticalFields = criticalFields.filter(field => {
+        const value = (pdf417 as any)[field];
+        return value && value.toString().trim().length > 0;
+      }).length;
       
       pdf417Insights = {
         data_quality: backOfIdData.pdf417_data.confidence,

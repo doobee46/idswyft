@@ -51,6 +51,10 @@ export declare class FaceRecognitionService {
     private detectLivenessDetailedWithTraditional;
     private analyzeLivenessFeatures;
     /**
+     * Detect motion blur which can indicate natural movement (liveness)
+     */
+    private detectMotionBlur;
+    /**
      * Detect if there's a face within the circular capture area
      */
     private detectFaceInCircularArea;

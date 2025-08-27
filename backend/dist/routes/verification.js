@@ -502,11 +502,11 @@ router.post('/back-of-id', authenticateAPIKey, checkSandboxMode, verificationRat
             });
         }
         else if (req.isSandbox) {
-            // For sandbox: Try real AI scanning first, fallback to mock data if it fails
-            console.log('🔧 Sandbox mode: Attempting real AI barcode scanning...');
+            // For sandbox: Use PDF417 barcode scanning only, fallback to mock data if it fails
+            console.log('🔧 Sandbox mode: Attempting real PDF417 barcode scanning...');
             try {
                 const backOfIdData = await barcodeService.scanBackOfId(backOfIdPath);
-                console.log('✅ Sandbox AI barcode scanning succeeded:', {
+                console.log('✅ Sandbox PDF417 barcode scanning succeeded:', {
                     verificationId: verificationRequest.id,
                     backDocumentId: backOfIdDocument.id,
                     qrCodeFound: !!backOfIdData.qr_code,
@@ -942,13 +942,13 @@ router.post('/live-capture', authenticateAPIKey, checkSandboxMode, verificationR
                         selfie: liveCapturePath
                     });
                     // Determine final status based on REAL scores with sandbox-specific thresholds
-                    const isLive = livenessScore > 0.7; // Tightened threshold for sandbox
+                    const isLive = livenessScore > 0.65; // More lenient threshold for sandbox testing
                     const faceMatch = matchScore > 0.8; // Tightened threshold for sandbox testing
                     const finalStatus = isLive && faceMatch ? 'verified' : 'failed';
                     // Comprehensive sandbox score analysis logging
                     console.log(`🧪📊 Sandbox Verification Score Analysis for ${verification_id}:`);
                     console.log(`   🎯 Face Match Score: ${matchScore.toFixed(3)} (sandbox threshold: 0.8) - ${faceMatch ? '✅ PASS' : '❌ FAIL'}`);
-                    console.log(`   🔍 Liveness Score: ${livenessScore.toFixed(3)} (sandbox threshold: 0.7) - ${isLive ? '✅ PASS' : '❌ FAIL'}`);
+                    console.log(`   🔍 Liveness Score: ${livenessScore.toFixed(3)} (sandbox threshold: 0.65) - ${isLive ? '✅ PASS' : '❌ FAIL'}`);
                     console.log(`   📝 Final Status: ${finalStatus.toUpperCase()}`);
                     console.log(`   🔗 Document Path: ${document.file_path}`);
                     console.log(`   📸 Live Capture Path: ${liveCapturePath}`);
@@ -967,7 +967,7 @@ router.post('/live-capture', authenticateAPIKey, checkSandboxMode, verificationR
                         console.log(`   ⚠️  Face matching failed (score below 0.8)`);
                     }
                     // Calculate how close scores are to both sandbox and production thresholds
-                    const sandboxLivenessGap = livenessScore - 0.7;
+                    const sandboxLivenessGap = livenessScore - 0.65;
                     const sandboxFaceMatchGap = matchScore - 0.8;
                     const prodLivenessGap = livenessScore - 0.75;
                     const prodFaceMatchGap = matchScore - 0.85;
@@ -1107,4 +1107,46 @@ function getChallengeInstruction(challenge) {
     };
     return instructions[challenge] || 'Follow the on-screen instructions';
 }
+// Route: POST /api/verify/test-pdf417 - Test PDF417 barcode parsing from raw data
+router.post('/test-pdf417', authenticateAPIKey, body('raw_barcode_data')
+    .isString()
+    .isLength({ min: 10 })
+    .withMessage('Raw barcode data must be a string with at least 10 characters'), catchAsync(async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        throw new ValidationError('Validation failed', 'multiple', errors.array());
+    }
+    const { raw_barcode_data } = req.body;
+    logger.info('PDF417 test parsing requested', {
+        dataLength: raw_barcode_data.length,
+        apiKey: req.apiKey?.id
+    });
+    // Initialize barcode service
+    const barcodeService = new BarcodeService();
+    try {
+        // Parse PDF417 data
+        const pdf417Result = await barcodeService.parsePDF417(raw_barcode_data);
+        logger.info('PDF417 test parsing completed', {
+            validation_status: pdf417Result.validation_status,
+            confidence: pdf417Result.confidence,
+            apiKey: req.apiKey?.id
+        });
+        res.json({
+            success: true,
+            pdf417_data: pdf417Result,
+            message: `PDF417 parsing completed with ${pdf417Result.validation_status} status`
+        });
+    }
+    catch (error) {
+        logger.error('PDF417 test parsing failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            apiKey: req.apiKey?.id
+        });
+        res.status(500).json({
+            success: false,
+            error: 'PDF417 parsing failed',
+            message: error instanceof Error ? error.message : 'Unknown error occurred'
+        });
+    }
+}));
 export default router;
