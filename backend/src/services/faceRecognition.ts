@@ -1,9 +1,11 @@
 import { logger } from '@/utils/logger.js';
 import { StorageService } from './storage.js';
-import { FaceApiService } from './faceApiService.js';
 import config from '@/config/index.js';
 import path from 'path';
 import fs from 'fs/promises';
+
+// Enhanced face recognition with fallback support
+let EnhancedFaceRecognitionService: any = null;
 
 // Optional dependency imports with graceful fallbacks
 let tf: any = null;
@@ -15,61 +17,84 @@ let blazeface: any = null;
 type JimpImage = any;
 type TensorFlowModel = any;
 
+// Try to load enhanced face recognition service
+try {
+  const { EnhancedFaceRecognitionService: EFRS } = await import('./enhancedFaceRecognition.js');
+  EnhancedFaceRecognitionService = EFRS;
+  console.log('✅ Enhanced face recognition service loaded');
+} catch (error) {
+  console.log('⚠️  Enhanced face recognition not available, using fallback methods');
+  logger.warn('Enhanced face recognition not available:', error);
+}
+
 try {
   tf = await import('@tensorflow/tfjs-node');
 } catch (error) {
-  logger.warn('TensorFlow.js not available, using AI-only face recognition');
+  logger.warn('TensorFlow.js not available, using fallback methods');
 }
 
 try {
   Jimp = (await import('jimp')).default;
 } catch (error) {
-  logger.warn('Jimp not available, using AI-only face recognition');
+  logger.warn('Jimp not available, using fallback methods');
 }
 
 try {
   faceLandmarksDetection = await import('@tensorflow-models/face-landmarks-detection');
 } catch (error) {
-  logger.warn('Face Landmarks Detection not available, using traditional face recognition');
+  logger.warn('Face Landmarks Detection not available, using fallback methods');
 }
 
 try {
   blazeface = await import('@tensorflow-models/blazeface');
 } catch (error) {
-  logger.warn('BlazeFace not available, using fallback face detection');
+  logger.warn('BlazeFace not available, using fallback methods');
 }
 
 export class FaceRecognitionService {
   private storageService: StorageService;
-  private faceApiService: FaceApiService;
+  private enhancedFaceService: any = null;
   private isInitialized = false;
   private faceModel: TensorFlowModel | null = null;
   private useAiFaceMatching: boolean;
   private useAiLivenessDetection: boolean;
   private useTensorFlowFaceMatching: boolean;
-  private useFaceApiLivenessDetection: boolean;
+  private useModernFaceRecognition: boolean;
   private faceDetector: any = null;
   private faceLandmarkDetector: any = null;
   
   constructor() {
     this.storageService = new StorageService();
-    this.faceApiService = new FaceApiService();
-    // Use AI-powered features if OpenAI API key is available
-    // Disable OpenAI, use Face-API.js instead
+    
+    // Try to initialize enhanced face recognition service
+    if (EnhancedFaceRecognitionService) {
+      try {
+        this.enhancedFaceService = new EnhancedFaceRecognitionService();
+        this.useModernFaceRecognition = true; // Enhanced high-accuracy method
+        console.log('✅ Enhanced face recognition service initialized');
+      } catch (error) {
+        console.log('⚠️  Enhanced face recognition service failed to initialize:', error);
+        this.enhancedFaceService = null;
+        this.useModernFaceRecognition = false;
+      }
+    } else {
+      this.useModernFaceRecognition = false;
+    }
+    
+    // Configure fallback methods
     this.useAiFaceMatching = false;
     this.useAiLivenessDetection = false; // Disable OpenAI liveness detection
-    this.useTensorFlowFaceMatching = true; // Enable TensorFlow face matching
-    this.useFaceApiLivenessDetection = true; // Enable Face-API.js liveness detection
+    this.useTensorFlowFaceMatching = true; // Fallback TensorFlow face matching
     
-    if (this.useTensorFlowFaceMatching) {
+    if (this.useModernFaceRecognition) {
+      console.log('🔧 Enhanced Face Recognition enabled (Advanced image analysis with Sharp)');
+    } else if (this.useTensorFlowFaceMatching) {
       console.log('🧠 TensorFlow-powered face matching enabled (Face Detection + Landmarks)');
     } else {
       console.log('🔍 Traditional face matching enabled (feature comparison)');
     }
     
-    if (this.useFaceApiLivenessDetection) {
-      console.log('👤 Face-API.js powered liveness detection enabled (Advanced face analysis)');
-    } else if (this.useAiLivenessDetection) {
+    if (this.useAiLivenessDetection) {
       console.log('🤖 AI-powered liveness detection enabled (OpenAI GPT-4o Vision)');
     } else {
       console.log('🔍 Traditional liveness detection enabled (image analysis)');
@@ -104,14 +129,20 @@ export class FaceRecognitionService {
   async compareFaces(documentPath: string, selfiePath: string): Promise<number> {
     await this.initialize();
     
+    const method = this.useModernFaceRecognition ? 'Enhanced' : 
+                   this.useTensorFlowFaceMatching ? 'TensorFlow' : 'Traditional';
+    
     logger.info('Starting face comparison', {
       documentPath,
       selfiePath,
-      method: this.useTensorFlowFaceMatching ? 'TensorFlow' : 'Traditional'
+      method
     });
     
     try {
-      if (this.useTensorFlowFaceMatching) {
+      if (this.useModernFaceRecognition) {
+        console.log('🔧 Using enhanced face recognition (Sharp-based analysis)...');
+        return await this.enhancedFaceService.compareFaces(documentPath, selfiePath);
+      } else if (this.useTensorFlowFaceMatching) {
         console.log('🧠 Using TensorFlow-powered face matching...');
         return await this.compareWithTensorFlow(documentPath, selfiePath);
       } else {
@@ -121,8 +152,8 @@ export class FaceRecognitionService {
     } catch (error) {
       logger.error('Face comparison failed:', error);
       
-      // Return mock result on error for MVP
-      return this.mockFaceComparison();
+      // Return failure score instead of mock - security critical
+      return 0.0;
     }
   }
   
@@ -670,37 +701,34 @@ Important guidelines:
     return dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
   }
   
-  private mockFaceComparison(): number {
-    // Return a random score between 0.7 and 0.95 for testing
-    const mockScore = 0.7 + Math.random() * 0.25;
+  private secureFaceComparisonFallback(): number {
+    // Always return failure score for security
+    const secureScore = 0.0;
     
-    logger.info('Using mock face comparison', {
-      mockScore,
-      reason: 'Fallback to mock comparison'
+    logger.error('Face comparison system error - returning secure failure score', {
+      secureScore,
+      reason: 'System error during face comparison'
     });
     
-    return mockScore;
+    return secureScore;
   }
   
   async detectLiveness(imagePath: string, challengeResponse?: string): Promise<number> {
     await this.initialize();
     
+    const method = this.useModernFaceRecognition ? 'Enhanced' :
+                   this.useAiLivenessDetection ? 'AI' : 'Traditional';
+    
     logger.info('Starting liveness detection', { 
       imagePath, 
       challengeResponse,
-      method: this.useAiLivenessDetection ? 'AI' : 'Traditional'
+      method
     });
     
     try {
-      if (this.useFaceApiLivenessDetection) {
-        console.log('👤 Using Face-API.js liveness detection...');
-        const result = await this.faceApiService.detectLiveness(imagePath, challengeResponse);
-        console.log('👤 Face-API.js liveness detection completed:', {
-          score: result.score,
-          isLive: result.isLive,
-          confidence: result.confidence
-        });
-        return result.score;
+      if (this.useModernFaceRecognition && this.enhancedFaceService) {
+        console.log('🔧 Using enhanced liveness detection (Sharp-based analysis)...');
+        return await this.enhancedFaceService.detectLiveness(imagePath);
       } else if (this.useAiLivenessDetection) {
         console.log('🤖 Using AI-powered liveness detection...');
         return await this.detectLivenessWithAI(imagePath, challengeResponse);
@@ -710,7 +738,8 @@ Important guidelines:
       }
     } catch (error) {
       logger.error('Liveness detection failed:', error);
-      return this.mockLivenessScore();
+      // Return failure score instead of mock - security critical
+      return 0.0;
     }
   }
 
@@ -885,28 +914,7 @@ Scoring guide:
     });
     
     try {
-      if (this.useFaceApiLivenessDetection) {
-        console.log('👤 Using Face-API.js detailed liveness detection...');
-        const result = await this.faceApiService.detectLiveness(imagePath);
-        return {
-          isLive: result.isLive,
-          confidence: result.confidence,
-          checks: {
-            blinkDetected: result.analysis.eyeOpenness > 0.5,
-            headMovement: result.analysis.headPose > 0.5,
-            eyeGaze: result.analysis.eyeOpenness > 0.6
-          },
-          aiAnalysis: {
-            facial_depth_detected: result.analysis.faceDetected,
-            natural_lighting: result.analysis.lightingQuality > 0.6,
-            eye_authenticity: result.analysis.eyeOpenness > 0.5,
-            skin_texture_natural: result.analysis.skinTexture > 0.5,
-            no_screen_artifacts: result.score > 0.7
-          },
-          risk_factors: result.isLive ? [] : ['Low liveness score from Face-API analysis'],
-          liveness_indicators: result.isLive ? ['Face-API detected live person'] : []
-        };
-      } else if (this.useAiLivenessDetection) {
+      if (this.useAiLivenessDetection) {
         console.log('🤖 Using AI-powered detailed liveness detection...');
         return await this.detectLivenessDetailedWithAI(imagePath);
       } else {
@@ -915,7 +923,18 @@ Scoring guide:
       }
     } catch (error) {
       logger.error('Detailed liveness detection failed:', error);
-      return this.mockLivenessDetection();
+      // Return secure failure result instead of mock
+      return {
+        isLive: false,
+        confidence: 0.0,
+        checks: {
+          blinkDetected: false,
+          headMovement: false,
+          eyeGaze: false
+        },
+        risk_factors: ['System error during verification'],
+        liveness_indicators: []
+      };
     }
   }
 
@@ -1096,31 +1115,357 @@ Provide response in JSON format:
   }
   
   private async analyzeLivenessFeatures(image: JimpImage): Promise<number> {
-    // Enhanced liveness analysis with improved scoring
-    let score = 0.6; // Higher base score for better pass rate
+    // Enhanced liveness analysis with strict scoring and face detection
+    let score = 0.0; // Start with 0 - face detection is mandatory
     
-    // Check image quality (higher quality suggests real photo vs printed)
-    const qualityScore = this.detectImageQuality(image);
-    score += qualityScore * 0.25;
+    // CRITICAL: Face detection in circular area (30% of total score)
+    const faceDetectionScore = await this.detectFaceInCircularArea(image);
+    score += faceDetectionScore * 0.3;
     
-    // Check for natural variations in lighting and color
-    const naturalness = this.checkImageNaturalness(image);
-    score += naturalness * 0.2;
+    console.log(`👤 Face Detection in Circle: ${faceDetectionScore.toFixed(2)} (weight: 0.3)`);
     
-    // Additional liveness indicators
-    const sharpness = this.analyzeImageSharpness(image);
-    score += sharpness * 0.15;
+    // Only continue with other checks if a face is detected
+    if (faceDetectionScore > 0.5) {
+      // Check image quality (higher quality suggests real photo vs printed)
+      const qualityScore = this.detectImageQuality(image);
+      score += qualityScore * 0.2;
+      
+      // Check for natural variations in lighting and color
+      const naturalness = this.checkImageNaturalness(image);
+      score += naturalness * 0.2;
+      
+      // Additional liveness indicators
+      const sharpness = this.analyzeImageSharpness(image);
+      score += sharpness * 0.15;
+      
+      // Color depth analysis (live images have better color depth)
+      const colorDepth = this.analyzeColorDepth(image);
+      score += colorDepth * 0.15;
+      
+      console.log(`🔍 Enhanced liveness analysis: face=${faceDetectionScore.toFixed(2)}, quality=${qualityScore.toFixed(2)}, naturalness=${naturalness.toFixed(2)}, sharpness=${sharpness.toFixed(2)}`);
+    } else {
+      console.log(`❌ No face detected in circular capture area - liveness check failed`);
+    }
     
-    // Color depth analysis (live images have better color depth)
-    const colorDepth = this.analyzeColorDepth(image);
-    score += colorDepth * 0.1;
+    // Ensure proper scoring without artificial minimum
+    const finalScore = Math.max(0, Math.min(1, score));
     
-    // Ensure minimum viable score for decent selfies
-    const finalScore = Math.max(0.5, Math.min(1, score));
-    
-    console.log(`🔍 Enhanced liveness analysis: quality=${qualityScore.toFixed(2)}, naturalness=${naturalness.toFixed(2)}, sharpness=${sharpness.toFixed(2)}, final=${finalScore.toFixed(2)}`);
+    console.log(`🎯 Final liveness score: ${finalScore.toFixed(2)} (face detection required)`);
     
     return finalScore;
+  }
+
+  /**
+   * Detect if there's a face within the circular capture area
+   */
+  private async detectFaceInCircularArea(image: JimpImage): Promise<number> {
+    try {
+      const { width, height } = image.bitmap;
+      
+      // Define circular capture area (center of image, typically 60-70% of image size)
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const circleRadius = Math.min(width, height) * 0.35; // 70% diameter = 35% radius
+      
+      console.log(`🎯 Circular area: center(${centerX.toFixed(0)}, ${centerY.toFixed(0)}), radius=${circleRadius.toFixed(0)}`);
+      
+      // Try TensorFlow face detection first if available
+      if (tf && blazeface) {
+        console.log(`🧠 Using TensorFlow face detection for circular area...`);
+        const tfDetectionScore = await this.detectFaceWithTensorFlow(image, centerX, centerY, circleRadius);
+        if (tfDetectionScore > 0) {
+          return tfDetectionScore;
+        }
+      }
+      
+      // Fallback to traditional face detection methods
+      console.log(`🔍 Using traditional face detection for circular area...`);
+      return this.detectFaceWithTraditionalMethods(image, centerX, centerY, circleRadius);
+      
+    } catch (error) {
+      console.error('❌ Error in face detection:', error);
+      return 0.0; // Return 0 if face detection fails - security critical
+    }
+  }
+
+  /**
+   * TensorFlow-based face detection in circular area
+   */
+  private async detectFaceWithTensorFlow(image: JimpImage, centerX: number, centerY: number, radius: number): Promise<number> {
+    try {
+      // Convert Jimp image to buffer for TensorFlow processing
+      const imageBuffer = await image.getBufferAsync(Jimp.MIME_JPEG);
+      const tensor = await this.imageBufferToTensor(imageBuffer);
+      
+      // Detect faces using TensorFlow
+      const faces = await this.detectFaces(tensor);
+      tensor.dispose();
+      
+      if (!faces || faces.length === 0) {
+        console.log(`🧠 TensorFlow: No faces detected`);
+        return 0.0;
+      }
+      
+      // Check if any detected face is within the circular area
+      for (const face of faces) {
+        const faceX = (face.topLeft[0] + face.bottomRight[0]) / 2;
+        const faceY = (face.topLeft[1] + face.bottomRight[1]) / 2;
+        
+        // Calculate distance from face center to circle center
+        const distance = Math.sqrt(Math.pow(faceX - centerX, 2) + Math.pow(faceY - centerY, 2));
+        
+        console.log(`🧠 TensorFlow face at (${faceX.toFixed(0)}, ${faceY.toFixed(0)}), distance=${distance.toFixed(0)}, radius=${radius.toFixed(0)}`);
+        
+        if (distance <= radius) {
+          // Face is within circular area - calculate confidence based on position and face size
+          const positionScore = Math.max(0, 1 - (distance / radius)); // Closer to center = higher score
+          const faceWidth = face.bottomRight[0] - face.topLeft[0];
+          const faceHeight = face.bottomRight[1] - face.topLeft[1];
+          const faceSize = (faceWidth + faceHeight) / 2;
+          const sizeScore = Math.min(1, faceSize / (radius * 0.6)); // Appropriate size for the circle
+          
+          const confidence = (positionScore * 0.7 + sizeScore * 0.3);
+          console.log(`🧠 TensorFlow: Face found in circle! Position=${positionScore.toFixed(2)}, Size=${sizeScore.toFixed(2)}, Confidence=${confidence.toFixed(2)}`);
+          
+          return confidence;
+        }
+      }
+      
+      console.log(`🧠 TensorFlow: Faces detected but outside circular area`);
+      return 0.0;
+      
+    } catch (error) {
+      console.error('🧠 TensorFlow face detection failed:', error);
+      return 0.0;
+    }
+  }
+
+  /**
+   * Traditional face detection methods for circular area
+   */
+  private detectFaceWithTraditionalMethods(image: JimpImage, centerX: number, centerY: number, radius: number): Promise<number> {
+    return new Promise((resolve) => {
+      try {
+        // Extract circular region for analysis
+        const circularMask = this.createCircularMask(image, centerX, centerY, radius);
+        
+        // Detect skin-like regions within the circle
+        const skinDetectionScore = this.detectSkinInCircularArea(circularMask, centerX, centerY, radius);
+        
+        // Detect face-like patterns (eyes, mouth, etc.)
+        const facePatternScore = this.detectFacialFeatures(circularMask, centerX, centerY, radius);
+        
+        // Combine scores with weights
+        const combinedScore = (skinDetectionScore * 0.6 + facePatternScore * 0.4);
+        
+        console.log(`🔍 Traditional: Skin=${skinDetectionScore.toFixed(2)}, Patterns=${facePatternScore.toFixed(2)}, Combined=${combinedScore.toFixed(2)}`);
+        
+        resolve(Math.min(1, combinedScore));
+        
+      } catch (error) {
+        console.error('🔍 Traditional face detection failed:', error);
+        resolve(0.0);
+      }
+    });
+  }
+
+  /**
+   * Create a mask for the circular area
+   */
+  private createCircularMask(image: JimpImage, centerX: number, centerY: number, radius: number): JimpImage {
+    const { width, height } = image.bitmap;
+    const mask = image.clone();
+    
+    // Set pixels outside circle to black
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+        
+        if (distance > radius) {
+          mask.setPixelColor(0x000000FF, x, y); // Set to black
+        }
+      }
+    }
+    
+    return mask;
+  }
+
+  /**
+   * Detect skin-like colors in the circular area
+   */
+  private detectSkinInCircularArea(image: JimpImage, centerX: number, centerY: number, radius: number): number {
+    const { width, height } = image.bitmap;
+    let skinPixels = 0;
+    let totalPixels = 0;
+    
+    // Sample pixels within the circular area
+    const sampleStep = 4; // Sample every 4th pixel for performance
+    
+    for (let y = 0; y < height; y += sampleStep) {
+      for (let x = 0; x < width; x += sampleStep) {
+        const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+        
+        if (distance <= radius) {
+          const pixel = Jimp.intToRGBA(image.getPixelColor(x, y));
+          
+          // Check if pixel is skin-like (simplified skin detection)
+          if (this.isSkinLikeColor(pixel.r, pixel.g, pixel.b)) {
+            skinPixels++;
+          }
+          totalPixels++;
+        }
+      }
+    }
+    
+    const skinRatio = totalPixels > 0 ? skinPixels / totalPixels : 0;
+    console.log(`👤 Skin detection: ${skinPixels}/${totalPixels} pixels (${(skinRatio * 100).toFixed(1)}%)`);
+    
+    // Good face should have 15-70% skin-like pixels in the circular area
+    if (skinRatio >= 0.15 && skinRatio <= 0.70) {
+      return Math.min(1, skinRatio * 2.5); // Normalize to 0-1 range
+    } else {
+      return skinRatio > 0.70 ? 0.3 : 0.0; // Too much or too little skin
+    }
+  }
+
+  /**
+   * Simple skin color detection
+   */
+  private isSkinLikeColor(r: number, g: number, b: number): boolean {
+    // Simplified skin color detection using RGB ranges
+    // This covers various skin tones
+    return (
+      (r > 95 && g > 40 && b > 20) && // Basic skin range
+      (Math.max(r, Math.max(g, b)) - Math.min(r, Math.min(g, b)) > 15) && // Color variation
+      (Math.abs(r - g) > 15) && // Red-Green difference
+      (r > g && r > b) // Red dominance
+    ) || (
+      // Alternative skin tone detection
+      (r > 60 && r < 255) &&
+      (g > 30 && g < 200) &&
+      (b > 15 && b < 170) &&
+      (r > g) && (g > b)
+    );
+  }
+
+  /**
+   * Detect facial features like eyes, nose, mouth patterns
+   */
+  private detectFacialFeatures(image: JimpImage, centerX: number, centerY: number, radius: number): number {
+    const { width, height } = image.bitmap;
+    
+    // Look for dark regions (eyes) in upper part of circle
+    const eyeRegionScore = this.detectEyeRegions(image, centerX, centerY - radius * 0.3, radius * 0.8);
+    
+    // Look for mouth region in lower part of circle
+    const mouthRegionScore = this.detectMouthRegion(image, centerX, centerY + radius * 0.4, radius * 0.6);
+    
+    // Calculate symmetry (faces are generally symmetric)
+    const symmetryScore = this.calculateFacialSymmetry(image, centerX, centerY, radius);
+    
+    const combinedScore = (eyeRegionScore * 0.4 + mouthRegionScore * 0.3 + symmetryScore * 0.3);
+    
+    console.log(`👁️  Features: Eyes=${eyeRegionScore.toFixed(2)}, Mouth=${mouthRegionScore.toFixed(2)}, Symmetry=${symmetryScore.toFixed(2)}`);
+    
+    return combinedScore;
+  }
+
+  /**
+   * Detect eye-like regions (dark spots in upper face area)
+   */
+  private detectEyeRegions(image: JimpImage, centerX: number, centerY: number, searchRadius: number): number {
+    let darkRegions = 0;
+    let samples = 0;
+    
+    // Sample in eye region
+    for (let angle = -Math.PI/3; angle <= Math.PI/3; angle += Math.PI/12) {
+      for (let r = searchRadius * 0.3; r <= searchRadius; r += 10) {
+        const x = Math.round(centerX + r * Math.cos(angle));
+        const y = Math.round(centerY + r * Math.sin(angle));
+        
+        if (x >= 0 && x < image.bitmap.width && y >= 0 && y < image.bitmap.height) {
+          const pixel = Jimp.intToRGBA(image.getPixelColor(x, y));
+          const brightness = (pixel.r + pixel.g + pixel.b) / 3;
+          
+          if (brightness < 80) { // Dark pixel threshold for eyes
+            darkRegions++;
+          }
+          samples++;
+        }
+      }
+    }
+    
+    const eyeScore = samples > 0 ? darkRegions / samples : 0;
+    return Math.min(1, eyeScore * 3); // Amplify the score
+  }
+
+  /**
+   * Detect mouth region
+   */
+  private detectMouthRegion(image: JimpImage, centerX: number, centerY: number, searchRadius: number): number {
+    // Look for horizontal features (mouth line)
+    let horizontalFeatures = 0;
+    let samples = 0;
+    
+    for (let x = centerX - searchRadius; x <= centerX + searchRadius; x += 5) {
+      if (x >= 1 && x < image.bitmap.width - 1) {
+        const y = Math.round(centerY);
+        if (y >= 1 && y < image.bitmap.height - 1) {
+          
+          const current = Jimp.intToRGBA(image.getPixelColor(x, y));
+          const above = Jimp.intToRGBA(image.getPixelColor(x, y - 1));
+          const below = Jimp.intToRGBA(image.getPixelColor(x, y + 1));
+          
+          const currentBrightness = (current.r + current.g + current.b) / 3;
+          const aboveBrightness = (above.r + above.g + above.b) / 3;
+          const belowBrightness = (below.r + below.g + below.b) / 3;
+          
+          // Look for edge/line pattern
+          if (Math.abs(currentBrightness - aboveBrightness) > 20 || 
+              Math.abs(currentBrightness - belowBrightness) > 20) {
+            horizontalFeatures++;
+          }
+          samples++;
+        }
+      }
+    }
+    
+    const mouthScore = samples > 0 ? horizontalFeatures / samples : 0;
+    return Math.min(1, mouthScore * 2);
+  }
+
+  /**
+   * Calculate facial symmetry
+   */
+  private calculateFacialSymmetry(image: JimpImage, centerX: number, centerY: number, radius: number): number {
+    let symmetryMatches = 0;
+    let comparisons = 0;
+    
+    // Compare left and right sides of the circular area
+    for (let angle = 0; angle < Math.PI/2; angle += Math.PI/16) {
+      for (let r = radius * 0.2; r <= radius * 0.8; r += 10) {
+        const leftX = Math.round(centerX - r * Math.cos(angle));
+        const rightX = Math.round(centerX + r * Math.cos(angle));
+        const y = Math.round(centerY + r * Math.sin(angle));
+        
+        if (leftX >= 0 && rightX < image.bitmap.width && y >= 0 && y < image.bitmap.height) {
+          const leftPixel = Jimp.intToRGBA(image.getPixelColor(leftX, y));
+          const rightPixel = Jimp.intToRGBA(image.getPixelColor(rightX, y));
+          
+          const leftBrightness = (leftPixel.r + leftPixel.g + leftPixel.b) / 3;
+          const rightBrightness = (rightPixel.r + rightPixel.g + rightPixel.b) / 3;
+          
+          const difference = Math.abs(leftBrightness - rightBrightness);
+          if (difference < 40) { // Similar brightness indicates symmetry
+            symmetryMatches++;
+          }
+          comparisons++;
+        }
+      }
+    }
+    
+    const symmetryScore = comparisons > 0 ? symmetryMatches / comparisons : 0;
+    return symmetryScore;
   }
   
   private detectImageQuality(image: JimpImage): number {
@@ -1421,13 +1766,13 @@ Provide response in JSON format:
     return totalPixels > 0 ? darkPixels / totalPixels : 0;
   }
 
-  private mockLivenessScore(): number {
-    const mockScore = 0.6 + Math.random() * 0.3;
-    logger.info('Using mock liveness score', { mockScore });
-    return mockScore;
+  private secureLivenessFallback(): number {
+    const secureScore = 0.0;
+    logger.error('Liveness detection system error - returning secure failure score', { secureScore });
+    return secureScore;
   }
 
-  private mockLivenessDetection(): {
+  private secureDetailedLivenessFallback(): {
     isLive: boolean;
     confidence: number;
     checks: {
@@ -1436,22 +1781,22 @@ Provide response in JSON format:
       eyeGaze: boolean;
     };
   } {
-    const mockResult = {
-      isLive: Math.random() > 0.2, // 80% chance of being live
-      confidence: 0.6 + Math.random() * 0.3,
+    const secureResult = {
+      isLive: false,
+      confidence: 0.0,
       checks: {
-        blinkDetected: Math.random() > 0.5,
-        headMovement: Math.random() > 0.4,
-        eyeGaze: Math.random() > 0.3
+        blinkDetected: false,
+        headMovement: false,
+        eyeGaze: false
       }
     };
     
-    logger.info('Using mock liveness detection', {
-      mockResult,
-      reason: 'Fallback to mock detection'
+    logger.error('Detailed liveness detection system error - returning secure failure result', {
+      secureResult,
+      reason: 'System error during detailed liveness detection'
     });
     
-    return mockResult;
+    return secureResult;
   }
   
   private detectMimeType(buffer: Buffer): string {
@@ -1477,6 +1822,24 @@ Provide response in JSON format:
     reasoning?: string;
   } {
     try {
+      // Check for common AI refusal patterns
+      const refusalPatterns = [
+        /I'm unable to analyze/i,
+        /I cannot analyze/i,
+        /I'm not able to/i,
+        /I can't analyze/i,
+        /unable to perform/i,
+        /cannot perform/i,
+        /cannot compare/i,
+        /unable to compare/i
+      ];
+      
+      const isRefusal = refusalPatterns.some(pattern => pattern.test(aiResponse));
+      if (isRefusal) {
+        console.log('🤖 OpenAI refused face comparison, using text extraction');
+        return this.extractScoreFromText(aiResponse);
+      }
+      
       // Clean the response - sometimes AI adds markdown formatting
       let cleanResponse = aiResponse.trim();
       if (cleanResponse.startsWith('```json')) {
@@ -1484,6 +1847,12 @@ Provide response in JSON format:
       }
       if (cleanResponse.startsWith('```')) {
         cleanResponse = cleanResponse.replace(/```\n?/, '').replace(/```$/, '');
+      }
+      
+      // Check if it looks like JSON before parsing
+      if (!cleanResponse.startsWith('{') && !cleanResponse.startsWith('[')) {
+        console.log('🤖 AI response does not appear to be JSON, extracting from text');
+        return this.extractScoreFromText(aiResponse);
       }
       
       try {
@@ -1508,7 +1877,7 @@ Provide response in JSON format:
         };
         
       } catch (jsonError) {
-        console.warn('🤖 AI face comparison response not valid JSON, extracting score from text:', jsonError);
+        console.log('🤖 AI face comparison response not valid JSON, extracting from text');
         return this.extractScoreFromText(aiResponse);
       }
       
@@ -1567,6 +1936,22 @@ Provide response in JSON format:
     reasoning?: string;
   } {
     try {
+      // Check for common AI refusal patterns
+      const refusalPatterns = [
+        /I'm unable to analyze/i,
+        /I cannot analyze/i,
+        /I'm not able to/i,
+        /I can't analyze/i,
+        /unable to perform/i,
+        /cannot perform/i
+      ];
+      
+      const isRefusal = refusalPatterns.some(pattern => pattern.test(aiResponse));
+      if (isRefusal) {
+        console.log('🤖 OpenAI refused liveness analysis, using text extraction');
+        return this.extractLivenessFromText(aiResponse);
+      }
+      
       // Clean the response - sometimes AI adds markdown formatting
       let cleanResponse = aiResponse.trim();
       if (cleanResponse.startsWith('```json')) {
@@ -1574,6 +1959,12 @@ Provide response in JSON format:
       }
       if (cleanResponse.startsWith('```')) {
         cleanResponse = cleanResponse.replace(/```\n?/, '').replace(/```$/, '');
+      }
+      
+      // Check if it looks like JSON before parsing
+      if (!cleanResponse.startsWith('{') && !cleanResponse.startsWith('[')) {
+        console.log('🤖 AI response does not appear to be JSON, extracting from text');
+        return this.extractLivenessFromText(aiResponse);
       }
       
       try {
@@ -1609,7 +2000,7 @@ Provide response in JSON format:
         };
         
       } catch (jsonError) {
-        console.warn('🤖 AI liveness response not valid JSON, extracting data from text:', jsonError);
+        console.log('🤖 AI liveness response not valid JSON, extracting data from text');
         return this.extractLivenessFromText(aiResponse);
       }
       

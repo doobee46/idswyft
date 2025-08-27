@@ -459,8 +459,8 @@ export class FaceApiService {
       // Don't try to download the file - just use the path info for scoring
       logger.info('Using enhanced fallback liveness detection (no file download required)', { imagePath, challengeResponse });
       
-      // Enhanced scoring based on the presence of an image path and challenge
-      let score = 0.70; // Higher base score - assumes reasonable image since it got this far
+      // Proper scoring based on the presence of an image path and challenge
+      let score = 0.30; // Realistic base score for proper validation
       
       // Add challenge bonus
       if (challengeResponse) {
@@ -472,8 +472,8 @@ export class FaceApiService {
       const randomVariation = (Math.random() - 0.5) * 0.08; // ±0.04 variation
       score += randomVariation;
       
-      // Ensure score stays within reasonable bounds
-      score = Math.max(0.65, Math.min(0.85, score));
+      // Ensure score stays within realistic bounds
+      score = Math.max(0.20, Math.min(0.60, score));
       
       logger.info('Enhanced fallback liveness detection completed', { 
         score, 
@@ -483,9 +483,9 @@ export class FaceApiService {
       });
       
       return {
-        isLive: score > 0.6,
+        isLive: score > 0.5,  // Lowered threshold since we lowered base scores
         score,
-        confidence: 0.75,
+        confidence: 0.4,  // Lower confidence for fallback method
         analysis: {
           faceDetected: true,
           expressionVariability: 0.6,
@@ -506,9 +506,9 @@ export class FaceApiService {
       
       // Even in error case, give a reasonable score since we got this far in the process
       return {
-        isLive: true,
-        score: 0.68, // Still above threshold
-        confidence: 0.6,
+        isLive: false,  // Default to more secure failure
+        score: 0.3, // Lower realistic score
+        confidence: 0.3,
         analysis: {
           faceDetected: true,
           expressionVariability: 0.5,

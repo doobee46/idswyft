@@ -210,7 +210,7 @@ BEGIN
     ) INTO selfie_exists;
     
     -- Check if face match score is good
-    face_match_good := (NEW.face_match_score IS NULL OR NEW.face_match_score > 0.8);
+    face_match_good := (NEW.face_match_score IS NULL OR NEW.face_match_score > 0.85);
     
     -- Update status based on conditions
     IF doc_exists AND (NOT selfie_exists OR (selfie_exists AND face_match_good)) THEN
