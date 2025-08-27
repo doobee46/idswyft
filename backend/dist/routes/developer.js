@@ -279,11 +279,12 @@ router.get('/api-keys', apiKeyRateLimit, authenticateDeveloperJWT, catchAsync(as
     if (!developer) {
         throw new AuthenticationError('Developer authentication required');
     }
-    // Get API keys with additional security info
+    // Get API keys with additional security info (only active keys)
     const { data: apiKeys, error } = await supabase
         .from('api_keys')
         .select('id, key_prefix, name, is_sandbox, is_active, last_used_at, created_at, expires_at')
         .eq('developer_id', developer.id)
+        .eq('is_active', true)
         .order('created_at', { ascending: false });
     if (error) {
         logger.error('Failed to get API keys:', error);

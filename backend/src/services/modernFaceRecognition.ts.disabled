@@ -1,5 +1,26 @@
-import * as faceapi from '@vladmandic/face-api';
-import { Canvas, Image, createCanvas, loadImage } from 'canvas';
+// Optional imports with type safety
+let faceapi: any = null;
+let Canvas: any = null;
+let Image: any = null;
+let createCanvas: any = null;
+let loadImage: any = null;
+
+try {
+  const faceapiModule = await import('@vladmandic/face-api');
+  faceapi = faceapiModule;
+} catch (error) {
+  console.log('⚠️  @vladmandic/face-api not available');
+}
+
+try {
+  const canvasModule = await import('canvas');
+  Canvas = canvasModule.Canvas;
+  Image = canvasModule.Image;
+  createCanvas = canvasModule.createCanvas;
+  loadImage = canvasModule.loadImage;
+} catch (error) {
+  console.log('⚠️  canvas not available');
+}
 import { logger } from '@/utils/logger.js';
 import { StorageService } from './storage.js';
 import path from 'path';
@@ -8,14 +29,16 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Configure face-api.js for Node.js environment
-// @ts-ignore
-faceapi.env.monkeyPatch({ Canvas, Image });
+// Configure face-api.js for Node.js environment if available
+if (faceapi && Canvas && Image) {
+  // @ts-ignore
+  faceapi.env.monkeyPatch({ Canvas, Image });
+}
 
 interface FaceDescriptor {
   descriptor: Float32Array;
-  detection: faceapi.FaceDetection;
-  landmarks?: faceapi.FaceLandmarks68;
+  detection: any;
+  landmarks?: any;
 }
 
 interface FaceComparisonResult {
@@ -272,8 +295,8 @@ export class ModernFaceRecognitionService {
       
       if (detection.expressions) {
         const topExpression = Object.entries(detection.expressions)
-          .sort(([,a], [,b]) => b - a)[0];
-        console.log(`   😊 Top Expression: ${topExpression[0]} (${topExpression[1].toFixed(3)})`);
+          .sort(([,a], [,b]) => (b as number) - (a as number))[0];
+        console.log(`   😊 Top Expression: ${topExpression[0]} (${(topExpression[1] as number).toFixed(3)})`);
       }
 
       logger.info('Liveness detection completed', {
@@ -349,7 +372,7 @@ export class ModernFaceRecognitionService {
   /**
    * Assess the quality of facial landmarks
    */
-  private assessLandmarkQuality(landmarks: faceapi.FaceLandmarks68): number {
+  private assessLandmarkQuality(landmarks: any): number {
     const points = landmarks.positions;
     
     // Check if we have all expected landmark points
@@ -358,8 +381,8 @@ export class ModernFaceRecognitionService {
     }
 
     // Calculate landmark spread (wider spread indicates better detection)
-    const xs = points.map(p => p.x);
-    const ys = points.map(p => p.y);
+    const xs = points.map((p: any) => p.x);
+    const ys = points.map((p: any) => p.y);
     const xRange = Math.max(...xs) - Math.min(...xs);
     const yRange = Math.max(...ys) - Math.min(...ys);
     
@@ -367,12 +390,12 @@ export class ModernFaceRecognitionService {
     const spreadScore = Math.min(1.0, (xRange + yRange) / 400);
     
     // Check for unrealistic landmark clustering
-    const avgX = xs.reduce((a, b) => a + b) / xs.length;
-    const avgY = ys.reduce((a, b) => a + b) / ys.length;
-    const deviations = points.map(p => 
+    const avgX = xs.reduce((a: number, b: number) => a + b) / xs.length;
+    const avgY = ys.reduce((a: number, b: number) => a + b) / ys.length;
+    const deviations = points.map((p: any) => 
       Math.sqrt(Math.pow(p.x - avgX, 2) + Math.pow(p.y - avgY, 2))
     );
-    const avgDeviation = deviations.reduce((a, b) => a + b) / deviations.length;
+    const avgDeviation = deviations.reduce((a: number, b: number) => a + b) / deviations.length;
     const consistencyScore = Math.min(1.0, avgDeviation / 50);
 
     return (spreadScore + consistencyScore) / 2;
@@ -381,12 +404,12 @@ export class ModernFaceRecognitionService {
   /**
    * Assess naturalness of facial expressions
    */
-  private assessExpressionNaturalness(expressions: faceapi.FaceExpressions): number {
-    const expressionValues = Object.values(expressions);
+  private assessExpressionNaturalness(expressions: any): number {
+    const expressionValues = Object.values(expressions) as number[];
     
     // Natural faces usually have some variation in expressions, not all neutral
     const maxExpression = Math.max(...expressionValues);
-    const expressionVariety = expressionValues.filter(v => v > 0.1).length;
+    const expressionVariety = expressionValues.filter((v: number) => v > 0.1).length;
     
     // Avoid completely flat or overly extreme expressions
     const naturalness = expressionVariety > 1 && maxExpression < 0.9 ? 0.8 : 0.5;

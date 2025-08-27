@@ -29,9 +29,13 @@ app.use(cors({
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin)
             return callback(null, true);
-        // Allow all localhost origins in development
-        if (config.nodeEnv === 'development' && origin.startsWith('http://localhost:')) {
-            return callback(null, true);
+        // Allow all localhost origins and local network IPs in development
+        if (config.nodeEnv === 'development') {
+            if (origin.startsWith('http://localhost:') ||
+                origin.startsWith('http://127.0.0.1:') ||
+                origin.match(/^http:\/\/192\.168\.\d{1,3}\.\d{1,3}:\d+$/)) {
+                return callback(null, true);
+            }
         }
         // Check against configured origins
         if (config.corsOrigins.indexOf(origin) !== -1) {

@@ -1,18 +1,31 @@
 export declare class FaceRecognitionService {
     private storageService;
+    private enhancedFaceService;
     private isInitialized;
     private faceModel;
     private useAiFaceMatching;
     private useAiLivenessDetection;
+    private useTensorFlowFaceMatching;
+    private useModernFaceRecognition;
+    private faceDetector;
+    private faceLandmarkDetector;
     constructor();
     private initialize;
     compareFaces(documentPath: string, selfiePath: string): Promise<number>;
     private compareWithAI;
+    private compareWithTensorFlow;
     private compareWithTraditional;
+    private extractEnhancedFeatures;
+    private extractLBPFeatures;
+    private extractEdgeFeatures;
+    private extractTextureFeatures;
+    private compareFaceRegions;
+    private compareMultiScale;
+    private assessImageQuality;
     private extractSimpleFeatures;
     private calculateGradients;
     private calculateCosineSimilarity;
-    private mockFaceComparison;
+    private secureFaceComparisonFallback;
     detectLiveness(imagePath: string, challengeResponse?: string): Promise<number>;
     private detectLivenessWithAI;
     private detectLivenessWithTraditional;
@@ -37,6 +50,46 @@ export declare class FaceRecognitionService {
     private detectLivenessDetailedWithAI;
     private detectLivenessDetailedWithTraditional;
     private analyzeLivenessFeatures;
+    /**
+     * Detect if there's a face within the circular capture area
+     */
+    private detectFaceInCircularArea;
+    /**
+     * TensorFlow-based face detection in circular area
+     */
+    private detectFaceWithTensorFlow;
+    /**
+     * Traditional face detection methods for circular area
+     */
+    private detectFaceWithTraditionalMethods;
+    /**
+     * Create a mask for the circular area
+     */
+    private createCircularMask;
+    /**
+     * Detect skin-like colors in the circular area
+     */
+    private detectSkinInCircularArea;
+    /**
+     * Simple skin color detection
+     */
+    private isSkinLikeColor;
+    /**
+     * Detect facial features like eyes, nose, mouth patterns
+     */
+    private detectFacialFeatures;
+    /**
+     * Detect eye-like regions (dark spots in upper face area)
+     */
+    private detectEyeRegions;
+    /**
+     * Detect mouth region
+     */
+    private detectMouthRegion;
+    /**
+     * Calculate facial symmetry
+     */
+    private calculateFacialSymmetry;
     private detectImageQuality;
     private analyzeImageSharpness;
     private checkImageNaturalness;
@@ -49,15 +102,22 @@ export declare class FaceRecognitionService {
     private getImageContrast;
     private detectFaceAsymmetry;
     private detectCurvature;
+    private analyzeColorDepth;
     private analyzeEyeRegions;
-    private mockLivenessScore;
-    private mockLivenessDetection;
+    private secureLivenessFallback;
+    private secureDetailedLivenessFallback;
     private detectMimeType;
     private parseAIFaceComparison;
     private extractScoreFromText;
     private parseAILivenessResponse;
     private extractLivenessFromText;
     extractFaceImage(imagePath: string): Promise<Buffer | null>;
+    private imageBufferToTensor;
+    private extractFaceEmbedding;
+    private initializeTensorFlowModels;
+    private detectFaces;
+    private createFaceEmbedding;
+    private calculateEmbeddingSimilarity;
     healthCheck(): Promise<{
         status: string;
         modelsLoaded: boolean;

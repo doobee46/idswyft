@@ -64,7 +64,8 @@ try {
 }
 
 try {
-  canvas = await import('canvas');
+  // Use dynamic import to avoid TypeScript compile errors
+  canvas = await import('canvas' as any);
   Canvas = canvas.Canvas;
   Image = canvas.Image;
 } catch (error) {

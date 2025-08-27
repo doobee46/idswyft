@@ -17,7 +17,9 @@ let blazeface: any = null;
 type JimpImage = any;
 type TensorFlowModel = any;
 
-// Try to load enhanced face recognition service
+// Enhanced face recognition service temporarily disabled for build compatibility
+// TODO: Re-enable when Sharp and canvas dependencies are properly configured
+/*
 try {
   const { EnhancedFaceRecognitionService: EFRS } = await import('./enhancedFaceRecognition.js');
   EnhancedFaceRecognitionService = EFRS;
@@ -26,6 +28,8 @@ try {
   console.log('⚠️  Enhanced face recognition not available, using fallback methods');
   logger.warn('Enhanced face recognition not available:', error);
 }
+*/
+console.log('⚠️  Enhanced face recognition temporarily disabled for build compatibility');
 
 try {
   tf = await import('@tensorflow/tfjs-node');

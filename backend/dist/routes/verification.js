@@ -324,7 +324,7 @@ router.post('/selfie', authenticateAPIKey, checkSandboxMode, upload.single('self
                     .then(async (matchScore) => {
                     await verificationService.updateVerificationRequest(verification_id, {
                         face_match_score: matchScore,
-                        status: matchScore > 0.8 ? 'verified' : 'failed'
+                        status: matchScore > 0.85 ? 'verified' : 'failed'
                     });
                     logVerificationEvent('face_recognition_completed', verification_id, {
                         selfieId: selfie.id,
@@ -859,10 +859,31 @@ router.post('/live-capture', authenticateAPIKey, checkSandboxMode, verificationR
                         faceRecognitionService.compareFaces(document.file_path, liveCapturePath),
                         faceRecognitionService.detectLiveness(liveCapturePath, challenge_response)
                     ]);
-                    // Determine final status based on both scores
-                    const isLive = livenessScore > 0.7;
-                    const faceMatch = matchScore > 0.8;
+                    // Determine final status based on both scores with detailed logging
+                    const isLive = livenessScore > 0.75; // Raised from 0.7
+                    const faceMatch = matchScore > 0.85; // Raised from 0.8
                     const finalStatus = isLive && faceMatch ? 'verified' : 'failed';
+                    // Comprehensive score analysis logging
+                    console.log(`📊 Verification Score Analysis for ${verification_id}:`);
+                    console.log(`   🎯 Face Match Score: ${matchScore.toFixed(3)} (threshold: 0.85) - ${faceMatch ? '✅ PASS' : '❌ FAIL'}`);
+                    console.log(`   🔍 Liveness Score: ${livenessScore.toFixed(3)} (threshold: 0.75) - ${isLive ? '✅ PASS' : '❌ FAIL'}`);
+                    console.log(`   📝 Final Status: ${finalStatus.toUpperCase()}`);
+                    console.log(`   🔗 Document Path: ${document.file_path}`);
+                    console.log(`   📸 Live Capture Path: ${liveCapturePath}`);
+                    // Log specific failure reasons for debugging
+                    if (!isLive && !faceMatch) {
+                        console.log(`   ⚠️  Both liveness and face matching failed`);
+                    }
+                    else if (!isLive) {
+                        console.log(`   ⚠️  Liveness detection failed (score too low)`);
+                    }
+                    else if (!faceMatch) {
+                        console.log(`   ⚠️  Face matching failed (score too low)`);
+                    }
+                    // Calculate how close scores are to thresholds
+                    const livenessGap = livenessScore - 0.75;
+                    const faceMatchGap = matchScore - 0.85;
+                    console.log(`   📏 Score Gaps: Liveness ${livenessGap >= 0 ? '+' : ''}${livenessGap.toFixed(3)}, Face Match ${faceMatchGap >= 0 ? '+' : ''}${faceMatchGap.toFixed(3)}`);
                     await verificationService.updateVerificationRequest(verification_id, {
                         face_match_score: matchScore,
                         liveness_score: livenessScore,
@@ -921,9 +942,37 @@ router.post('/live-capture', authenticateAPIKey, checkSandboxMode, verificationR
                         selfie: liveCapturePath
                     });
                     // Determine final status based on REAL scores with sandbox-specific thresholds
-                    const isLive = livenessScore > 0.6; // Slightly lower threshold for sandbox
-                    const faceMatch = matchScore > 0.7; // Lower threshold for sandbox testing
+                    const isLive = livenessScore > 0.7; // Tightened threshold for sandbox
+                    const faceMatch = matchScore > 0.8; // Tightened threshold for sandbox testing
                     const finalStatus = isLive && faceMatch ? 'verified' : 'failed';
+                    // Comprehensive sandbox score analysis logging
+                    console.log(`🧪📊 Sandbox Verification Score Analysis for ${verification_id}:`);
+                    console.log(`   🎯 Face Match Score: ${matchScore.toFixed(3)} (sandbox threshold: 0.8) - ${faceMatch ? '✅ PASS' : '❌ FAIL'}`);
+                    console.log(`   🔍 Liveness Score: ${livenessScore.toFixed(3)} (sandbox threshold: 0.7) - ${isLive ? '✅ PASS' : '❌ FAIL'}`);
+                    console.log(`   📝 Final Status: ${finalStatus.toUpperCase()}`);
+                    console.log(`   🔗 Document Path: ${document.file_path}`);
+                    console.log(`   📸 Live Capture Path: ${liveCapturePath}`);
+                    // Compare against production thresholds for reference
+                    const prodLiveness = livenessScore > 0.75;
+                    const prodFaceMatch = matchScore > 0.85;
+                    console.log(`   🏭 Production Comparison: Liveness ${prodLiveness ? '✅' : '❌'} (0.75), Face Match ${prodFaceMatch ? '✅' : '❌'} (0.85)`);
+                    // Log specific failure reasons for debugging
+                    if (!isLive && !faceMatch) {
+                        console.log(`   ⚠️  Both liveness and face matching failed (sandbox thresholds)`);
+                    }
+                    else if (!isLive) {
+                        console.log(`   ⚠️  Liveness detection failed (score below 0.7)`);
+                    }
+                    else if (!faceMatch) {
+                        console.log(`   ⚠️  Face matching failed (score below 0.8)`);
+                    }
+                    // Calculate how close scores are to both sandbox and production thresholds
+                    const sandboxLivenessGap = livenessScore - 0.7;
+                    const sandboxFaceMatchGap = matchScore - 0.8;
+                    const prodLivenessGap = livenessScore - 0.75;
+                    const prodFaceMatchGap = matchScore - 0.85;
+                    console.log(`   📏 Sandbox Gaps: Liveness ${sandboxLivenessGap >= 0 ? '+' : ''}${sandboxLivenessGap.toFixed(3)}, Face Match ${sandboxFaceMatchGap >= 0 ? '+' : ''}${sandboxFaceMatchGap.toFixed(3)}`);
+                    console.log(`   📏 Production Gaps: Liveness ${prodLivenessGap >= 0 ? '+' : ''}${prodLivenessGap.toFixed(3)}, Face Match ${prodFaceMatchGap >= 0 ? '+' : ''}${prodFaceMatchGap.toFixed(3)}`);
                     await verificationService.updateVerificationRequest(verification_id, {
                         face_match_score: matchScore,
                         liveness_score: livenessScore,
