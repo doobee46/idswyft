@@ -1,8 +1,8 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { Layout } from './components/layout/Layout'
 import { HomePage } from './pages/HomePage'
 import { DeveloperPage } from './pages/DeveloperPage'
-import { VerificationPage } from './pages/VerificationPage'
+import { DemoPage } from './pages/DemoPage'
 import UserVerificationPage from './pages/UserVerificationPage'
 import { LiveCapturePage } from './pages/LiveCapturePage'
 import { AdminPage } from './pages/AdminPage'
@@ -16,7 +16,8 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/developer" element={<DeveloperPage />} />
-        <Route path="/verify" element={<VerificationPage />} />
+        <Route path="/verify" element={<Navigate to="/demo" replace />} />
+        <Route path="/demo" element={<DemoPage />} />
         <Route path="/user-verification" element={<UserVerificationPage />} />
         <Route path="/live-capture" element={<LiveCapturePage />} />
         <Route path="/docs" element={<DocsPage />} />

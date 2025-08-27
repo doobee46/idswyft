@@ -359,7 +359,7 @@ export function HomePage() {
                 <ArrowRightIcon className="ml-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />
               </Link>
               <Link
-                to="/verify"
+                to="/demo"
                 className="group inline-flex items-center justify-center w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold text-gray-700 bg-white border-2 border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-xl transition-all duration-300 transform hover:scale-105 touch-manipulation"
               >
                 <PlayIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
@@ -814,7 +814,7 @@ export function HomePage() {
               <ArrowRightIcon className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link
-              to="/verify"
+              to="/demo"
               className="group inline-flex items-center px-10 py-5 bg-transparent border-2 border-white text-white font-bold text-lg rounded-2xl hover:bg-white/10 transition-all duration-300 transform hover:scale-105"
             >
               <PlayIcon className="w-6 h-6 mr-2" />

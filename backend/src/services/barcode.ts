@@ -1,9 +1,11 @@
 import { logger } from '@/utils/logger.js';
 import { StorageService } from './storage.js';
+import { parse as parseUSDL } from 'parse-usdl';
 
 // Optional dependency imports with graceful fallbacks
 let Jimp: any = null;
 let Tesseract: any = null;
+let ZXing: any = null;
 
 // Type definitions for optional dependencies
 type JimpImage = any;
@@ -20,6 +22,13 @@ try {
   logger.warn('Tesseract.js not available, using AI-only processing');
 }
 
+try {
+  ZXing = await import('@zxing/library');
+  console.log('📄 ZXing barcode library loaded for PDF417 detection');
+} catch (error) {
+  logger.warn('ZXing library not available, falling back to OCR-based detection');
+}
+
 export interface BarcodeResult {
   type: 'qr_code' | 'barcode' | 'pdf417' | 'datamatrix';
   data: string;
@@ -33,10 +42,38 @@ export interface BarcodeResult {
   };
 }
 
+export interface PDF417Data {
+  raw_data: string;
+  parsed_data: {
+    firstName?: string;
+    lastName?: string;
+    middleName?: string;
+    dateOfBirth?: string;
+    licenseNumber?: string;
+    expirationDate?: string;
+    issueDate?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+    gender?: string;
+    eyeColor?: string;
+    height?: string;
+    weight?: string;
+    endorsements?: string;
+    restrictions?: string;
+    vehicleClass?: string;
+    organ_donor?: boolean;
+  };
+  confidence: number;
+  validation_status: 'valid' | 'invalid' | 'partial';
+}
+
 export interface BackOfIdData {
   magnetic_stripe?: string;
   qr_code?: string;
   barcode_data?: string;
+  pdf417_data?: PDF417Data;
   parsed_data?: {
     id_number?: string;
     expiry_date?: string;
@@ -54,45 +91,757 @@ export class BarcodeService {
   
   constructor() {
     this.storageService = new StorageService();
-    // Use AI barcode reading if OpenAI API key is available
-    this.useAiBarcodeReading = !!process.env.OPENAI_API_KEY;
+    // Disable AI barcode reading - only use PDF417 OCR-based detection
+    this.useAiBarcodeReading = false;
     
     if (this.useAiBarcodeReading) {
       console.log('🤖 AI-powered barcode/QR scanning enabled (OpenAI GPT-4o Vision)');
     } else {
       console.log('📊 Traditional barcode/QR scanning enabled');
     }
+    
+    console.log('📄 PDF417 driver license decoder enabled (parse-usdl)');
+  }
+
+  /**
+   * Parse PDF417 barcode data from driver's license
+   * Supports both live scan and uploaded images
+   */
+  async parsePDF417(rawBarcodeData: string): Promise<PDF417Data> {
+    try {
+      console.log('📄 Parsing PDF417 barcode data...', {
+        dataLength: rawBarcodeData.length,
+        preview: rawBarcodeData.substring(0, 50) + '...'
+      });
+      
+      // First try parse-usdl library
+      let parsedData = parseUSDL(rawBarcodeData, { suppressErrors: true });
+      
+      // Always run manual AAMVA parsing to ensure we get all fields
+      console.log('📄 Running manual AAMVA parsing to supplement parse-usdl results...');
+      const manualParsed = this.parseAAMVAFieldCodes(rawBarcodeData);
+      
+      // Merge parse-usdl with manual parsing (manual takes precedence for missing fields)
+      parsedData = {
+        ...(parsedData || {}),
+        ...manualParsed
+      };
+      
+      console.log('📄 Combined parsing results:', {
+        manualFields: Object.keys(manualParsed).length,
+        parseUsdlFields: parsedData ? Object.keys(parsedData).length - Object.keys(manualParsed).length : 0,
+        totalFields: Object.keys(parsedData).length,
+        licenseNumber: parsedData.licenseNumber || 'NOT_FOUND'
+      });
+      
+      if (!parsedData) {
+        throw new Error('PDF417 parsing returned null - invalid barcode format');
+      }
+      
+      console.log('✅ PDF417 parsing successful:', {
+        firstName: parsedData.firstName || 'N/A',
+        lastName: parsedData.lastName || 'N/A',
+        licenseNumber: parsedData.licenseNumber || 'N/A',
+        state: parsedData.state || 'N/A'
+      });
+      
+      // Calculate confidence based on how many fields were successfully parsed
+      const totalFields = Object.keys(parsedData).length;
+      const populatedFields = Object.values(parsedData).filter(value => 
+        value !== null && value !== undefined && value !== ''
+      ).length;
+      const confidence = Math.min(0.95, populatedFields / Math.max(totalFields, 10));
+      
+      // Determine validation status
+      let validation_status: 'valid' | 'invalid' | 'partial' = 'valid';
+      const criticalFields = ['firstName', 'lastName', 'licenseNumber', 'dateOfBirth'];
+      const missingCriticalFields = criticalFields.filter(field => 
+        !parsedData[field] || parsedData[field] === ''
+      );
+      
+      if (missingCriticalFields.length > 2) {
+        validation_status = 'invalid';
+      } else if (missingCriticalFields.length > 0) {
+        validation_status = 'partial';
+      }
+      
+      const result: PDF417Data = {
+        raw_data: rawBarcodeData,
+        parsed_data: {
+          firstName: parsedData.firstName || undefined,
+          lastName: parsedData.lastName || undefined,
+          middleName: parsedData.middleName || undefined,
+          dateOfBirth: parsedData.dateOfBirth || undefined,
+          licenseNumber: parsedData.licenseNumber || undefined,
+          expirationDate: parsedData.expirationDate || undefined,
+          issueDate: parsedData.issueDate || undefined,
+          address: parsedData.address || undefined,
+          city: parsedData.city || undefined,
+          state: parsedData.state || undefined,
+          zipCode: parsedData.zipCode || undefined,
+          gender: parsedData.gender || undefined,
+          eyeColor: parsedData.eyeColor || undefined,
+          height: parsedData.height || undefined,
+          weight: parsedData.weight || undefined,
+          endorsements: parsedData.endorsements || undefined,
+          restrictions: parsedData.restrictions || undefined,
+          vehicleClass: parsedData.vehicleClass || undefined,
+          organ_donor: parsedData.organDonor || false
+        },
+        confidence,
+        validation_status
+      };
+      
+      console.log('📄 Final PDF417 parsed data:', {
+        licenseNumber: result.parsed_data.licenseNumber,
+        height: result.parsed_data.height,
+        lastName: result.parsed_data.lastName,
+        dateOfBirth: result.parsed_data.dateOfBirth,
+        confidence: result.confidence,
+        validation_status: result.validation_status
+      });
+      
+      logger.info('PDF417 parsing completed', {
+        validation_status,
+        confidence,
+        criticalFieldsMissing: missingCriticalFields.length,
+        totalFieldsParsed: populatedFields
+      });
+      
+      return result;
+      
+    } catch (error) {
+      console.error('📄 PDF417 parsing failed:', error);
+      logger.error('PDF417 parsing failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        dataLength: rawBarcodeData.length
+      });
+      
+      return {
+        raw_data: rawBarcodeData,
+        parsed_data: {},
+        confidence: 0,
+        validation_status: 'invalid'
+      };
+    }
   }
 
   async scanBackOfId(imagePath: string): Promise<BackOfIdData> {
-    logger.info('Starting back-of-ID scanning', { 
+    logger.info('Starting back-of-ID scanning with PDF417 only', { 
       imagePath,
-      method: 'Local OCR with AI fallback'
+      method: 'PDF417 barcode scanning only'
     });
 
+    console.log('📄 Processing back-of-ID with PDF417 barcode detection...');
+    const backOfIdData = await this.scanWithPDF417AndOCR(imagePath);
+    return backOfIdData;
+  }
+
+  /**
+   * Combined PDF417 + OCR scanning method
+   * First attempts to detect and parse PDF417 barcode, then falls back to OCR
+   */
+  private async scanWithPDF417AndOCR(imagePath: string): Promise<BackOfIdData> {
     try {
-      console.log('🔍 Attempting local OCR for structured data extraction...');
-      return await this.scanWithLocalOCR(imagePath);
-    } catch (localError) {
-      console.warn('🔍 Local OCR failed, falling back to AI scanning:', localError);
-      logger.warn('Local OCR failed, using AI fallback', {
-        error: localError instanceof Error ? localError.message : 'Unknown error'
+      console.log('📄 Starting combined PDF417 + OCR scanning...');
+      
+      // First try proper PDF417 barcode detection with ZXing
+      console.log('📄 Attempting proper PDF417 barcode detection with ZXing...');
+      const pdf417RawData = await this.detectPDF417WithZXing(imagePath);
+      
+      let pdf417Data: PDF417Data;
+      
+      if (pdf417RawData) {
+        // Parse the actual PDF417 data using parse-usdl and manual AAMVA parsing
+        console.log('✅ PDF417 barcode detected, parsing AAMVA data...');
+        pdf417Data = await this.parsePDF417(pdf417RawData);
+      } else {
+        // First try AI-powered PDF417 detection
+        console.log('📄 ZXing detection failed, trying AI-powered PDF417 detection...');
+        pdf417Data = await this.detectPDF417WithAI(imagePath);
+        
+        // If AI detection also fails, fallback to OCR
+        if (pdf417Data.validation_status === 'invalid') {
+          console.log('📄 AI detection failed, falling back to OCR-based detection...');
+          pdf417Data = await this.detectPDF417WithOCR(imagePath);
+        }
+      }
+      
+      // Also run OCR in parallel for additional data extraction
+      const ocrData = await this.scanWithLocalOCR(imagePath);
+      
+      // Combine the results
+      const combinedResult: BackOfIdData = {
+        ...ocrData,
+        pdf417_data: pdf417Data.validation_status !== 'invalid' ? pdf417Data : undefined
+      };
+      
+      // If PDF417 parsing was successful, merge its data into parsed_data
+      if (pdf417Data.validation_status !== 'invalid') {
+        combinedResult.parsed_data = {
+          ...ocrData.parsed_data,
+          id_number: pdf417Data.parsed_data.licenseNumber || ocrData.parsed_data?.id_number,
+          expiry_date: pdf417Data.parsed_data.expirationDate || ocrData.parsed_data?.expiry_date,
+          issuing_authority: pdf417Data.parsed_data.state || ocrData.parsed_data?.issuing_authority,
+          address: this.combineAddress(pdf417Data.parsed_data) || ocrData.parsed_data?.address,
+          additional_info: {
+            ...ocrData.parsed_data?.additional_info,
+            pdf417_parsed: true,
+            pdf417_confidence: pdf417Data.confidence,
+            name: `${pdf417Data.parsed_data.firstName || ''} ${pdf417Data.parsed_data.middleName || ''} ${pdf417Data.parsed_data.lastName || ''}`.trim(),
+            date_of_birth: pdf417Data.parsed_data.dateOfBirth,
+            gender: pdf417Data.parsed_data.gender,
+            eye_color: pdf417Data.parsed_data.eyeColor,
+            height: pdf417Data.parsed_data.height,
+            weight: pdf417Data.parsed_data.weight,
+            endorsements: pdf417Data.parsed_data.endorsements,
+            restrictions: pdf417Data.parsed_data.restrictions,
+            vehicle_class: pdf417Data.parsed_data.vehicleClass,
+            organ_donor: pdf417Data.parsed_data.organ_donor
+          }
+        };
+        
+        console.log('✅ PDF417 + OCR scanning successful:', {
+          pdf417_confidence: pdf417Data.confidence,
+          pdf417_validation: pdf417Data.validation_status,
+          license_number: pdf417Data.parsed_data.licenseNumber,
+          name: `${pdf417Data.parsed_data.firstName || ''} ${pdf417Data.parsed_data.lastName || ''}`.trim()
+        });
+      }
+      
+      logger.info('Combined PDF417 + OCR scanning completed', {
+        imagePath,
+        pdf417_success: pdf417Data.validation_status !== 'invalid',
+        pdf417_confidence: pdf417Data.confidence,
+        ocr_success: !!ocrData.parsed_data?.id_number
       });
       
-      // Fallback to AI scanning if Tesseract is not available
-      if (this.useAiBarcodeReading) {
-        try {
-          console.log('🤖 Using AI-powered back-of-ID scanning as fallback...');
-          return await this.scanWithAI(imagePath);
-        } catch (aiError) {
-          logger.error('Both local OCR and AI scanning failed:', aiError);
-          throw new Error('All back-of-ID scanning methods failed');
+      return combinedResult;
+      
+    } catch (error) {
+      console.error('📄 Combined PDF417 + OCR scanning failed:', error);
+      logger.error('Combined PDF417 + OCR scanning failed', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      // Fallback to just OCR
+      console.log('🔍 Falling back to OCR-only scanning...');
+      return await this.scanWithLocalOCR(imagePath);
+    }
+  }
+
+  /**
+   * Detect and extract PDF417 barcode using OCR and pattern matching
+   */
+  private async detectPDF417WithOCR(imagePath: string): Promise<PDF417Data> {
+    try {
+      console.log('📄 Attempting to detect PDF417 barcode with OCR...');
+      
+      // Use local OCR to scan for barcode-like patterns
+      const ocrData = await this.scanWithLocalOCR(imagePath);
+      
+      // Look for PDF417-like patterns in OCR text
+      // PDF417 barcodes on driver's licenses typically contain specific data patterns
+      const ocrText = ocrData.raw_text || '';
+      
+      console.log(`📄 OCR text analysis: length=${ocrText.length}, hasIdNumber=${!!ocrData.parsed_data?.id_number}`);
+      console.log(`📄 OCR first 100 chars: "${ocrText.substring(0, 100)}"`);
+      
+      // If OCR text is completely empty, this might be a processing issue
+      if (ocrText.length === 0) {
+        console.warn('📄 OCR returned completely empty text - image processing may have failed');
+      }
+      
+      // Check if we have structured data that might be from a PDF417 barcode
+      if (ocrData.parsed_data?.id_number) {
+        console.log('📄 OCR detected structured data, treating as PDF417 equivalent');
+        
+        // Create a PDF417Data structure from OCR data
+        return {
+          raw_data: ocrText,
+          parsed_data: {
+            licenseNumber: ocrData.parsed_data.id_number,
+            firstName: ocrData.parsed_data.first_name || '',
+            lastName: ocrData.parsed_data.last_name || '',
+            dateOfBirth: ocrData.parsed_data.date_of_birth,
+            expirationDate: ocrData.parsed_data.expiry_date,
+            state: ocrData.parsed_data.issuing_authority,
+            address: ocrData.parsed_data.address
+          },
+          confidence: 0.6, // OCR-based detection has lower confidence
+          validation_status: 'partial' as const
+        };
+      }
+      
+      // If no structured data, return invalid result
+      throw new Error('No PDF417 barcode pattern detected in OCR text');
+      
+    } catch (error) {
+      console.warn('📄 OCR PDF417 detection failed:', error);
+      return {
+        raw_data: '',
+        parsed_data: {},
+        confidence: 0,
+        validation_status: 'invalid'
+      };
+    }
+  }
+
+  /**
+   * Legacy AI-based PDF417 detection (now unused)
+   */
+  private async detectPDF417WithAI(imagePath: string): Promise<PDF417Data> {
+    try {
+      if (!this.useAiBarcodeReading) {
+        throw new Error('AI barcode reading not available');
+      }
+      
+      console.log('🤖 Detecting PDF417 barcode with AI...');
+      
+      // Download image
+      const imageBuffer = await this.storageService.downloadFile(imagePath);
+      const imageBase64 = imageBuffer.toString('base64');
+      const mimeType = this.detectMimeType(imageBuffer);
+      
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: `Analyze this driver's license back image and locate the PDF417 barcode (large rectangular barcode, typically on the bottom).
+
+Extract the EXACT text content from the PDF417 barcode. PDF417 barcodes on driver's licenses contain encoded personal information as a long string of text.
+
+Please provide:
+1. Location of the PDF417 barcode (if found)
+2. The complete raw text data from the PDF417 barcode
+3. Assessment of barcode quality/readability
+
+Response format:
+{
+  "pdf417_found": true/false,
+  "barcode_location": "description of where the barcode is located",
+  "raw_data": "exact text content from the PDF417 barcode",
+  "quality_assessment": "assessment of barcode readability",
+  "confidence": 0.0-1.0
+}
+
+IMPORTANT: Extract the complete raw text data exactly as it appears in the barcode. This data will be parsed separately.`
+                },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: `data:${mimeType};base64,${imageBase64}`,
+                    detail: 'high'
+                  }
+                }
+              ]
+            }
+          ],
+          max_tokens: 1500,
+          temperature: 0.1
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(`OpenAI API error: ${JSON.stringify(error)}`);
+      }
+
+      const result = await response.json();
+      const analysisText = result.choices[0].message.content;
+      
+      // Parse AI response
+      let aiResult;
+      try {
+        const cleanResponse = analysisText.replace(/```json\n?/, '').replace(/```$/, '');
+        aiResult = JSON.parse(cleanResponse);
+      } catch (parseError) {
+        console.warn('🤖 AI response parsing failed, extracting manually');
+        // Manual extraction fallback
+        const dataMatch = analysisText.match(/raw_data['"]\s*:\s*['"]([^'"]+)['"]/i);
+        if (dataMatch) {
+          aiResult = {
+            pdf417_found: true,
+            raw_data: dataMatch[1],
+            confidence: 0.7
+          };
+        } else {
+          throw new Error('Could not extract PDF417 data from AI response');
         }
-      } else {
-        logger.error('Back-of-ID scanning failed and no AI fallback available');
-        throw new Error('Back-of-ID scanning failed - no fallback available');
+      }
+      
+      if (!aiResult.pdf417_found || !aiResult.raw_data) {
+        console.log('📄 No PDF417 barcode found in image');
+        return {
+          raw_data: '',
+          parsed_data: {},
+          confidence: 0,
+          validation_status: 'invalid'
+        };
+      }
+      
+      console.log('📄 PDF417 barcode detected with AI, parsing with parse-usdl...');
+      console.log(`📄 AI extracted raw data length: ${aiResult.raw_data.length}`);
+      console.log(`📄 AI raw data preview: "${aiResult.raw_data.substring(0, 200)}"`);
+      
+      // Parse the extracted raw data
+      return await this.parsePDF417(aiResult.raw_data);
+      
+    } catch (error) {
+      console.error('🤖 AI PDF417 detection failed:', error);
+      return {
+        raw_data: '',
+        parsed_data: {},
+        confidence: 0,
+        validation_status: 'invalid'
+      };
+    }
+  }
+
+  /**
+   * Detect and decode PDF417 barcode from image using ZXing library
+   */
+  private async detectPDF417WithZXing(imagePath: string): Promise<string | null> {
+    if (!ZXing || !Jimp) {
+      console.log('📄 ZXing or Jimp not available, skipping barcode detection');
+      return null;
+    }
+
+    try {
+      console.log('📄 Starting ZXing PDF417 barcode detection...');
+      
+      // Download and process image
+      const imageBuffer = await this.storageService.downloadFile(imagePath);
+      const image = await Jimp.read(imageBuffer);
+      
+      // Preprocess image for better barcode detection
+      image
+        .greyscale()
+        .contrast(0.5)
+        .normalize();
+      
+      // Convert to format needed by ZXing
+      const { width, height } = image.bitmap;
+      const imageData = new Uint8ClampedArray(image.bitmap.data);
+      
+      console.log(`📄 Scanning image ${width}x${height} for PDF417 barcode...`);
+      
+      // Try different ZXing readers
+      const readers = [
+        new ZXing.PDF417Reader(),
+        new ZXing.MultiFormatReader()
+      ];
+      
+      for (const reader of readers) {
+        try {
+          // Set up hints for better detection
+          const hints = new Map();
+          hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.PDF_417]);
+          hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+          hints.set(ZXing.DecodeHintType.PURE_BARCODE, false);
+          
+          // Create luminance source - convert RGBA to grayscale
+          const grayscaleData = new Uint8ClampedArray(width * height);
+          for (let i = 0; i < grayscaleData.length; i++) {
+            const pixelIndex = i * 4;
+            // Convert RGBA to grayscale using standard formula
+            grayscaleData[i] = Math.round(
+              0.299 * imageData[pixelIndex] +     // R
+              0.587 * imageData[pixelIndex + 1] + // G
+              0.114 * imageData[pixelIndex + 2]   // B
+            );
+          }
+          
+          const luminanceSource = new ZXing.PlanarYUVLuminanceSource(
+            grayscaleData, width, height, 0, 0, width, height, false
+          );
+          const binaryBitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
+          
+          const result = reader.decode(binaryBitmap, hints);
+          
+          if (result && result.getText()) {
+            const decodedText = result.getText();
+            console.log(`✅ PDF417 barcode decoded successfully with ${reader.constructor.name}!`, {
+              length: decodedText.length,
+              preview: decodedText.substring(0, 100) + '...'
+            });
+            
+            return decodedText;
+          }
+          
+        } catch (readerError) {
+          console.log(`📄 ${reader.constructor.name} failed:`, readerError.message);
+        }
+      }
+      
+      console.log('❌ No PDF417 barcode found in image with any reader');
+      return null;
+      
+    } catch (error) {
+      console.warn('📄 ZXing PDF417 detection failed:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Manually parse AAMVA field codes from PDF417 raw data
+   * Fallback when parse-usdl library doesn't extract sufficient data
+   */
+  private parseAAMVAFieldCodes(rawData: string): any {
+    const fields: any = {};
+    
+    try {
+      console.log('📄 Manually parsing AAMVA field codes...');
+      console.log(`🔍 Raw AAMVA data (first 200 chars): ${rawData.substring(0, 200)}`);
+      
+      // AAMVA field code mappings
+      const aamvaFields = {
+        'DAA': 'fullName',         // Full Name
+        'DAC': 'firstName',        // First Name  
+        'DAD': 'middleName',       // Middle Name
+        'DCS': 'lastName',         // Last Name (Family Name)
+        'DBB': 'dateOfBirth',      // Date of Birth
+        'DBA': 'expirationDate',   // License Expiry Date
+        'DBD': 'issueDate',        // License Issue Date
+        'DAG': 'address',          // Street Address
+        'DAI': 'city',             // City
+        'DAJ': 'state',            // State
+        'DAK': 'zipCode',          // ZIP Code
+        'DAQ': 'licenseNumber',    // License Number (primary)
+        'DCF': 'documentDiscriminator', // Document Discriminator
+        'DBC': 'gender',           // Sex/Gender
+        'DAY': 'eyeColor',         // Eye Color
+        'DAU': 'height',           // Height
+        'DCE': 'weight',           // Weight
+        'DCA': 'vehicleClass',     // License Class
+        'DCB': 'restrictions',     // Restrictions
+        'DCD': 'endorsements'      // Endorsements
+      };
+      
+      // Parse each AAMVA field from the raw data
+      for (const [code, fieldName] of Object.entries(aamvaFields)) {
+        // Look for pattern: CODE + data until next CODE or end
+        // More flexible pattern to handle various field separators
+        const regex = new RegExp(`${code}([^\\r\\n\\x1e]*?)(?=\\x1e|[A-Z]{3}|$)`, 'g');
+        const match = regex.exec(rawData);
+        
+        if (match && match[1]) {
+          let value = match[1].trim();
+          
+          // Clean and format specific fields
+          switch (fieldName) {
+            case 'dateOfBirth':
+              // Handle different date formats: YYYYMMDD or MMDDYYYY
+              if (value.length === 8) {
+                if (value.substring(0, 4) > '1900') {
+                  // YYYYMMDD format
+                  value = `${value.substring(4, 6)}/${value.substring(6, 8)}/${value.substring(0, 4)}`;
+                } else {
+                  // MMDDYYYY format
+                  value = `${value.substring(0, 2)}/${value.substring(2, 4)}/${value.substring(4, 8)}`;
+                }
+              }
+              break;
+              
+            case 'expirationDate':
+            case 'issueDate':
+              // Similar date formatting
+              if (value.length === 8) {
+                if (value.substring(0, 4) > '1900') {
+                  value = `${value.substring(4, 6)}/${value.substring(6, 8)}/${value.substring(0, 4)}`;
+                } else {
+                  value = `${value.substring(0, 2)}/${value.substring(2, 4)}/${value.substring(4, 8)}`;
+                }
+              }
+              break;
+              
+            case 'height':
+              // Convert height format if needed (inches to feet/inches)
+              if (/^\d{3}$/.test(value)) {
+                const totalInches = parseInt(value);
+                const feet = Math.floor(totalInches / 12);
+                const inches = totalInches % 12;
+                value = `${feet}'-${inches.toString().padStart(2, '0')}"`;
+              }
+              break;
+          }
+          
+          fields[fieldName] = value;
+          console.log(`📄 AAMVA ${code} (${fieldName}): ${value}`);
+        }
+      }
+      
+      // Special fallback for license number (DAQ) - try multiple patterns
+      if (!fields.licenseNumber) {
+        console.log('🔍 License number not found with standard regex, trying fallback patterns...');
+        
+        // Try more aggressive patterns for DAQ
+        const daqPatterns = [
+          /DAQ([A-Z0-9\-]+)/i,           // Basic DAQ pattern
+          /DAQ\s*([A-Z0-9\-]+)/i,       // With optional space
+          /DAQ([^\r\n\x1e]+)/i,         // Until line break or separator
+          /DAQ([^D][^A-Z]{0,20})/i      // Until next likely field code
+        ];
+        
+        for (const pattern of daqPatterns) {
+          const match = rawData.match(pattern);
+          if (match && match[1]) {
+            fields.licenseNumber = match[1].trim();
+            console.log(`📄 Found license number with fallback pattern: ${fields.licenseNumber}`);
+            break;
+          }
+        }
+        
+        if (!fields.licenseNumber) {
+          console.log('🔍 Still no license number found, showing all DAQ occurrences in raw data:');
+          const allDAQMatches = [...rawData.matchAll(/DAQ/gi)];
+          allDAQMatches.forEach((match, i) => {
+            const start = Math.max(0, match.index! - 10);
+            const end = Math.min(rawData.length, match.index! + 30);
+            const context = rawData.substring(start, end);
+            console.log(`📄 DAQ occurrence ${i + 1}: "${context}"`);
+          });
+        }
+      }
+      
+      console.log(`📄 Manual AAMVA parsing extracted ${Object.keys(fields).length} fields`);
+      return fields;
+      
+    } catch (error) {
+      console.error('📄 Manual AAMVA parsing failed:', error);
+      return {};
+    }
+  }
+
+  /**
+   * Convert height from display format (5'-07") to AAMVA format (507)
+   */
+  private convertToAAMVAHeight(height: string): string {
+    // Match patterns like "5'-07"", "5'7"", "5 ft 7 in"
+    const feetInchesMatch = height.match(/(\d+)['']?[^0-9]*(\d+)/);
+    if (feetInchesMatch) {
+      const feet = feetInchesMatch[1];
+      const inches = feetInchesMatch[2].padStart(2, '0');
+      return feet + inches; // e.g., "5" + "07" = "507"
+    }
+    
+    // If already in AAMVA format (507), return as-is
+    if (/^\d{3}$/.test(height.trim())) {
+      return height.trim();
+    }
+    
+    // If just inches (67"), convert to AAMVA format
+    const inchesMatch = height.match(/(\d+)/);
+    if (inchesMatch) {
+      const totalInches = parseInt(inchesMatch[1]);
+      if (totalInches > 12) {
+        const feet = Math.floor(totalInches / 12);
+        const inches = (totalInches % 12).toString().padStart(2, '0');
+        return feet + inches;
       }
     }
+    
+    return height; // Return original if can't parse
+  }
+
+  /**
+   * Calculate similarity between two addresses for flexible matching
+   */
+  private calculateAddressSimilarity(addr1: string, addr2: string): number {
+    // Split addresses into words and compare
+    const words1 = addr1.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+    const words2 = addr2.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+    
+    let matches = 0;
+    const totalWords = Math.max(words1.length, words2.length);
+    
+    for (const word1 of words1) {
+      for (const word2 of words2) {
+        if (word1.includes(word2) || word2.includes(word1) || 
+            this.levenshteinDistance(word1, word2) <= 2) {
+          matches++;
+          break;
+        }
+      }
+    }
+    
+    return totalWords > 0 ? matches / totalWords : 0;
+  }
+  
+  /**
+   * Compare height formats (handle various formats like "5'-07"", "507", etc.)
+   */
+  private compareHeightFormats(height1: string, height2: string): boolean {
+    const normalizeHeight = (h: string): number => {
+      // Extract feet and inches, convert to total inches
+      const feetInchesMatch = h.match(/(\d+)'[^0-9]*(\d+)/);
+      if (feetInchesMatch) {
+        return parseInt(feetInchesMatch[1]) * 12 + parseInt(feetInchesMatch[2]);
+      }
+      
+      // Check if it's just inches (like "67" for 5'7")
+      const inchesMatch = h.match(/(\d+)/);
+      if (inchesMatch) {
+        const inches = parseInt(inchesMatch[1]);
+        if (inches > 12) return inches; // Assume total inches
+        return inches * 12; // Assume feet only
+      }
+      
+      return 0;
+    };
+    
+    const inches1 = normalizeHeight(height1);
+    const inches2 = normalizeHeight(height2);
+    
+    // Allow 1 inch difference for measurement variations
+    return Math.abs(inches1 - inches2) <= 1;
+  }
+  
+  /**
+   * Calculate Levenshtein distance for string similarity
+   */
+  private levenshteinDistance(str1: string, str2: string): number {
+    const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+    
+    for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+    for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+    
+    for (let j = 1; j <= str2.length; j++) {
+      for (let i = 1; i <= str1.length; i++) {
+        const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+        matrix[j][i] = Math.min(
+          matrix[j][i - 1] + 1,
+          matrix[j - 1][i] + 1,
+          matrix[j - 1][i - 1] + cost
+        );
+      }
+    }
+    
+    return matrix[str2.length][str1.length];
+  }
+
+  /**
+   * Helper method to combine address components from PDF417 data
+   */
+  private combineAddress(pdf417Data: PDF417Data['parsed_data']): string | undefined {
+    const addressParts = [
+      pdf417Data.address,
+      pdf417Data.city,
+      pdf417Data.state,
+      pdf417Data.zipCode
+    ].filter(part => part && part.trim().length > 0);
+    
+    return addressParts.length > 0 ? addressParts.join(', ') : undefined;
   }
 
   private async scanWithAI(imagePath: string): Promise<BackOfIdData> {
@@ -942,13 +1691,22 @@ This is for document verification and security analysis purposes.`
       id_number_match?: boolean;
       expiry_date_match?: boolean;
       issuing_authority_match?: boolean;
+      name_match?: boolean;
+      pdf417_validation?: 'valid' | 'invalid' | 'partial' | 'not_found';
       overall_consistency: boolean;
     };
     discrepancies: string[];
+    pdf417_insights?: {
+      data_quality: number;
+      fields_matched: number;
+      critical_data_present: boolean;
+    };
   }> {
     const discrepancies: string[] = [];
     let matches = 0;
     let totalChecks = 0;
+    
+    console.log('🔄 Starting enhanced cross-validation with PDF417 support...');
 
     // Compare ID/Document numbers (normalize field names)
     const frontIdNumber = frontOcrData?.document_number || frontOcrData?.id_number;
@@ -995,6 +1753,188 @@ This is for document verification and security analysis purposes.`
       else discrepancies.push(`Issuing authority mismatch: front="${frontOcrData.issuing_authority}" vs back="${backOfIdData.parsed_data.issuing_authority}"`);
     }
 
+    // PDF417-specific validation and cross-checking
+    let pdf417Insights: any = undefined;
+    let nameMatch: boolean | undefined = undefined;
+    let pdf417Validation: 'valid' | 'invalid' | 'partial' | 'not_found' = 'not_found';
+    
+    if (backOfIdData.pdf417_data) {
+      pdf417Validation = backOfIdData.pdf417_data.validation_status;
+      const pdf417 = backOfIdData.pdf417_data.parsed_data;
+      
+      console.log('📄 Performing PDF417 cross-validation...', {
+        pdf417_confidence: backOfIdData.pdf417_data.confidence,
+        pdf417_status: pdf417Validation
+      });
+      
+      let fieldsMatched = 0;
+      let pdf417Checks = 0;
+      
+      // Compare names from front ID OCR with PDF417 data
+      const frontFirstName = frontOcrData?.first_name || frontOcrData?.given_name;
+      const frontLastName = frontOcrData?.last_name || frontOcrData?.family_name || frontOcrData?.surname;
+      
+      if ((frontFirstName || frontLastName) && (pdf417.firstName || pdf417.lastName)) {
+        totalChecks++;
+        pdf417Checks++;
+        
+        const firstNameMatch = !frontFirstName || !pdf417.firstName || 
+          frontFirstName.toLowerCase().trim() === pdf417.firstName.toLowerCase().trim();
+        const lastNameMatch = !frontLastName || !pdf417.lastName || 
+          frontLastName.toLowerCase().trim() === pdf417.lastName.toLowerCase().trim();
+        
+        nameMatch = firstNameMatch && lastNameMatch;
+        
+        if (nameMatch) {
+          matches++;
+          fieldsMatched++;
+        } else {
+          discrepancies.push(
+            `Name mismatch: front="${frontFirstName} ${frontLastName}" vs PDF417="${pdf417.firstName} ${pdf417.lastName}"`
+          );
+        }
+      }
+      
+      // Cross-validate ID numbers (PDF417 vs front ID) - normalize formats
+      if (frontIdNumber && pdf417.licenseNumber) {
+        pdf417Checks++;
+        const pdf417IdNormalized = pdf417.licenseNumber.replace(/\s+/g, '');
+        const frontIdNormalized = frontIdNumber.replace(/\s+/g, '');
+        
+        console.log(`🔍 ID number comparison: front="${frontIdNumber}" -> "${frontIdNormalized}" vs PDF417="${pdf417.licenseNumber}" -> "${pdf417IdNormalized}"`);
+        
+        if (pdf417IdNormalized === frontIdNormalized) {
+          fieldsMatched++;
+          console.log('✅ PDF417 ID number matches front ID');
+        } else {
+          discrepancies.push(
+            `PDF417 ID mismatch: front="${frontIdNumber}" (${frontIdNormalized}) vs PDF417="${pdf417.licenseNumber}" (${pdf417IdNormalized})`
+          );
+        }
+      }
+      
+      // Cross-validate dates of birth (PDF417 vs front ID)
+      const frontDOB = frontOcrData?.date_of_birth || frontOcrData?.dateOfBirth;
+      if (frontDOB && pdf417.dateOfBirth) {
+        pdf417Checks++;
+        const frontDOBNormalized = this.normalizeDateForComparison(frontDOB);
+        const pdf417DOBNormalized = this.normalizeDateForComparison(pdf417.dateOfBirth);
+        
+        if (frontDOBNormalized === pdf417DOBNormalized) {
+          fieldsMatched++;
+          console.log('✅ PDF417 date of birth matches front ID');
+        } else {
+          discrepancies.push(
+            `PDF417 DOB mismatch: front="${frontDOB}" vs PDF417="${pdf417.dateOfBirth}"`
+          );
+        }
+      }
+      
+      // Cross-validate addresses (PDF417 vs front ID)
+      const frontAddress = frontOcrData?.address;
+      const pdf417FullAddress = this.combineAddress(pdf417);
+      if (frontAddress && pdf417FullAddress) {
+        pdf417Checks++;
+        const frontAddressNormalized = frontAddress.toLowerCase().replace(/[^\w\s]/g, '').trim();
+        const pdf417AddressNormalized = pdf417FullAddress.toLowerCase().replace(/[^\w\s]/g, '').trim();
+        
+        // More flexible address matching (check if major components are present)
+        const addressSimilarity = this.calculateAddressSimilarity(frontAddressNormalized, pdf417AddressNormalized);
+        if (addressSimilarity > 0.7) {
+          fieldsMatched++;
+          console.log(`✅ PDF417 address similarity: ${(addressSimilarity * 100).toFixed(1)}%`);
+        } else {
+          discrepancies.push(
+            `PDF417 address mismatch (similarity: ${(addressSimilarity * 100).toFixed(1)}%): front="${frontAddress}" vs PDF417="${pdf417FullAddress}"`
+          );
+        }
+      }
+      
+      // Cross-validate gender/sex (PDF417 vs front ID)
+      const frontGender = frontOcrData?.sex || frontOcrData?.gender;
+      if (frontGender && pdf417.gender) {
+        pdf417Checks++;
+        const frontGenderNormalized = frontGender.toUpperCase().charAt(0);
+        const pdf417GenderNormalized = pdf417.gender.toUpperCase().charAt(0);
+        
+        if (frontGenderNormalized === pdf417GenderNormalized) {
+          fieldsMatched++;
+          console.log('✅ PDF417 gender matches front ID');
+        } else {
+          discrepancies.push(
+            `PDF417 gender mismatch: front="${frontGender}" vs PDF417="${pdf417.gender}"`
+          );
+        }
+      }
+      
+      // Cross-validate height (PDF417 vs front ID) - normalize formats
+      const frontHeight = frontOcrData?.height;
+      if (frontHeight && pdf417.height) {
+        pdf417Checks++;
+        
+        // Convert front height to AAMVA format for comparison
+        const frontHeightAAMVA = this.convertToAAMVAHeight(frontHeight);
+        const pdf417HeightAAMVA = pdf417.height;
+        
+        console.log(`🔍 Height comparison: front="${frontHeight}" -> AAMVA="${frontHeightAAMVA}" vs PDF417="${pdf417HeightAAMVA}"`);
+        
+        if (frontHeightAAMVA === pdf417HeightAAMVA) {
+          fieldsMatched++;
+          console.log('✅ PDF417 height matches front ID');
+        } else {
+          discrepancies.push(
+            `PDF417 height mismatch: front="${frontHeight}" (${frontHeightAAMVA}) vs PDF417="${pdf417HeightAAMVA}"`
+          );
+        }
+      }
+
+      // Cross-validate expiry dates (PDF417 vs front ID)
+      if (frontExpiryDate && pdf417.expirationDate) {
+        pdf417Checks++;
+        const pdf417DateNormalized = this.normalizeDateForComparison(pdf417.expirationDate);
+        const frontDateNormalized = this.normalizeDateForComparison(frontExpiryDate);
+        
+        if (pdf417DateNormalized === frontDateNormalized) {
+          fieldsMatched++;
+          console.log('✅ PDF417 expiry date matches front ID');
+        } else {
+          discrepancies.push(
+            `PDF417 expiry mismatch: front="${frontExpiryDate}" vs PDF417="${pdf417.expirationDate}"`
+          );
+        }
+      }
+      
+      // Cross-validate issuing state/authority
+      if (frontOcrData?.issuing_authority && pdf417.state) {
+        pdf417Checks++;
+        if (this.matchIssuingAuthorities(frontOcrData.issuing_authority, pdf417.state)) {
+          fieldsMatched++;
+          console.log('✅ PDF417 state matches front ID issuing authority');
+        } else {
+          discrepancies.push(
+            `PDF417 state mismatch: front authority="${frontOcrData.issuing_authority}" vs PDF417 state="${pdf417.state}"`
+          );
+        }
+      }
+      
+      // Assess PDF417 data quality
+      const criticalFields = ['firstName', 'lastName', 'licenseNumber', 'dateOfBirth', 'expirationDate'];
+      const presentCriticalFields = criticalFields.filter(field => 
+        pdf417[field] && pdf417[field].toString().trim().length > 0
+      ).length;
+      
+      pdf417Insights = {
+        data_quality: backOfIdData.pdf417_data.confidence,
+        fields_matched: fieldsMatched,
+        critical_data_present: presentCriticalFields >= 4, // At least 4 out of 5 critical fields
+        total_pdf417_checks: pdf417Checks,
+        present_critical_fields: presentCriticalFields,
+        pdf417_validation_status: pdf417Validation
+      };
+      
+      console.log('📄 PDF417 validation completed:', pdf417Insights);
+    }
+
     const matchScore = totalChecks > 0 ? matches / totalChecks : 0.5;
     const overallConsistency = matchScore >= 0.7 && discrepancies.length === 0;
 
@@ -1015,9 +1955,12 @@ This is for document verification and security analysis purposes.`
           frontOcrData.expiry_date === backOfIdData.parsed_data.expiry_date : undefined,
         issuing_authority_match: frontOcrData?.issuing_authority && backOfIdData.parsed_data?.issuing_authority ?
           this.matchIssuingAuthorities(frontOcrData.issuing_authority, backOfIdData.parsed_data.issuing_authority) : undefined,
+        name_match: nameMatch,
+        pdf417_validation: pdf417Validation,
         overall_consistency: overallConsistency
       },
-      discrepancies
+      discrepancies,
+      pdf417_insights: pdf417Insights
     };
   }
 

@@ -15,7 +15,7 @@ interface LayoutProps {
 const navigation = [
   { name: 'Home', href: '/', icon: ShieldCheckIcon },
   { name: 'Developer', href: '/developer', icon: CodeBracketIcon },
-  { name: 'Verify', href: '/verify', icon: DocumentTextIcon },
+  { name: 'Demo', href: '/demo', icon: DocumentTextIcon },
   { name: 'Docs', href: '/docs', icon: DocumentTextIcon },
   { name: 'Admin', href: '/admin', icon: CogIcon },
 ]

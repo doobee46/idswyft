@@ -27,8 +27,8 @@ export const NotFoundPage: React.FC = () => {
               <a href="/developer" className="text-blue-600 hover:text-blue-800">
                 Developer Portal
               </a>
-              <a href="/verify" className="text-blue-600 hover:text-blue-800">
-                Identity Verification
+              <a href="/demo" className="text-blue-600 hover:text-blue-800">
+                Interactive Demo
               </a>
               <a href="/docs" className="text-blue-600 hover:text-blue-800">
                 API Documentation
