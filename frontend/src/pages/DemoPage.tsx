@@ -579,12 +579,7 @@ const DemoPage: React.FC = () => {
     }
 
     const detectFaces = () => {
-      // Always log detectFaces calls for debugging
-      console.log('🎬 detectFaces() called', {
-        hasVideo: !!videoElementRef.current,
-        hasCanvas: !!canvasRef.current,
-        cameraState: cameraState
-      });
+      // Face detection initiated
       
       if (!videoElementRef.current || !canvasRef.current) {
         // Stop detection if elements are missing
@@ -668,22 +663,6 @@ const DemoPage: React.FC = () => {
         // Clear canvas (we'll only draw overlays, not the video itself)
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // Debug: Add semi-transparent background to verify canvas visibility
-        ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Debug: Temporary border to verify canvas positioning
-        ctx.strokeStyle = '#ff0000';
-        ctx.lineWidth = 5;
-        ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
-        
-        // Debug: Add a big visible test rectangle
-        ctx.fillStyle = '#00ff00';
-        ctx.fillRect(50, 50, 100, 100);
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 20px Arial';
-        ctx.fillText('CANVAS TEST', 60, 110);
-        
         // Draw circular guide overlay
         const centerX = canvas.width / 2;
         const centerY = canvas.height / 2;
@@ -708,14 +687,7 @@ const DemoPage: React.FC = () => {
         
         // Try OpenCV face detection if available
         let faceCount = 0;
-        // Log face detection status every time for debugging
-        console.log('🔍 Face detection check:', {
-          hasOpenCV: !!window.cv,
-          hasMat: !!(window.cv && window.cv.Mat),
-          hasClassifier: !!faceClassifierRef.current,
-          opencvReady: opencvReady,
-          willUseOpenCV: !!(window.cv && window.cv.Mat && faceClassifierRef.current && opencvReady)
-        });
+        // Check face detection capabilities
         
         if (window.cv && window.cv.Mat && faceClassifierRef.current && opencvReady) {
           console.log('🔍 OPENCV: Attempting OpenCV face detection');
@@ -750,23 +722,7 @@ const DemoPage: React.FC = () => {
               const scaleX = canvas.width / videoWidth;
               const scaleY = canvas.height / videoHeight;
               
-              // Draw face rectangles on overlay canvas with proper scaling
-              ctx.strokeStyle = '#00ff00';
-              ctx.lineWidth = 3;
-              for (let i = 0; i < faceCount; i++) {
-                const face = faces.get(i);
-                const scaledX = face.x * scaleX;
-                const scaledY = face.y * scaleY;
-                const scaledWidth = face.width * scaleX;
-                const scaledHeight = face.height * scaleY;
-                
-                ctx.strokeRect(scaledX, scaledY, scaledWidth, scaledHeight);
-                
-                // Draw "FACE DETECTED" text
-                ctx.fillStyle = '#00ff00';
-                ctx.font = 'bold 14px Arial';
-                ctx.fillText('FACE DETECTED', scaledX, scaledY - 10);
-              }
+              // Face detection successful - count recorded but no visual overlay drawn
               
               // Cleanup OpenCV objects
               try {
@@ -835,8 +791,8 @@ const DemoPage: React.FC = () => {
             const hasFaceFeatures = skinToneRatio > 0.02 && avgBrightness > 30 && avgBrightness < 240;
             faceCount = hasFaceFeatures ? 1 : 0;
             
-            // Log EVERY detection attempt for debugging
-            console.log('🔍 FALLBACK Face detection analysis:', { 
+            // Fallback face detection analysis
+            console.log('🔍 FALLBACK Face detection:', { 
               faceCount, 
               skinToneRatio: skinToneRatio.toFixed(3), 
               avgBrightness: avgBrightness.toFixed(1),
