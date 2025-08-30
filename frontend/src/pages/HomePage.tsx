@@ -25,6 +25,111 @@ import {
   SparklesIcon
 } from '@heroicons/react/24/outline'
 
+// VS Code style syntax highlighting component
+const SyntaxHighlighter = ({ code, language }: { code: string; language: string }) => {
+  const highlightCode = (text: string, lang: string) => {
+    const lines = text.split('\n')
+    
+    return lines.map((line, lineIndex) => {
+      let highlightedLine = line
+      
+      // Apply syntax highlighting based on language
+      if (lang === 'javascript') {
+        // Keywords
+        highlightedLine = highlightedLine.replace(/\b(const|let|var|function|async|await|import|from|export|default|if|else|for|while|return|try|catch|new)\b/g, 
+          '<span class="text-[#ff7b72]">$1</span>')
+        // Strings
+        highlightedLine = highlightedLine.replace(/(["'`])((?:\\.|[^\\])*?)\1/g, 
+          '<span class="text-[#a5d6ff]">$1$2$1</span>')
+        // Comments
+        highlightedLine = highlightedLine.replace(/(\/\/.*$)/g, 
+          '<span class="text-[#8b949e]">$1</span>')
+        // Functions/methods
+        highlightedLine = highlightedLine.replace(/(\w+)(\()/g, 
+          '<span class="text-[#d2a8ff]">$1</span>$2')
+        // Objects and properties
+        highlightedLine = highlightedLine.replace(/(\w+)(\s*:)/g, 
+          '<span class="text-[#79c0ff]">$1</span>$2')
+        // Numbers
+        highlightedLine = highlightedLine.replace(/\b(\d+(?:\.\d+)?)\b/g, 
+          '<span class="text-[#79c0ff]">$1</span>')
+        // Class names and constructors
+        highlightedLine = highlightedLine.replace(/\b([A-Z][a-zA-Z0-9]*)\b/g, 
+          '<span class="text-[#ffa657]">$1</span>')
+      } else if (lang === 'python') {
+        // Keywords
+        highlightedLine = highlightedLine.replace(/\b(def|class|import|from|if|elif|else|for|while|return|try|except|with|as|async|await|None|True|False)\b/g, 
+          '<span class="text-[#ff7b72]">$1</span>')
+        // Strings
+        highlightedLine = highlightedLine.replace(/(["'])((?:\\.|[^\\])*?)\1/g, 
+          '<span class="text-[#a5d6ff]">$1$2$1</span>')
+        // Comments
+        highlightedLine = highlightedLine.replace(/(#.*$)/g, 
+          '<span class="text-[#8b949e]">$1</span>')
+        // Functions
+        highlightedLine = highlightedLine.replace(/(\w+)(\()/g, 
+          '<span class="text-[#d2a8ff]">$1</span>$2')
+        // Numbers  
+        highlightedLine = highlightedLine.replace(/\b(\d+(?:\.\d+)?)\b/g, 
+          '<span class="text-[#79c0ff]">$1</span>')
+        // Class names
+        highlightedLine = highlightedLine.replace(/\b([A-Z][a-zA-Z0-9]*)\b/g, 
+          '<span class="text-[#ffa657]">$1</span>')
+      } else if (lang === 'curl' || lang === 'bash') {
+        // Comments
+        highlightedLine = highlightedLine.replace(/(#.*$)/g, 
+          '<span class="text-[#8b949e]">$1</span>')
+        // Commands
+        highlightedLine = highlightedLine.replace(/^(\s*)(curl|jq|echo|cd|ls|mkdir|npm|git)\b/g, 
+          '$1<span class="text-[#79c0ff]">$2</span>')
+        // Options/flags
+        highlightedLine = highlightedLine.replace(/(\s)(-[a-zA-Z-]+)/g, 
+          '$1<span class="text-[#ffa657]">$2</span>')
+        // URLs
+        highlightedLine = highlightedLine.replace(/(https?:\/\/[^\s]+)/g, 
+          '<span class="text-[#a5d6ff]">$1</span>')
+        // Strings in quotes
+        highlightedLine = highlightedLine.replace(/(["'])((?:\\.|[^\\])*?)\1/g, 
+          '<span class="text-[#a5d6ff]">$1$2$1</span>')
+      } else if (lang === 'json') {
+        // Property names
+        highlightedLine = highlightedLine.replace(/"([^"]+)"(\s*:)/g, 
+          '<span class="text-[#79c0ff]">"$1"</span>$2')
+        // String values
+        highlightedLine = highlightedLine.replace(/:\s*"([^"]*?)"/g, 
+          ': <span class="text-[#a5d6ff]">"$1"</span>')
+        // Numbers
+        highlightedLine = highlightedLine.replace(/:\s*(\d+(?:\.\d+)?)/g, 
+          ': <span class="text-[#79c0ff]">$1</span>')
+        // Booleans and null
+        highlightedLine = highlightedLine.replace(/:\s*(true|false|null)\b/g, 
+          ': <span class="text-[#ff7b72]">$1</span>')
+        // Brackets and braces
+        highlightedLine = highlightedLine.replace(/([{}[\]])/g, 
+          '<span class="text-[#ffa657]">$1</span>')
+      }
+      
+      // Line numbers for multi-line code
+      const lineNumber = lines.length > 5 ? 
+        `<span class="text-[#8b949e] select-none mr-4 inline-block w-8 text-right">${(lineIndex + 1).toString().padStart(2, ' ')}</span>` : ''
+      
+      return (
+        <div key={lineIndex} className="block">
+          <span dangerouslySetInnerHTML={{ 
+            __html: lineNumber + (highlightedLine || '<span class="text-gray-300"> </span>') 
+          }} />
+        </div>
+      )
+    })
+  }
+  
+  return (
+    <div className="text-gray-300">
+      {highlightCode(code, language)}
+    </div>
+  )
+}
+
 const features = [
   {
     name: 'AI-Powered Document Verification',
@@ -645,7 +750,9 @@ export function HomePage() {
               </div>
               
               <pre className="text-xs sm:text-sm overflow-x-auto whitespace-pre-wrap sm:whitespace-pre">
-                <code className="text-gray-300 leading-relaxed">{codeExamples[activeTab as keyof typeof codeExamples]}</code>
+                <code className="leading-relaxed">
+                  <SyntaxHighlighter code={codeExamples[activeTab as keyof typeof codeExamples]} language={activeTab} />
+                </code>
               </pre>
               
               {/* Terminal Cursor */}
@@ -674,8 +781,10 @@ export function HomePage() {
               </div>
             </div>
             <div className="bg-[#0d1117] p-4 font-mono">
-              <pre className="text-xs sm:text-sm overflow-x-auto text-gray-300 leading-relaxed">
-                <code>{codeExamples.response}</code>
+              <pre className="text-xs sm:text-sm overflow-x-auto leading-relaxed">
+                <code>
+                  <SyntaxHighlighter code={codeExamples.response} language="json" />
+                </code>
               </pre>
             </div>
           </div>
