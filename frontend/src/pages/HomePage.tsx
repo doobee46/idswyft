@@ -31,97 +31,140 @@ const SyntaxHighlighter = ({ code, language }: { code: string; language: string 
     const lines = text.split('\n')
     
     return lines.map((line, lineIndex) => {
-      let highlightedLine = line
-      
-      // Apply syntax highlighting based on language
-      if (lang === 'javascript') {
-        // Keywords
-        highlightedLine = highlightedLine.replace(/\b(const|let|var|function|async|await|import|from|export|default|if|else|for|while|return|try|catch|new)\b/g, 
-          '<span class="text-[#ff7b72]">$1</span>')
-        // Strings
-        highlightedLine = highlightedLine.replace(/(["'`])((?:\\.|[^\\])*?)\1/g, 
-          '<span class="text-[#a5d6ff]">$1$2$1</span>')
-        // Comments
-        highlightedLine = highlightedLine.replace(/(\/\/.*$)/g, 
-          '<span class="text-[#8b949e]">$1</span>')
-        // Functions/methods
-        highlightedLine = highlightedLine.replace(/(\w+)(\()/g, 
-          '<span class="text-[#d2a8ff]">$1</span>$2')
-        // Objects and properties
-        highlightedLine = highlightedLine.replace(/(\w+)(\s*:)/g, 
-          '<span class="text-[#79c0ff]">$1</span>$2')
-        // Numbers
-        highlightedLine = highlightedLine.replace(/\b(\d+(?:\.\d+)?)\b/g, 
-          '<span class="text-[#79c0ff]">$1</span>')
-        // Class names and constructors (simple approach)
-        highlightedLine = highlightedLine.replace(/\bnew\s+([A-Z][a-zA-Z0-9]*)/g, 
-          'new <span class="text-[#ffa657]">$1</span>')
-        highlightedLine = highlightedLine.replace(/\b([A-Z][a-zA-Z0-9]*)\s*\(/g, 
-          '<span class="text-[#ffa657]">$1</span>(')
-      } else if (lang === 'python') {
-        // Keywords
-        highlightedLine = highlightedLine.replace(/\b(def|class|import|from|if|elif|else|for|while|return|try|except|with|as|async|await|None|True|False)\b/g, 
-          '<span class="text-[#ff7b72]">$1</span>')
-        // Strings
-        highlightedLine = highlightedLine.replace(/(["'])((?:\\.|[^\\])*?)\1/g, 
-          '<span class="text-[#a5d6ff]">$1$2$1</span>')
-        // Comments
-        highlightedLine = highlightedLine.replace(/(#.*$)/g, 
-          '<span class="text-[#8b949e]">$1</span>')
-        // Functions
-        highlightedLine = highlightedLine.replace(/(\w+)(\()/g, 
-          '<span class="text-[#d2a8ff]">$1</span>$2')
-        // Numbers  
-        highlightedLine = highlightedLine.replace(/\b(\d+(?:\.\d+)?)\b/g, 
-          '<span class="text-[#79c0ff]">$1</span>')
-        // Class names (more conservative)
-        highlightedLine = highlightedLine.replace(/\bclass\s+([A-Z][a-zA-Z0-9]*)/g, 
-          'class <span class="text-[#ffa657]">$1</span>')
-        highlightedLine = highlightedLine.replace(/\b([A-Z][a-zA-Z0-9]*)\s*\(/g, 
-          '<span class="text-[#ffa657]">$1</span>(')
-      } else if (lang === 'curl' || lang === 'bash') {
-        // Comments
-        highlightedLine = highlightedLine.replace(/(#.*$)/g, 
-          '<span class="text-[#8b949e]">$1</span>')
-        // Commands (only at beginning of line)
-        highlightedLine = highlightedLine.replace(/^(\s*)(curl|jq|echo|cd|ls|mkdir|npm|git)\b/g, 
-          '$1<span class="text-[#79c0ff]">$2</span>')
-        // Options/flags (only after whitespace and followed by word boundary or equals)
-        highlightedLine = highlightedLine.replace(/(\s)(-[a-zA-Z]+(?:=[^\s]*)?)\b/g, 
-          '$1<span class="text-[#ffa657]">$2</span>')
-        // URLs
-        highlightedLine = highlightedLine.replace(/(https?:\/\/[^\s]+)/g, 
-          '<span class="text-[#a5d6ff]">$1</span>')
-        // Strings in quotes
-        highlightedLine = highlightedLine.replace(/(["'])((?:\\.|[^\\])*?)\1/g, 
-          '<span class="text-[#a5d6ff]">$1$2$1</span>')
-      } else if (lang === 'json') {
-        // Strings first (both property names and values)
-        highlightedLine = highlightedLine.replace(/"([^"]*)"/g, 
-          '<span class="text-[#a5d6ff]">"$1"</span>')
-        // Property names (override string color for keys)
-        highlightedLine = highlightedLine.replace(/<span class="text-\[#a5d6ff\]">"([^"]+)"<\/span>(\s*:)/g, 
-          '<span class="text-[#79c0ff]">"$1"</span>$2')
-        // Numbers (standalone, not in strings)
-        highlightedLine = highlightedLine.replace(/:\s*(\d+(?:\.\d+)?)\b/g, 
-          ': <span class="text-[#79c0ff]">$1</span>')
-        // Booleans and null (standalone values)
-        highlightedLine = highlightedLine.replace(/:\s*\b(true|false|null)\b/g, 
-          ': <span class="text-[#ff7b72]">$1</span>')
-        // Brackets and braces
-        highlightedLine = highlightedLine.replace(/([{}[\],])/g, 
-          '<span class="text-[#ffa657]">$1</span>')
+      // Process the line and create React elements with proper syntax highlighting
+      const processLine = (inputLine: string) => {
+        // For JSON, use a specialized approach
+        if (lang === 'json') {
+          let processedLine = inputLine
+          const parts: React.ReactNode[] = []
+          let lastIndex = 0
+          
+          // Find and highlight different parts in order of precedence
+          const matches: Array<{ start: number; end: number; content: string; className: string }> = []
+          
+          // Property names (keys)
+          let regex = /"([^"]*)"(\s*:)/g
+          let match
+          while ((match = regex.exec(inputLine)) !== null) {
+            matches.push({
+              start: match.index,
+              end: match.index + match[0].length,
+              content: match[0],
+              className: 'text-[#79c0ff]'
+            })
+          }
+          
+          // String values
+          regex = /:\s*"([^"]*)"/g
+          while ((match = regex.exec(inputLine)) !== null) {
+            matches.push({
+              start: match.index,
+              end: match.index + match[0].length,
+              content: match[0],
+              className: 'text-[#a5d6ff]'
+            })
+          }
+          
+          // Numbers
+          regex = /:\s*(\d+(?:\.\d+)?)\b/g
+          while ((match = regex.exec(inputLine)) !== null) {
+            matches.push({
+              start: match.index,
+              end: match.index + match[0].length,
+              content: match[0],
+              className: 'text-[#79c0ff]'
+            })
+          }
+          
+          // Booleans and null
+          regex = /:\s*\b(true|false|null)\b/g
+          while ((match = regex.exec(inputLine)) !== null) {
+            matches.push({
+              start: match.index,
+              end: match.index + match[0].length,
+              content: match[0],
+              className: 'text-[#ff7b72]'
+            })
+          }
+          
+          // Brackets and punctuation
+          regex = /([{}[\],])/g
+          while ((match = regex.exec(inputLine)) !== null) {
+            matches.push({
+              start: match.index,
+              end: match.index + match[0].length,
+              content: match[0],
+              className: 'text-[#ffa657]'
+            })
+          }
+          
+          // Sort matches by position and render
+          matches.sort((a, b) => a.start - b.start)
+          
+          // Remove overlapping matches (keep first one)
+          const filteredMatches = []
+          let lastEnd = 0
+          for (const match of matches) {
+            if (match.start >= lastEnd) {
+              filteredMatches.push(match)
+              lastEnd = match.end
+            }
+          }
+          
+          // Build the line with colored parts
+          let currentPos = 0
+          const lineElements: React.ReactNode[] = []
+          
+          for (let i = 0; i < filteredMatches.length; i++) {
+            const match = filteredMatches[i]
+            
+            // Add text before this match
+            if (match.start > currentPos) {
+              lineElements.push(
+                <span key={`text-${i}`} className="text-gray-300">
+                  {inputLine.slice(currentPos, match.start)}
+                </span>
+              )
+            }
+            
+            // Add the highlighted match
+            lineElements.push(
+              <span key={`match-${i}`} className={match.className}>
+                {match.content}
+              </span>
+            )
+            
+            currentPos = match.end
+          }
+          
+          // Add remaining text
+          if (currentPos < inputLine.length) {
+            lineElements.push(
+              <span key="remaining" className="text-gray-300">
+                {inputLine.slice(currentPos)}
+              </span>
+            )
+          }
+          
+          return <>{lineElements}</>
+        }
+        
+        // For other languages, just return plain text for now
+        return <span className="text-gray-300">{inputLine}</span>
       }
       
       // Line numbers for multi-line code
-      const lineNumber = lines.length > 5 ? 
-        `<span class="text-[#8b949e] select-none mr-4 inline-block w-8 text-right">${(lineIndex + 1).toString().padStart(2, ' ')}</span>` : ''
+      const showLineNumbers = lines.length > 5
+      const lineNumber = showLineNumbers ? (lineIndex + 1).toString().padStart(2, ' ') : ''
       
       return (
         <div key={lineIndex} className="block">
-          <span dangerouslySetInnerHTML={{ 
-            __html: lineNumber + (highlightedLine || '<span class="text-gray-300"> </span>') 
-          }} />
+          {showLineNumbers && (
+            <span className="text-[#8b949e] select-none mr-4 inline-block w-8 text-right">
+              {lineNumber}
+            </span>
+          )}
+          {processLine(line)}
         </div>
       )
     })
