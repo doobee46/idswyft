@@ -170,7 +170,7 @@ const startServer = async () => {
         // Test database connection
         await connectDB();
         // Start HTTP server
-        const server = app.listen(config.port, () => {
+        const server = app.listen(config.port, async () => {
             console.log(`🚀 Idswyft API server running on port ${config.port}`);
             console.log(`📚 API Documentation: http://localhost:${config.port}/api/docs`);
             console.log(`💻 Environment: ${config.nodeEnv}`);
@@ -180,7 +180,7 @@ const startServer = async () => {
             }
             // Start consistency monitor in production
             if (config.nodeEnv === 'production') {
-                const { consistencyMonitor } = require('./services/consistencyMonitor.js');
+                const { consistencyMonitor } = await import('./services/consistencyMonitor.js');
                 consistencyMonitor.start(300000); // 5 minute intervals
                 console.log('🔍 Verification consistency monitor started');
             }
