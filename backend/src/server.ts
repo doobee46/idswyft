@@ -199,6 +199,13 @@ const startServer = async () => {
       if (config.sandbox.enabled) {
         console.log('🧪 Sandbox mode enabled');
       }
+      
+      // Start consistency monitor in production
+      if (config.nodeEnv === 'production') {
+        const { consistencyMonitor } = require('@/services/consistencyMonitor.js');
+        consistencyMonitor.start(300000); // 5 minute intervals
+        console.log('🔍 Verification consistency monitor started');
+      }
     });
 
     // Graceful shutdown

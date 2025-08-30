@@ -10,6 +10,7 @@ import { StorageService } from '@/services/storage.js';
 import { OCRService } from '@/services/ocr.js';
 import { FaceRecognitionService } from '@/services/faceRecognition.js';
 import { BarcodeService } from '@/services/barcode.js';
+import { VerificationConsistencyService } from '@/services/verificationConsistency.js';
 import { logger, logVerificationEvent } from '@/utils/logger.js';
 import { supabase } from '@/config/database.js';
 
@@ -74,6 +75,7 @@ const storageService = new StorageService();
 const ocrService = new OCRService();
 const faceRecognitionService = new FaceRecognitionService();
 const barcodeService = new BarcodeService();
+const consistencyService = new VerificationConsistencyService();
 
 // Route: POST /api/verify/start - Start a new verification session
 router.post('/start',
@@ -770,6 +772,17 @@ router.get('/results/:verification_id',
     const document = documents?.[0] || null;
     const backOfIdDocument = documents?.[1] || null;
     
+    // Validate consistency before returning results
+    const consistencyCheck = await consistencyService.validateVerificationConsistency(verification_id);
+    
+    if (!consistencyCheck.isConsistent) {
+      logger.warn('Verification consistency issues detected', {
+        verificationId: verification_id,
+        issues: consistencyCheck.issues,
+        recommendations: consistencyCheck.recommendations
+      });
+    }
+
     // Build comprehensive response
     const responseData: any = {
       verification_id,
@@ -787,6 +800,7 @@ router.get('/results/:verification_id',
       // Back-of-ID verification results
       back_of_id_uploaded: !!backOfIdDocument,
       barcode_data: backOfIdDocument?.barcode_data || null,
+      pdf417_data: backOfIdDocument?.barcode_data?.pdf417_data || null,
       cross_validation_results: document?.cross_validation_results || null,
       cross_validation_score: verificationRequest.cross_validation_score || null,
       enhanced_verification_completed: verificationRequest.enhanced_verification_completed || false,
@@ -803,7 +817,14 @@ router.get('/results/:verification_id',
         (verificationRequest.failure_reason || getFailureReason(verificationRequest, document, backOfIdDocument)) : null,
       
       // Next steps based on current state
-      next_steps: getNextSteps(verificationRequest, document, backOfIdDocument)
+      next_steps: getNextSteps(verificationRequest, document, backOfIdDocument),
+      
+      // Consistency validation results
+      consistency_check: {
+        is_consistent: consistencyCheck.isConsistent,
+        issues: consistencyCheck.issues,
+        recommendations: consistencyCheck.recommendations
+      }
     };
     
     res.json(responseData);
@@ -1445,6 +1466,59 @@ router.post('/test-pdf417',
         message: error instanceof Error ? error.message : 'Unknown error occurred'
       });
     }
+  })
+);
+
+// Route: POST /api/verify/check-consistency/:verification_id - Manual consistency check
+router.post('/check-consistency/:verification_id',
+  authenticateAPIKey,
+  [
+    param('verification_id')
+      .isUUID()
+      .withMessage('Verification ID must be a valid UUID')
+  ],
+  catchAsync(async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      throw new ValidationError('Validation failed', 'multiple', errors.array());
+    }
+    
+    const { verification_id } = req.params;
+    
+    // Validate verification consistency
+    const consistencyCheck = await consistencyService.validateVerificationConsistency(verification_id);
+    
+    // Recalculate scores if inconsistencies found
+    let recalculatedScores = null;
+    if (!consistencyCheck.isConsistent) {
+      try {
+        recalculatedScores = await consistencyService.recalculateConsistentScores(verification_id);
+        
+        logVerificationEvent('consistency_recalculated', verification_id, {
+          previousIssues: consistencyCheck.issues.length,
+          newStatus: recalculatedScores.final_status,
+          newConfidenceScore: recalculatedScores.confidence_score
+        });
+      } catch (error) {
+        logger.error('Failed to recalculate consistency scores', {
+          verificationId: verification_id,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+    
+    res.json({
+      verification_id,
+      consistency_check: {
+        is_consistent: consistencyCheck.isConsistent,
+        issues: consistencyCheck.issues,
+        recommendations: consistencyCheck.recommendations
+      },
+      recalculated_scores: recalculatedScores,
+      message: consistencyCheck.isConsistent ? 
+        'Verification is consistent' : 
+        `Found ${consistencyCheck.issues.length} consistency issues${recalculatedScores ? ' and recalculated scores' : ''}`
+    });
   })
 );
 
