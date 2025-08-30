@@ -149,7 +149,331 @@ const SyntaxHighlighter = ({ code, language }: { code: string; language: string 
           return <>{lineElements}</>
         }
         
-        // For other languages, just return plain text for now
+        // For curl/bash
+        if (lang === 'curl' || lang === 'bash') {
+          const matches: Array<{ start: number; end: number; content: string; className: string }> = []
+          let regex: RegExp
+          let match: RegExpExecArray | null
+          
+          // Comments
+          regex = /(#.*$)/g
+          while ((match = regex.exec(inputLine)) !== null) {
+            matches.push({
+              start: match.index,
+              end: match.index + match[0].length,
+              content: match[0],
+              className: 'text-[#8b949e]'
+            })
+          }
+          
+          // Commands at beginning of line
+          regex = /^(\s*)(curl|jq|echo|cd|ls|mkdir|npm|git)\b/g
+          while ((match = regex.exec(inputLine)) !== null) {
+            matches.push({
+              start: match.index + match[1].length, // Skip whitespace
+              end: match.index + match[0].length,
+              content: match[2], // Just the command
+              className: 'text-[#79c0ff]'
+            })
+          }
+          
+          // Command line flags
+          regex = /(\s)(-[a-zA-Z]+(?:=[^\s]*)?)\b/g
+          while ((match = regex.exec(inputLine)) !== null) {
+            matches.push({
+              start: match.index + match[1].length, // Skip whitespace
+              end: match.index + match[0].length,
+              content: match[2], // Just the flag
+              className: 'text-[#ffa657]'
+            })
+          }
+          
+          // URLs
+          regex = /(https?:\/\/[^\s\\]+)/g
+          while ((match = regex.exec(inputLine)) !== null) {
+            matches.push({
+              start: match.index,
+              end: match.index + match[0].length,
+              content: match[0],
+              className: 'text-[#a5d6ff]'
+            })
+          }
+          
+          // Strings in quotes
+          regex = /(["'])((?:\\.|[^\\])*?)\1/g
+          while ((match = regex.exec(inputLine)) !== null) {
+            matches.push({
+              start: match.index,
+              end: match.index + match[0].length,
+              content: match[0],
+              className: 'text-[#a5d6ff]'
+            })
+          }
+          
+          // Sort and filter overlapping matches
+          matches.sort((a, b) => a.start - b.start)
+          const filteredMatches = []
+          let lastEnd = 0
+          for (const match of matches) {
+            if (match.start >= lastEnd) {
+              filteredMatches.push(match)
+              lastEnd = match.end
+            }
+          }
+          
+          // Build the line with colored parts
+          let currentPos = 0
+          const lineElements: React.ReactNode[] = []
+          
+          for (let i = 0; i < filteredMatches.length; i++) {
+            const match = filteredMatches[i]
+            
+            // Add text before this match
+            if (match.start > currentPos) {
+              lineElements.push(
+                <span key={`text-${i}`} className="text-gray-300">
+                  {inputLine.slice(currentPos, match.start)}
+                </span>
+              )
+            }
+            
+            // Add the highlighted match
+            lineElements.push(
+              <span key={`match-${i}`} className={match.className}>
+                {match.content}
+              </span>
+            )
+            
+            currentPos = match.end
+          }
+          
+          // Add remaining text
+          if (currentPos < inputLine.length) {
+            lineElements.push(
+              <span key="remaining" className="text-gray-300">
+                {inputLine.slice(currentPos)}
+              </span>
+            )
+          }
+          
+          return <>{lineElements}</>
+        }
+        
+        // For JavaScript
+        if (lang === 'javascript') {
+          const matches: Array<{ start: number; end: number; content: string; className: string }> = []
+          let regex: RegExp
+          let match: RegExpExecArray | null
+          
+          // Comments
+          regex = /(\/\/.*$)/g
+          while ((match = regex.exec(inputLine)) !== null) {
+            matches.push({
+              start: match.index,
+              end: match.index + match[0].length,
+              content: match[0],
+              className: 'text-[#8b949e]'
+            })
+          }
+          
+          // Strings
+          regex = /(["'`])((?:\\.|[^\\])*?)\1/g
+          while ((match = regex.exec(inputLine)) !== null) {
+            matches.push({
+              start: match.index,
+              end: match.index + match[0].length,
+              content: match[0],
+              className: 'text-[#a5d6ff]'
+            })
+          }
+          
+          // Keywords
+          regex = /\b(const|let|var|function|async|await|import|from|export|default|if|else|for|while|return|try|catch|new)\b/g
+          while ((match = regex.exec(inputLine)) !== null) {
+            matches.push({
+              start: match.index,
+              end: match.index + match[0].length,
+              content: match[0],
+              className: 'text-[#ff7b72]'
+            })
+          }
+          
+          // Functions
+          regex = /(\w+)(?=\()/g
+          while ((match = regex.exec(inputLine)) !== null) {
+            matches.push({
+              start: match.index,
+              end: match.index + match[1].length,
+              content: match[1],
+              className: 'text-[#d2a8ff]'
+            })
+          }
+          
+          // Numbers
+          regex = /\b(\d+(?:\.\d+)?)\b/g
+          while ((match = regex.exec(inputLine)) !== null) {
+            matches.push({
+              start: match.index,
+              end: match.index + match[0].length,
+              content: match[0],
+              className: 'text-[#79c0ff]'
+            })
+          }
+          
+          // Sort and filter overlapping matches
+          matches.sort((a, b) => a.start - b.start)
+          const filteredMatches = []
+          let lastEnd = 0
+          for (const match of matches) {
+            if (match.start >= lastEnd) {
+              filteredMatches.push(match)
+              lastEnd = match.end
+            }
+          }
+          
+          // Build the line
+          let currentPos = 0
+          const lineElements: React.ReactNode[] = []
+          
+          for (let i = 0; i < filteredMatches.length; i++) {
+            const match = filteredMatches[i]
+            
+            if (match.start > currentPos) {
+              lineElements.push(
+                <span key={`text-${i}`} className="text-gray-300">
+                  {inputLine.slice(currentPos, match.start)}
+                </span>
+              )
+            }
+            
+            lineElements.push(
+              <span key={`match-${i}`} className={match.className}>
+                {match.content}
+              </span>
+            )
+            
+            currentPos = match.end
+          }
+          
+          if (currentPos < inputLine.length) {
+            lineElements.push(
+              <span key="remaining" className="text-gray-300">
+                {inputLine.slice(currentPos)}
+              </span>
+            )
+          }
+          
+          return <>{lineElements}</>
+        }
+        
+        // For Python
+        if (lang === 'python') {
+          const matches: Array<{ start: number; end: number; content: string; className: string }> = []
+          let regex: RegExp
+          let match: RegExpExecArray | null
+          
+          // Comments
+          regex = /(#.*$)/g
+          while ((match = regex.exec(inputLine)) !== null) {
+            matches.push({
+              start: match.index,
+              end: match.index + match[0].length,
+              content: match[0],
+              className: 'text-[#8b949e]'
+            })
+          }
+          
+          // Strings
+          regex = /(["'])((?:\\.|[^\\])*?)\1/g
+          while ((match = regex.exec(inputLine)) !== null) {
+            matches.push({
+              start: match.index,
+              end: match.index + match[0].length,
+              content: match[0],
+              className: 'text-[#a5d6ff]'
+            })
+          }
+          
+          // Keywords
+          regex = /\b(def|class|import|from|if|elif|else|for|while|return|try|except|with|as|async|await|None|True|False)\b/g
+          while ((match = regex.exec(inputLine)) !== null) {
+            matches.push({
+              start: match.index,
+              end: match.index + match[0].length,
+              content: match[0],
+              className: 'text-[#ff7b72]'
+            })
+          }
+          
+          // Functions
+          regex = /(\w+)(?=\()/g
+          while ((match = regex.exec(inputLine)) !== null) {
+            matches.push({
+              start: match.index,
+              end: match.index + match[1].length,
+              content: match[1],
+              className: 'text-[#d2a8ff]'
+            })
+          }
+          
+          // Numbers
+          regex = /\b(\d+(?:\.\d+)?)\b/g
+          while ((match = regex.exec(inputLine)) !== null) {
+            matches.push({
+              start: match.index,
+              end: match.index + match[0].length,
+              content: match[0],
+              className: 'text-[#79c0ff]'
+            })
+          }
+          
+          // Sort and filter overlapping matches
+          matches.sort((a, b) => a.start - b.start)
+          const filteredMatches = []
+          let lastEnd = 0
+          for (const match of matches) {
+            if (match.start >= lastEnd) {
+              filteredMatches.push(match)
+              lastEnd = match.end
+            }
+          }
+          
+          // Build the line
+          let currentPos = 0
+          const lineElements: React.ReactNode[] = []
+          
+          for (let i = 0; i < filteredMatches.length; i++) {
+            const match = filteredMatches[i]
+            
+            if (match.start > currentPos) {
+              lineElements.push(
+                <span key={`text-${i}`} className="text-gray-300">
+                  {inputLine.slice(currentPos, match.start)}
+                </span>
+              )
+            }
+            
+            lineElements.push(
+              <span key={`match-${i}`} className={match.className}>
+                {match.content}
+              </span>
+            )
+            
+            currentPos = match.end
+          }
+          
+          if (currentPos < inputLine.length) {
+            lineElements.push(
+              <span key="remaining" className="text-gray-300">
+                {inputLine.slice(currentPos)}
+              </span>
+            )
+          }
+          
+          return <>{lineElements}</>
+        }
+        
+        // For other languages, return plain text
         return <span className="text-gray-300">{inputLine}</span>
       }
       
