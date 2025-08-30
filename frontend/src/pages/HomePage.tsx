@@ -82,133 +82,156 @@ const stats = [
 ]
 
 const getCodeExamples = (apiUrl: string) => ({
-  curl: `# Complete AI-powered verification flow
+  curl: `# Complete 6-Step AI-Powered Verification Flow
+
+# Step 1: Start verification session
 curl -X POST ${apiUrl}/api/verify/start \\
   -H "X-API-Key: YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"user_id": "user_123"}'
+  -d '{"user_id": "user_123"}' \\
+  | jq -r '.verification_id'
+# Returns: verif_abc123
 
-# Front of ID with AI OCR
+# Step 2: Upload front of ID with GPT-4o Vision OCR
 curl -X POST ${apiUrl}/api/verify/document \\
   -H "X-API-Key: YOUR_API_KEY" \\
   -F "verification_id=verif_abc123" \\
-  -F "document=@passport.jpg" \\
+  -F "document=@passport_front.jpg" \\
   -F "document_type=passport"
 
-# Back of ID with QR/Barcode scanning
+# Step 3: Upload back of ID with PDF417 barcode scanning
 curl -X POST ${apiUrl}/api/verify/back-of-id \\
   -H "X-API-Key: YOUR_API_KEY" \\
   -F "verification_id=verif_abc123" \\
   -F "back_of_id=@passport_back.jpg" \\
   -F "document_type=passport"
 
-# Live capture with AI liveness detection
+# Step 4: Upload selfie for face matching
+curl -X POST ${apiUrl}/api/verify/selfie \\
+  -H "X-API-Key: YOUR_API_KEY" \\
+  -F "verification_id=verif_abc123" \\
+  -F "selfie=@selfie.jpg"
+
+# Step 5: Generate live token for AI liveness
+curl -X POST ${apiUrl}/api/verify/live-token \\
+  -H "X-API-Key: YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"verification_id": "verif_abc123"}'
+
+# Step 6: Perform live capture with AI liveness detection
 curl -X POST ${apiUrl}/api/verify/live-capture \\
   -H "X-API-Key: YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"verification_id": "verif_abc123", "live_image_data": "base64..."}'
+  -d '{"verification_id": "verif_abc123", "live_image_data": "data:image/jpeg;base64,..."}'
 
-# Get comprehensive results
+# Get comprehensive results with PDF417 data
 curl -X GET ${apiUrl}/api/verify/results/verif_abc123 \\
   -H "X-API-Key: YOUR_API_KEY"`,
-  javascript: `// Direct API calls using fetch (no SDK needed)
-const API_BASE_URL = '${apiUrl}';
-const API_KEY = 'your_api_key';
+  javascript: `// Option 1: Using the Official SDK v2.0.0 (Recommended)
+// npm install idswyft-sdk
+import { IdswyftSDK } from 'idswyft-sdk';
+const client = new IdswyftSDK({ apiKey: 'your_api_key' });
 
-// Start verification session
-const startResponse = await fetch(\`\${API_BASE_URL}/api/verify/start\`, {
-  method: 'POST',
-  headers: {
-    'X-API-Key': API_KEY,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({ user_id: 'user_123' })
-});
-const session = await startResponse.json();
+// Complete 6-Step Verification Flow
+const session = await client.startVerification({ user_id: 'user_123' });
 
-// Upload document
-const formData = new FormData();
-formData.append('verification_id', session.verification_id);
-formData.append('document_type', 'passport');
-formData.append('document', documentFile);
-
-await fetch(\`\${API_BASE_URL}/api/verify/document\`, {
-  method: 'POST',
-  headers: { 'X-API-Key': API_KEY },
-  body: formData
+// Step 1: Upload front of document with AI OCR
+await client.uploadDocument({
+  verification_id: session.verification_id,
+  document: frontImageFile,
+  document_type: 'passport'
 });
 
-// Upload selfie for face matching
-const selfieData = new FormData();
-selfieData.append('verification_id', session.verification_id);
-selfieData.append('selfie', selfieFile);
-
-await fetch(\`\${API_BASE_URL}/api/verify/selfie\`, {
-  method: 'POST',
-  headers: { 'X-API-Key': API_KEY },
-  body: selfieData
+// Step 2: Upload back of ID for PDF417 barcode scanning
+await client.verifyBackOfId({
+  verification_id: session.verification_id,
+  document_type: 'passport',
+  back_of_id_file: backImageFile
 });
 
-// Get results
-const results = await fetch(\`\${API_BASE_URL}/api/verify/results/\${session.verification_id}\`, {
-  headers: { 'X-API-Key': API_KEY }
-}).then(res => res.json());
+// Step 3: Upload selfie for face matching
+await client.uploadSelfie({
+  verification_id: session.verification_id,
+  selfie: selfieFile
+});
+
+// Step 4: Generate live token for AI liveness
+const liveToken = await client.generateLiveToken({
+  verification_id: session.verification_id
+});
+
+// Step 5: Perform live capture with AI liveness detection
+await client.liveCapture({
+  verification_id: session.verification_id,
+  live_image_data: liveCaptureBase64
+});
+
+// Step 6: Get comprehensive results
+const results = await client.getVerificationResults(session.verification_id);
 
 console.log(results.status); // 'verified'
-console.log(results.ocr_data?.name); // 'John Doe'
-console.log(results.face_match_score); // 0.94`,
-  python: `import requests
+console.log(results.ocr_data?.full_name); // 'John Doe'
+console.log(results.back_of_id?.barcode_data?.format); // 'PDF417'
+console.log(results.liveness_analysis?.ai_assessment); // 'GENUINE_PERSON'
+console.log(results.face_match_score); // 0.92`,
+  python: `# Option 1: Using the Official SDK v2.0.0 (Recommended)
+# pip install idswyft
+import idswyft
 
-API_BASE_URL = '${apiUrl}'
-API_KEY = 'your_api_key'
-headers = {'X-API-Key': API_KEY}
+client = idswyft.IdswyftClient(api_key='your_api_key')
 
-# Start verification session
-session_response = requests.post(
-    f'{API_BASE_URL}/api/verify/start',
-    headers={**headers, 'Content-Type': 'application/json'},
-    json={'user_id': 'user_123'}
+# Complete 6-Step Verification Flow
+session = client.start_verification(user_id='user_123')
+
+# Step 1: Upload front of document with AI OCR
+client.upload_document(
+    verification_id=session['verification_id'],
+    document_file=front_image_file,
+    document_type='passport'
 )
-session = session_response.json()
 
-# Upload document
-with open('passport.jpg', 'rb') as doc_file:
-    requests.post(
-        f'{API_BASE_URL}/api/verify/document',
-        headers=headers,
-        files={'document': doc_file},
-        data={
-            'verification_id': session['verification_id'],
-            'document_type': 'passport'
-        }
-    )
+# Step 2: Upload back of ID for PDF417 barcode scanning
+client.verify_back_of_id(
+    verification_id=session['verification_id'],
+    document_type='passport',
+    back_of_id_file=back_image_file
+)
 
-# Upload selfie for face matching
-with open('selfie.jpg', 'rb') as selfie_file:
-    requests.post(
-        f'{API_BASE_URL}/api/verify/selfie',
-        headers=headers,
-        files={'selfie': selfie_file},
-        data={'verification_id': session['verification_id']}
-    )
+# Step 3: Upload selfie for face matching
+client.upload_selfie(
+    verification_id=session['verification_id'],
+    selfie_file=selfie_file
+)
 
-# Get results
-results = requests.get(
-    f'{API_BASE_URL}/api/verify/results/{session["verification_id"]}',
-    headers=headers
-).json()
+# Step 4: Generate live token for AI liveness
+live_token = client.generate_live_token(
+    verification_id=session['verification_id']
+)
+
+# Step 5: Perform live capture with AI liveness detection
+client.live_capture(
+    verification_id=session['verification_id'],
+    live_image_data=live_capture_base64
+)
+
+# Step 6: Get comprehensive results
+results = client.get_verification_results(session['verification_id'])
 
 print(f"Status: {results['status']}")
-print(f"Name: {results.get('ocr_data', {}).get('name')}")
-print(f"Face Match: {results.get('face_match_score')}")`,
+print(f"Name: {results['ocr_data']['full_name']}")
+print(f"Barcode Format: {results['back_of_id']['barcode_data']['format']}")
+print(f"AI Liveness: {results['liveness_analysis']['ai_assessment']}")
+print(f"Face Match Score: {results['face_match_score']}")`,
   response: `{
   "verification_id": "verif_abc123",
   "status": "verified",
   "user_id": "user_123",
+  "session_id": "session_789",
   "created_at": "2024-01-01T12:00:00Z",
   "updated_at": "2024-01-01T12:00:15Z",
+  "completion_steps": ["document", "back_of_id", "selfie", "live_capture"],
   
-  // Document Analysis
+  // Enhanced Document Analysis with AI
   "documents": [{
     "id": "doc_123",
     "file_name": "passport.jpg",
@@ -218,7 +241,15 @@ print(f"Face Match: {results.get('face_match_score')}")`,
       "full_name": "John Doe",
       "date_of_birth": "1990-01-01",
       "expiry_date": "2030-01-01",
-      "nationality": "US"
+      "nationality": "US",
+      "issuing_authority": "U.S. Department of State",
+      "place_of_birth": "New York, NY",
+      "confidence_scores": {
+        "document_number": 0.98,
+        "full_name": 0.97,
+        "date_of_birth": 0.99,
+        "expiry_date": 0.96
+      }
     },
     "quality_analysis": {
       "overallQuality": "excellent",
@@ -226,28 +257,80 @@ print(f"Face Match: {results.get('face_match_score')}")`,
       "blurScore": 342.5,
       "brightness": 128,
       "contrast": 45,
-      "resolution": {
-        "width": 1920,
-        "height": 1080,
-        "isHighRes": true
-      },
-      "fileSize": {
-        "bytes": 2457600,
-        "isReasonableSize": true
-      },
+      "resolution": { "width": 1920, "height": 1080, "isHighRes": true },
+      "fileSize": { "bytes": 2457600, "isReasonableSize": true },
       "issues": [],
       "recommendations": []
     }
   }],
   
-  // Face Matching Results
-  "face_match_score": 0.92,
-  "liveness_score": 0.94,
-  "live_capture_completed": true,
+  // NEW: Back-of-ID with PDF417 Barcode Data
+  "back_of_id": {
+    "id": "back_456",
+    "file_name": "passport_back.jpg", 
+    "barcode_data": {
+      "format": "PDF417",
+      "raw_data": "P<USADOE<<JOHN<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<P1234567891USA9001015M3001015<<<<<<<<<<<<<<04",
+      "parsed_data": {
+        "document_code": "P",
+        "issuing_country": "USA", 
+        "surname": "DOE",
+        "given_names": "JOHN",
+        "passport_number": "P123456789",
+        "nationality": "USA",
+        "date_of_birth": "900101",
+        "sex": "M",
+        "expiration_date": "300101",
+        "personal_number": "",
+        "check_digit": "4"
+      },
+      "verification_codes": ["MRZ123", "SEC789"],
+      "confidence": 0.96
+    },
+    "cross_validation": {
+      "front_back_match": true,
+      "document_number_match": true,
+      "name_match": true,
+      "date_of_birth_match": true,
+      "expiry_date_match": true,
+      "discrepancies": []
+    }
+  },
   
-  // Overall Assessment
+  // Enhanced AI Liveness Detection
+  "liveness_analysis": {
+    "overall_score": 0.94,
+    "ai_assessment": "GENUINE_PERSON",
+    "details": {
+      "facial_depth": 0.92,
+      "skin_texture": 0.95,
+      "lighting_analysis": 0.91,
+      "micro_expressions": 0.96,
+      "spoof_detection": 0.98
+    },
+    "confidence": 0.97,
+    "flags": []
+  },
+  
+  // Smart Face Matching Results  
+  "face_match_score": 0.92,
+  "face_analysis": {
+    "quality_check": "excellent",
+    "age_estimation": { "document": 34, "selfie": 35, "variance": 1 },
+    "lighting_compensation": true,
+    "pose_normalization": true
+  },
+  
+  // AI-Enhanced Overall Assessment
   "confidence_score": 0.93,
-  "manual_review_reason": null
+  "ai_risk_score": 0.08,
+  "authenticity_score": 0.95,
+  "manual_review_reason": null,
+  "verification_metadata": {
+    "processing_time_ms": 847,
+    "ai_models_used": ["gpt-4o-vision", "face-recognition-v2", "liveness-ai"],
+    "security_features_detected": ["hologram", "microprint", "uv_ink"]
+  }
 }`
 })
 
@@ -255,22 +338,22 @@ const integrationSteps = [
   {
     step: '1',
     title: 'Get API Key',
-    description: 'Sign up and get your free API key with AI features enabled',
+    description: 'Sign up and get your free API key with Idswyft Flow™ enabled',
     icon: CommandLineIcon,
     color: 'from-blue-500 to-blue-600'
   },
   {
     step: '2', 
-    title: 'AI Document Processing',
-    description: 'Upload front & back of ID for GPT-4o Vision OCR and barcode scanning',
+    title: 'Implement Idswyft Flow™',
+    description: 'Integrate our 6-step verification process with comprehensive SDK support',
     icon: SparklesIcon,
     color: 'from-purple-500 to-purple-600'
   },
   {
     step: '3',
-    title: 'AI Liveness & Matching',
-    description: 'Capture selfie for AI liveness detection and face matching',
-    icon: CameraIcon,
+    title: 'Go Live',
+    description: 'Deploy with 99.8% accuracy verification and real-time results',
+    icon: RocketLaunchIcon,
     color: 'from-green-500 to-green-600'
   }
 ]
@@ -319,13 +402,6 @@ export function HomePage() {
     <div className="bg-white">
       {/* Hero section */}
       <div className="relative overflow-hidden">
-        {/* Enhanced Background */}
-        <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-purple-50"></div>
-          <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-[1200px] h-[1200px] bg-gradient-to-r from-blue-400/15 to-purple-400/15 rounded-full blur-3xl"></div>
-          <div className="absolute top-20 right-10 w-72 h-72 bg-gradient-to-r from-cyan-400/10 to-blue-400/10 rounded-full blur-2xl"></div>
-          <div className="absolute bottom-20 left-10 w-96 h-96 bg-gradient-to-r from-purple-400/10 to-pink-400/10 rounded-full blur-2xl"></div>
-        </div>
         
         <div className="relative max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-12 sm:pt-20 pb-20 sm:pb-40">
           <div className="text-center">
@@ -338,7 +414,7 @@ export function HomePage() {
               
               <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-8xl font-bold text-gray-900 mb-6 sm:mb-8 leading-tight px-2">
                 <span className="block">AI-Powered Identity</span>
-                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600">
+                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#25AEE5] to-[#1B3572]">
                   Verification
                 </span>
               </h1>
@@ -404,14 +480,110 @@ export function HomePage() {
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="text-center mb-8 sm:mb-12 lg:mb-16">
             <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 sm:mb-6 px-2">
-              Start verifying in <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">5 minutes</span>
+              Deploy the <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Idswyft Flow™</span> in minutes
             </h2>
             <p className="text-base sm:text-lg lg:text-xl text-gray-600 max-w-3xl mx-auto px-3">
-              Simple REST API, comprehensive SDKs, and detailed documentation. 
-              Get up and running faster than any other verification platform.
+              Simple REST API, comprehensive SDKs, and detailed documentation for the complete 6-step verification process.
+              Get the most advanced identity verification running faster than any other platform.
             </p>
           </div>
           
+          {/* The Idswyft Flow - Marketing Section */}
+          <div className="p-8 sm:p-12 mb-12 sm:mb-16 relative">
+            {/* Background decoration */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-r from-blue-400/5 to-purple-400/5 rounded-full blur-3xl"></div>
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-r from-cyan-400/5 to-blue-400/5 rounded-full blur-2xl"></div>
+            
+            <div className="relative z-10 text-center mb-10">
+              <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600/10 to-purple-600/10 rounded-full border border-blue-200/50 mb-6">
+                <SparklesIcon className="w-5 h-5 text-blue-600 mr-2" />
+                <span className="text-sm font-semibold text-blue-900">Introducing the Idswyft Flow™</span>
+              </div>
+              
+              <h3 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-6 leading-tight">
+                The most <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">comprehensive verification</span><br className="hidden sm:block" />
+                in a single flow
+              </h3>
+              
+              <p className="text-lg sm:text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed mb-8">
+                Our proprietary <strong className="text-blue-900">Idswyft Flow™</strong> combines 6 critical verification steps into one seamless process. 
+                From GPT-4o Vision OCR to PDF417 barcode cross-validation and AI liveness detection—
+                <span className="block mt-2 text-blue-700 font-medium">everything your application needs to verify identities with 99.8% accuracy.</span>
+              </p>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-10">
+                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/50 hover:bg-white/90 transition-all duration-300 group">
+                  <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl mb-4 group-hover:scale-110 transition-transform">
+                    <CheckCircleIcon className="w-6 h-6 text-white" />
+                  </div>
+                  <h4 className="font-bold text-gray-900 mb-2">99.8% Accuracy</h4>
+                  <p className="text-sm text-gray-600">Industry-leading precision with AI-powered cross-validation</p>
+                </div>
+                
+                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/50 hover:bg-white/90 transition-all duration-300 group">
+                  <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl mb-4 group-hover:scale-110 transition-transform">
+                    <BoltIcon className="w-6 h-6 text-white" />
+                  </div>
+                  <h4 className="font-bold text-gray-900 mb-2">6 Steps, 1 Flow</h4>
+                  <p className="text-sm text-gray-600">Complete verification from document to liveness in one process</p>
+                </div>
+                
+                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/50 hover:bg-white/90 transition-all duration-300 group">
+                  <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl mb-4 group-hover:scale-110 transition-transform">
+                    <SparklesIcon className="w-6 h-6 text-white" />
+                  </div>
+                  <h4 className="font-bold text-gray-900 mb-2">AI-Enhanced</h4>
+                  <p className="text-sm text-gray-600">GPT-4o Vision, PDF417 parsing, and advanced liveness detection</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* The 6-Step Flow Visualization */}
+            <div className="relative">
+              <h4 className="text-2xl font-bold text-center text-gray-900 mb-8">The Idswyft Flow™ in Action</h4>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                {[
+                  { step: "1", title: "Start Session", desc: "Initialize secure verification session", icon: "🚀", color: "from-blue-500 to-blue-600" },
+                  { step: "2", title: "AI Document OCR", desc: "GPT-4o Vision extracts data from front of ID", icon: "🤖", color: "from-purple-500 to-purple-600" },
+                  { step: "3", title: "PDF417 Scanning", desc: "Parse barcode from back of ID with cross-validation", icon: "📊", color: "from-cyan-500 to-cyan-600" },
+                  { step: "4", title: "Face Matching", desc: "Smart comparison with age and lighting compensation", icon: "👤", color: "from-green-500 to-green-600" },
+                  { step: "5", title: "Live Token", desc: "Generate secure token for real-time verification", icon: "🔒", color: "from-orange-500 to-orange-600" },
+                  { step: "6", title: "AI Liveness", desc: "Anti-spoofing detection with micro-expression analysis", icon: "✨", color: "from-pink-500 to-pink-600" },
+                ].map((flowStep, index) => (
+                  <div key={flowStep.step} className="relative">
+                    {/* Connection line for desktop */}
+                    {index < 5 && (
+                      <div className="hidden lg:block absolute top-6 -right-3 w-6 h-0.5 bg-gradient-to-r from-gray-300 to-gray-400 z-0"></div>
+                    )}
+                    
+                    <div className="relative bg-white rounded-2xl p-4 sm:p-5 border border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300 group z-10">
+                      <div className="flex items-start space-x-3">
+                        <div className={`flex-shrink-0 w-10 h-10 bg-gradient-to-r ${flowStep.color} rounded-full flex items-center justify-center text-white font-bold text-sm group-hover:scale-110 transition-transform`}>
+                          {flowStep.step}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center mb-2">
+                            <span className="text-lg mr-2">{flowStep.icon}</span>
+                            <h5 className="font-bold text-gray-900 text-sm sm:text-base group-hover:text-blue-900 transition-colors">{flowStep.title}</h5>
+                          </div>
+                          <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">{flowStep.desc}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="text-center mt-8">
+                <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                  <CheckCircleIcon className="w-5 h-5 mr-2" />
+                  Complete Verification in &lt;15 seconds
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Integration Steps - Mobile optimized */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 mb-8 sm:mb-12 lg:mb-16">
             {integrationSteps.map((step, _) => (
@@ -426,46 +598,86 @@ export function HomePage() {
             ))}
           </div>
           
-          {/* Code Example - Mobile optimized */}
-          <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
-            <div className="bg-gray-900 px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+          {/* Terminal-style Code Example */}
+          <div className="bg-[#0d1117] rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden border border-gray-800">
+            {/* Terminal Header */}
+            <div className="bg-[#161b22] px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between border-b border-gray-700">
               <div className="flex items-center space-x-1 sm:space-x-2">
-                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-red-500 rounded-full"></div>
-                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-yellow-500 rounded-full"></div>
-                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full"></div>
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-[#ff5f56] rounded-full"></div>
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-[#ffbd2e] rounded-full"></div>
+                <div className="w-2 h-2 sm:w-3 sm:h-3 bg-[#27ca3f] rounded-full"></div>
               </div>
+              <div className="flex items-center space-x-2 text-gray-400 text-xs sm:text-sm">
+                <span className="hidden sm:inline">terminal</span>
+                <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm2 3a1 1 0 000 2h.01a1 1 0 100-2H5zm4 0a1 1 0 000 2h6a1 1 0 100-2H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+            </div>
+            
+            {/* Terminal Tabs */}
+            <div className="bg-[#21262d] px-3 sm:px-6 py-2 border-b border-gray-700">
               <div className="flex space-x-1">
                 {Object.keys(codeExamples).slice(0, 3).map((lang) => (
                   <button
                     key={lang}
                     onClick={() => setActiveTab(lang)}
-                    className={`px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium rounded transition-colors touch-manipulation ${
+                    className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-mono font-medium rounded-t-lg transition-all duration-200 touch-manipulation ${
                       activeTab === lang 
-                        ? 'bg-blue-600 text-white' 
-                        : 'text-gray-400 hover:text-white'
+                        ? 'bg-[#0d1117] text-[#25AEE5] border-t-2 border-[#25AEE5]' 
+                        : 'bg-[#161b22] text-gray-400 hover:text-gray-300 hover:bg-[#1c2128]'
                     }`}
                   >
-                    {lang === 'javascript' ? 'JS' : lang === 'python' ? 'Python' : 'cURL'}
+                    {lang === 'javascript' ? '📄 app.js' : lang === 'python' ? '🐍 main.py' : '⚡ bash'}
                   </button>
                 ))}
               </div>
             </div>
-            <div className="p-3 sm:p-6">
-              <pre className="text-xs sm:text-sm text-gray-800 overflow-x-auto whitespace-pre-wrap sm:whitespace-pre">
-                <code>{codeExamples[activeTab as keyof typeof codeExamples]}</code>
+            
+            {/* Terminal Content */}
+            <div className="bg-[#0d1117] p-3 sm:p-6 font-mono">
+              {/* Terminal Prompt */}
+              <div className="flex items-center mb-3 text-xs sm:text-sm">
+                <span className="text-[#25AEE5] mr-1">➜</span>
+                <span className="text-[#1B3572] mr-1">idswyft-demo</span>
+                <span className="text-gray-500 mr-1">git:(main)</span>
+                <span className="text-[#27ca3f]">✗</span>
+              </div>
+              
+              <pre className="text-xs sm:text-sm overflow-x-auto whitespace-pre-wrap sm:whitespace-pre">
+                <code className="text-gray-300 leading-relaxed">{codeExamples[activeTab as keyof typeof codeExamples]}</code>
               </pre>
+              
+              {/* Terminal Cursor */}
+              <div className="flex items-center mt-2">
+                <span className="text-[#25AEE5] mr-1">➜</span>
+                <span className="text-[#1B3572] mr-1">idswyft-demo</span>
+                <span className="text-gray-500 mr-1">git:(main)</span>
+                <span className="text-[#27ca3f] mr-2">✗</span>
+                <div className="w-2 h-4 bg-[#25AEE5] animate-pulse"></div>
+              </div>
             </div>
           </div>
           
-          {/* Response Preview */}
-          <div className="mt-8 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-200">
-            <div className="flex items-center mb-4">
-              <CheckCircleIcon className="w-6 h-6 text-green-600 mr-2" />
-              <h4 className="text-lg font-semibold text-green-900">Instant Response</h4>
+          {/* Terminal Response Preview */}
+          <div className="mt-8 bg-[#0d1117] rounded-2xl overflow-hidden border border-gray-800">
+            <div className="bg-[#161b22] px-4 py-3 border-b border-gray-700">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <CheckCircleIcon className="w-5 h-5 text-[#27ca3f]" />
+                  <h4 className="text-sm font-semibold text-gray-300 font-mono">API Response</h4>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <div className="w-2 h-2 bg-[#27ca3f] rounded-full animate-pulse"></div>
+                  <span className="text-xs text-gray-400 font-mono">200 OK</span>
+                </div>
+              </div>
             </div>
-            <pre className="text-sm text-green-800 overflow-x-auto bg-white/50 p-4 rounded-lg">
-              <code>{codeExamples.response}</code>
-            </pre>
+            <div className="bg-[#0d1117] p-4 font-mono">
+              <pre className="text-xs sm:text-sm overflow-x-auto text-gray-300 leading-relaxed">
+                <code>{codeExamples.response}</code>
+              </pre>
+            </div>
           </div>
         </div>
       </section>

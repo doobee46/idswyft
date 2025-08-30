@@ -35,29 +35,54 @@ export const DocsPage: React.FC = () => {
           </h2>
           <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
             <div className="bg-gray-50 p-4 sm:p-6 rounded-lg">
-              <h3 className="font-semibold text-base sm:text-lg mb-3">JavaScript/TypeScript</h3>
+              <h3 className="font-semibold text-base sm:text-lg mb-3">JavaScript/TypeScript v2.0.0</h3>
               <pre className="text-xs sm:text-sm bg-gray-900 text-green-400 p-3 sm:p-4 rounded overflow-x-auto">
-{`npm install @idswyft/sdk
+{`npm install idswyft-sdk
 
-import { IdswyftSDK } from '@idswyft/sdk';
+import { IdswyftSDK } from 'idswyft-sdk';
 
 const client = new IdswyftSDK({
   apiKey: 'your-api-key',
   sandbox: true // Set to false for production
 });
 
-const result = await client.verifyDocument({
-  document_type: 'passport',
-  document_file: file,
+// Enhanced Verification Flow (NEW in v2.0.0)
+const session = await client.startVerification({
   user_id: 'user-123'
 });
 
-console.log(result.ocr_data); // AI analysis
-console.log(result.quality_analysis);`}
+// Step 1: Upload front document
+const document = await client.verifyDocument({
+  verification_id: session.verification_id,
+  document_type: 'drivers_license',
+  document_file: frontFile
+});
+
+// Step 2: Upload back of ID (barcode scanning)
+const backId = await client.verifyBackOfId({
+  verification_id: session.verification_id,
+  document_type: 'drivers_license', 
+  back_of_id_file: backFile
+});
+
+// Step 3: Live capture with AI liveness detection
+const liveResult = await client.liveCapture({
+  verification_id: session.verification_id,
+  live_image_data: 'data:image/jpeg;base64,...'
+});
+
+// Get comprehensive results
+const results = await client.getVerificationResults(
+  session.verification_id
+);
+
+console.log(results.ocr_data); // GPT-4o Vision OCR
+console.log(results.cross_validation_results);
+console.log(results.liveness_score);`}
               </pre>
             </div>
             <div className="bg-gray-50 p-4 sm:p-6 rounded-lg">
-              <h3 className="font-semibold text-base sm:text-lg mb-3">Python</h3>
+              <h3 className="font-semibold text-base sm:text-lg mb-3">Python v2.0.0</h3>
               <pre className="text-xs sm:text-sm bg-gray-900 text-green-400 p-3 sm:p-4 rounded overflow-x-auto">
 {`pip install idswyft
 
@@ -68,15 +93,110 @@ client = idswyft.IdswyftClient(
     sandbox=True
 )
 
-result = client.verify_document(
-    document_type='passport',
-    document_file='passport.jpg',
-    user_id='user-123'
+# Enhanced Verification Flow (NEW in v2.0.0)
+session = client.start_verification(user_id='user-123')
+
+# Step 1: Upload front document  
+document = client.verify_document(
+    verification_id=session['verification_id'],
+    document_type='drivers_license',
+    document_file='front.jpg'
 )
 
-print(result['ocr_data'])  # AI analysis
-print(result['quality_analysis'])`}
+# Step 2: Upload back of ID (barcode scanning)
+back_id = client.verify_back_of_id(
+    verification_id=session['verification_id'],
+    document_type='drivers_license',
+    back_of_id_file='back.jpg'
+)
+
+# Step 3: Live capture with AI liveness detection
+live_result = client.live_capture(
+    verification_id=session['verification_id'],
+    live_image_data='data:image/jpeg;base64,...'
+)
+
+# Get comprehensive results
+results = client.get_verification_results(
+    session['verification_id']
+)
+
+print(results['ocr_data'])  # GPT-4o Vision OCR
+print(results['cross_validation_results'])
+print(results['liveness_score'])`}
               </pre>
+            </div>
+          </div>
+        </section>
+
+        {/* What's New in v2.0.0 */}
+        <section className="mb-8 sm:mb-10">
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold mb-4 sm:mb-6 flex items-center">
+            <SparklesIcon className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600 mr-2" />
+            🆕 What's New in SDK v2.0.0
+          </h2>
+          <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 sm:p-6 rounded-lg mb-6">
+            <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center mb-3">
+                  <EyeIcon className="h-5 w-5 text-blue-600 mr-2" />
+                  <h3 className="font-semibold text-sm sm:text-base">Enhanced Verification Flow</h3>
+                </div>
+                <p className="text-xs sm:text-sm text-gray-600 mb-2">Session-based verification with back-of-ID scanning, barcode validation, and cross-validation</p>
+                <code className="text-xs bg-gray-100 px-2 py-1 rounded">startVerification()</code>
+              </div>
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center mb-3">
+                  <CameraIcon className="h-5 w-5 text-green-600 mr-2" />
+                  <h3 className="font-semibold text-sm sm:text-base">AI Liveness Detection</h3>
+                </div>
+                <p className="text-xs sm:text-sm text-gray-600 mb-2">Real-time liveness detection with challenge-response and facial recognition</p>
+                <code className="text-xs bg-gray-100 px-2 py-1 rounded">liveCapture()</code>
+              </div>
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center mb-3">
+                  <CodeBracketIcon className="h-5 w-5 text-purple-600 mr-2" />
+                  <h3 className="font-semibold text-sm sm:text-base">Developer Management</h3>
+                </div>
+                <p className="text-xs sm:text-sm text-gray-600 mb-2">Complete API key lifecycle, activity monitoring, and webhook management</p>
+                <code className="text-xs bg-gray-100 px-2 py-1 rounded">createApiKey()</code>
+              </div>
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center mb-3">
+                  <DocumentCheckIcon className="h-5 w-5 text-red-600 mr-2" />
+                  <h3 className="font-semibold text-sm sm:text-base">Barcode Scanning</h3>
+                </div>
+                <p className="text-xs sm:text-sm text-gray-600 mb-2">PDF417 barcode parsing for driver's licenses with security feature validation</p>
+                <code className="text-xs bg-gray-100 px-2 py-1 rounded">verifyBackOfId()</code>
+              </div>
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center mb-3">
+                  <ChartBarIcon className="h-5 w-5 text-yellow-600 mr-2" />
+                  <h3 className="font-semibold text-sm sm:text-base">Analytics & Monitoring</h3>
+                </div>
+                <p className="text-xs sm:text-sm text-gray-600 mb-2">Comprehensive verification history, usage analytics, and activity tracking</p>
+                <code className="text-xs bg-gray-100 px-2 py-1 rounded">getVerificationHistory()</code>
+              </div>
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex items-center mb-3">
+                  <ShieldCheckIcon className="h-5 w-5 text-indigo-600 mr-2" />
+                  <h3 className="font-semibold text-sm sm:text-base">Webhook System</h3>
+                </div>
+                <p className="text-xs sm:text-sm text-gray-600 mb-2">Full webhook CRUD, delivery testing, retry logic, and signature verification</p>
+                <code className="text-xs bg-gray-100 px-2 py-1 rounded">registerWebhook()</code>
+              </div>
+            </div>
+            <div className="mt-4 sm:mt-6 p-4 bg-white rounded-lg border-l-4 border-purple-500">
+              <h4 className="font-semibold text-sm sm:text-base mb-2 flex items-center">
+                <AcademicCapIcon className="h-4 w-4 text-purple-600 mr-2" />
+                Migration from v1.x to v2.0.0
+              </h4>
+              <p className="text-xs sm:text-sm text-gray-600 mb-2">
+                The new enhanced verification flow is backward compatible. Existing v1.x code continues to work, but we recommend migrating to the session-based approach for enhanced features.
+              </p>
+              <div className="text-xs text-purple-700 font-medium">
+                Breaking Changes: None • New Features: 15+ • Enhanced Security: ✓
+              </div>
             </div>
           </div>
         </section>
@@ -832,7 +952,7 @@ window.location.href = verifyUrl;`}
               <h3 className="font-semibold text-base sm:text-lg mb-3">JavaScript/Node.js SDK</h3>
               <p className="text-gray-600 mb-3 sm:mb-4 text-sm sm:text-base">Full TypeScript support with comprehensive type definitions</p>
               <div className="space-y-2 text-xs sm:text-sm">
-                <div>📦 <code>npm install @idswyft/sdk</code></div>
+                <div>📦 <code>npm install idswyft-sdk</code></div>
                 <div>✅ Browser & Node.js compatible</div>
                 <div>✅ Full TypeScript definitions</div>
                 <div>✅ Comprehensive error handling</div>

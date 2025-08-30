@@ -1,11 +1,17 @@
 {
   "name": "idswyft-sdk",
-  "version": "1.0.0",
-  "type": "module",
+  "version": "2.0.1",
   "description": "Official JavaScript/Node.js SDK for the Idswyft identity verification platform",
-  "main": "dist/index.js",
+  "main": "dist/index.cjs",
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "files": [
     "dist/",
     "README.md",

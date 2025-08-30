@@ -41,8 +41,9 @@ export interface QualityAnalysis {
 
 export interface VerificationResult {
   id: string;
+  verification_id?: string;
   status: 'pending' | 'verified' | 'failed' | 'manual_review';
-  type: 'document' | 'selfie' | 'combined';
+  type: 'document' | 'selfie' | 'combined' | 'live_capture';
   confidence_score?: number;
   created_at: string;
   updated_at: string;
@@ -56,9 +57,112 @@ export interface VerificationResult {
   face_match_score?: number;
   liveness_score?: number;
   manual_review_reason?: string;
+  // Enhanced Verification Features
+  document_uploaded?: boolean;
+  document_type?: string;
+  back_of_id_uploaded?: boolean;
+  live_capture_completed?: boolean;
+  barcode_data?: BarcodeData;
+  cross_validation_results?: CrossValidationResults;
+  cross_validation_score?: number;
+  enhanced_verification_completed?: boolean;
+  liveness_details?: LivenessDetails;
+  next_steps?: string[];
+}
+
+export interface BarcodeData {
+  qr_code?: string;
+  parsed_data?: Record<string, any>;
+  verification_codes?: string[];
+  security_features?: string[];
+}
+
+export interface CrossValidationResults {
+  match_score: number;
+  validation_results: Record<string, boolean>;
+  discrepancies: string[];
+}
+
+export interface LivenessDetails {
+  blink_detection?: number;
+  head_movement?: number;
+  texture_analysis?: number;
+  challenge_passed?: boolean;
+}
+
+export interface StartVerificationRequest {
+  user_id: string;
+  sandbox?: boolean;
+}
+
+export interface StartVerificationResponse {
+  verification_id: string;
+  status: string;
+  user_id: string;
+  next_steps: string[];
+  created_at: string;
+}
+
+export interface BackOfIdRequest {
+  verification_id: string;
+  document_type: 'passport' | 'drivers_license' | 'national_id' | 'other';
+  back_of_id_file: File | Buffer;
+  metadata?: Record<string, any>;
+}
+
+export interface LiveCaptureRequest {
+  verification_id: string;
+  live_image_data: string; // base64 encoded
+  challenge_response?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface LiveTokenRequest {
+  verification_id: string;
+  challenge_type?: 'blink' | 'smile' | 'turn_head' | 'random';
+}
+
+export interface LiveTokenResponse {
+  token: string;
+  challenge: string;
+  expires_at: string;
+  instructions: string;
+}
+
+export interface ApiKey {
+  id: string;
+  name: string;
+  key_prefix: string;
+  environment: 'sandbox' | 'production';
+  is_active: boolean;
+  created_at: string;
+  last_used_at?: string;
+  monthly_requests?: number;
+}
+
+export interface CreateApiKeyRequest {
+  name: string;
+  environment: 'sandbox' | 'production';
+}
+
+export interface Webhook {
+  id: string;
+  url: string;
+  events: string[];
+  is_active: boolean;
+  created_at: string;
+  last_delivery_at?: string;
+  secret?: string;
+}
+
+export interface CreateWebhookRequest {
+  url: string;
+  events?: string[];
+  secret?: string;
 }
 
 export interface DocumentVerificationRequest {
+  verification_id?: string; // For existing verification session
   document_type: 'passport' | 'drivers_license' | 'national_id' | 'other';
   document_file: File | Buffer;
   user_id?: string;
@@ -67,6 +171,7 @@ export interface DocumentVerificationRequest {
 }
 
 export interface SelfieVerificationRequest {
+  verification_id?: string; // For existing verification session
   selfie_file: File | Buffer;
   reference_document_id?: string;
   user_id?: string;
@@ -116,8 +221,8 @@ export class IdswyftSDK {
       timeout: this.config.timeout,
       headers: {
         'X-API-Key': this.config.apiKey,
-        'User-Agent': '@idswyft/sdk/1.0.0',
-        'X-SDK-Version': '1.0.0',
+        'User-Agent': '@idswyft/sdk/2.0.0',
+        'X-SDK-Version': '2.0.0',
         'X-SDK-Language': 'javascript'
       }
     });
@@ -144,12 +249,24 @@ export class IdswyftSDK {
   }
 
   /**
+   * Start a new verification session
+   */
+  async startVerification(request: StartVerificationRequest): Promise<StartVerificationResponse> {
+    const response = await this.client.post('/api/verify/start', request);
+    return response.data;
+  }
+
+  /**
    * Verify a document (passport, driver's license, etc.)
    */
   async verifyDocument(request: DocumentVerificationRequest): Promise<VerificationResult> {
     const formData = new FormData();
     formData.append('document_type', request.document_type);
     formData.append('document', request.document_file);
+    
+    if (request.verification_id) {
+      formData.append('verification_id', request.verification_id);
+    }
     
     if (request.user_id) {
       formData.append('user_id', request.user_id);
@@ -169,7 +286,29 @@ export class IdswyftSDK {
       },
     });
 
-    return response.data.verification;
+    return response.data.verification || response.data;
+  }
+
+  /**
+   * Upload back-of-ID for enhanced verification with barcode scanning
+   */
+  async verifyBackOfId(request: BackOfIdRequest): Promise<VerificationResult> {
+    const formData = new FormData();
+    formData.append('verification_id', request.verification_id);
+    formData.append('document_type', request.document_type);
+    formData.append('back_of_id', request.back_of_id_file);
+    
+    if (request.metadata) {
+      formData.append('metadata', JSON.stringify(request.metadata));
+    }
+
+    const response = await this.client.post('/api/verify/back-of-id', formData, {
+      headers: {
+        ...formData.getHeaders(),
+      },
+    });
+
+    return response.data;
   }
 
   /**
@@ -178,6 +317,10 @@ export class IdswyftSDK {
   async verifySelfie(request: SelfieVerificationRequest): Promise<VerificationResult> {
     const formData = new FormData();
     formData.append('selfie', request.selfie_file);
+    
+    if (request.verification_id) {
+      formData.append('verification_id', request.verification_id);
+    }
     
     if (request.reference_document_id) {
       formData.append('reference_document_id', request.reference_document_id);
@@ -201,7 +344,51 @@ export class IdswyftSDK {
       },
     });
 
-    return response.data.verification;
+    return response.data.verification || response.data;
+  }
+
+  /**
+   * Live capture with AI liveness detection
+   */
+  async liveCapture(request: LiveCaptureRequest): Promise<VerificationResult> {
+    const response = await this.client.post('/api/verify/live-capture', request);
+    return response.data;
+  }
+
+  /**
+   * Generate a secure token for live capture sessions
+   */
+  async generateLiveToken(request: LiveTokenRequest): Promise<LiveTokenResponse> {
+    const response = await this.client.post('/api/verify/generate-live-token', request);
+    return response.data;
+  }
+
+  /**
+   * Get complete verification results including all enhancements
+   */
+  async getVerificationResults(verificationId: string): Promise<VerificationResult> {
+    const response = await this.client.get(`/api/verify/results/${verificationId}`);
+    return response.data;
+  }
+
+  /**
+   * Get verification history for a user
+   */
+  async getVerificationHistory(userId: string, options?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<{
+    verifications: VerificationResult[];
+    total: number;
+    limit: number;
+    offset: number;
+  }> {
+    const params = new URLSearchParams();
+    if (options?.limit) params.append('limit', options.limit.toString());
+    if (options?.offset) params.append('offset', options.offset.toString());
+
+    const response = await this.client.get(`/api/verify/history/${userId}?${params.toString()}`);
+    return response.data;
   }
 
   /**
@@ -237,15 +424,6 @@ export class IdswyftSDK {
     return response.data;
   }
 
-  /**
-   * Update webhook URL for a verification
-   */
-  async updateWebhook(verificationId: string, webhookUrl: string): Promise<{ success: boolean }> {
-    const response = await this.client.patch(`/api/verify/${verificationId}/webhook`, {
-      webhook_url: webhookUrl
-    });
-    return response.data;
-  }
 
   /**
    * Verify webhook signature (for webhook endpoint security)
@@ -263,6 +441,122 @@ export class IdswyftSDK {
       Buffer.from(expectedSignature, 'hex'),
       Buffer.from(providedSignature, 'hex')
     );
+  }
+
+  /**
+   * Register as a new developer
+   */
+  async registerDeveloper(email: string, name: string): Promise<{ developer_id: string; message: string }> {
+    const response = await this.client.post('/api/developer/register', { email, name });
+    return response.data;
+  }
+
+  /**
+   * Create a new API key
+   */
+  async createApiKey(request: CreateApiKeyRequest): Promise<{ api_key: string; key_id: string }> {
+    const response = await this.client.post('/api/developer/api-key', request);
+    return response.data;
+  }
+
+  /**
+   * List all API keys
+   */
+  async listApiKeys(): Promise<{ api_keys: ApiKey[] }> {
+    const response = await this.client.get('/api/developer/api-keys');
+    return response.data;
+  }
+
+  /**
+   * Revoke/delete an API key
+   */
+  async revokeApiKey(keyId: string): Promise<{ success: boolean; message: string }> {
+    const response = await this.client.delete(`/api/developer/api-key/${keyId}`);
+    return response.data;
+  }
+
+  /**
+   * Get API activity logs
+   */
+  async getApiActivity(options?: {
+    limit?: number;
+    offset?: number;
+    start_date?: string;
+    end_date?: string;
+  }): Promise<{
+    activities: any[];
+    total: number;
+    limit: number;
+    offset: number;
+  }> {
+    const params = new URLSearchParams();
+    if (options?.limit) params.append('limit', options.limit.toString());
+    if (options?.offset) params.append('offset', options.offset.toString());
+    if (options?.start_date) params.append('start_date', options.start_date);
+    if (options?.end_date) params.append('end_date', options.end_date);
+
+    const response = await this.client.get(`/api/developer/activity?${params.toString()}`);
+    return response.data;
+  }
+
+  /**
+   * Register a webhook URL
+   */
+  async registerWebhook(request: CreateWebhookRequest): Promise<{ webhook: Webhook }> {
+    const response = await this.client.post('/api/webhooks/register', request);
+    return response.data;
+  }
+
+  /**
+   * List all webhooks
+   */
+  async listWebhooks(): Promise<{ webhooks: Webhook[] }> {
+    const response = await this.client.get('/api/webhooks');
+    return response.data;
+  }
+
+  /**
+   * Update a webhook
+   */
+  async updateWebhook(webhookId: string, request: Partial<CreateWebhookRequest>): Promise<{ webhook: Webhook }> {
+    const response = await this.client.put(`/api/webhooks/${webhookId}`, request);
+    return response.data;
+  }
+
+  /**
+   * Delete a webhook
+   */
+  async deleteWebhook(webhookId: string): Promise<{ success: boolean; message: string }> {
+    const response = await this.client.delete(`/api/webhooks/${webhookId}`);
+    return response.data;
+  }
+
+  /**
+   * Test webhook delivery
+   */
+  async testWebhook(webhookId: string): Promise<{ success: boolean; delivery_id: string }> {
+    const response = await this.client.post(`/api/webhooks/${webhookId}/test`);
+    return response.data;
+  }
+
+  /**
+   * Get webhook delivery history
+   */
+  async getWebhookDeliveries(webhookId: string, options?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<{
+    deliveries: any[];
+    total: number;
+    limit: number;
+    offset: number;
+  }> {
+    const params = new URLSearchParams();
+    if (options?.limit) params.append('limit', options.limit.toString());
+    if (options?.offset) params.append('offset', options.offset.toString());
+
+    const response = await this.client.get(`/api/webhooks/${webhookId}/deliveries?${params.toString()}`);
+    return response.data;
   }
 
   /**

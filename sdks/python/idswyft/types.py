@@ -14,6 +14,9 @@ else:
 # Type aliases
 VerificationStatus = Literal["pending", "verified", "failed", "manual_review"]
 DocumentType = Literal["passport", "drivers_license", "national_id", "other"]
+VerificationType = Literal["document", "selfie", "combined", "live_capture"]
+Environment = Literal["sandbox", "production"]
+ChallengeType = Literal["blink", "smile", "turn_head", "random"]
 FileData = Union[str, bytes, BinaryIO]
 
 
@@ -56,11 +59,35 @@ class QualityAnalysis(TypedDict, total=False):
     recommendations: list[str]
 
 
+class BarcodeData(TypedDict, total=False):
+    """Barcode/QR code scanning results"""
+    qr_code: Optional[str]
+    parsed_data: Optional[Dict[str, Any]]
+    verification_codes: Optional[list[str]]
+    security_features: Optional[list[str]]
+
+
+class CrossValidationResults(TypedDict):
+    """Cross-validation results between front and back of ID"""
+    match_score: float
+    validation_results: Dict[str, bool]
+    discrepancies: list[str]
+
+
+class LivenessDetails(TypedDict, total=False):
+    """Detailed liveness detection analysis"""
+    blink_detection: Optional[float]
+    head_movement: Optional[float]
+    texture_analysis: Optional[float]
+    challenge_passed: Optional[bool]
+
+
 class VerificationResult(TypedDict, total=False):
     """Result of a verification request"""
     id: str
+    verification_id: Optional[str]
     status: VerificationStatus
-    type: Literal["document", "selfie", "combined"]
+    type: VerificationType
     confidence_score: Optional[float]
     created_at: str
     updated_at: str
@@ -76,10 +103,37 @@ class VerificationResult(TypedDict, total=False):
     face_match_score: Optional[float]
     liveness_score: Optional[float]
     manual_review_reason: Optional[str]
+    # Enhanced Verification Features
+    document_uploaded: Optional[bool]
+    document_type: Optional[str]
+    back_of_id_uploaded: Optional[bool]
+    live_capture_completed: Optional[bool]
+    barcode_data: Optional[BarcodeData]
+    cross_validation_results: Optional[CrossValidationResults]
+    cross_validation_score: Optional[float]
+    enhanced_verification_completed: Optional[bool]
+    liveness_details: Optional[LivenessDetails]
+    next_steps: Optional[list[str]]
+
+
+class StartVerificationRequest(TypedDict):
+    """Request parameters for starting verification"""
+    user_id: str
+    sandbox: Optional[bool]
+
+
+class StartVerificationResponse(TypedDict):
+    """Response from start verification endpoint"""
+    verification_id: str
+    status: str
+    user_id: str
+    next_steps: list[str]
+    created_at: str
 
 
 class DocumentVerificationRequest(TypedDict, total=False):
     """Request parameters for document verification"""
+    verification_id: Optional[str]  # For existing verification session
     document_type: DocumentType
     document_file: FileData
     user_id: Optional[str]
@@ -87,13 +141,80 @@ class DocumentVerificationRequest(TypedDict, total=False):
     metadata: Optional[Dict[str, Any]]
 
 
+class BackOfIdRequest(TypedDict):
+    """Request parameters for back-of-ID verification"""
+    verification_id: str
+    document_type: DocumentType
+    back_of_id_file: FileData
+    metadata: Optional[Dict[str, Any]]
+
+
+class LiveCaptureRequest(TypedDict):
+    """Request parameters for live capture"""
+    verification_id: str
+    live_image_data: str  # base64 encoded
+    challenge_response: Optional[str]
+    metadata: Optional[Dict[str, Any]]
+
+
+class LiveTokenRequest(TypedDict):
+    """Request parameters for live token generation"""
+    verification_id: str
+    challenge_type: Optional[ChallengeType]
+
+
+class LiveTokenResponse(TypedDict):
+    """Response from live token generation"""
+    token: str
+    challenge: str
+    expires_at: str
+    instructions: str
+
+
 class SelfieVerificationRequest(TypedDict, total=False):
     """Request parameters for selfie verification"""
+    verification_id: Optional[str]  # For existing verification session
     selfie_file: FileData
     reference_document_id: Optional[str]
     user_id: Optional[str]
     webhook_url: Optional[str]
     metadata: Optional[Dict[str, Any]]
+
+
+class ApiKey(TypedDict):
+    """API key information"""
+    id: str
+    name: str
+    key_prefix: str
+    environment: Environment
+    is_active: bool
+    created_at: str
+    last_used_at: Optional[str]
+    monthly_requests: Optional[int]
+
+
+class CreateApiKeyRequest(TypedDict):
+    """Request parameters for creating API key"""
+    name: str
+    environment: Environment
+
+
+class Webhook(TypedDict):
+    """Webhook information"""
+    id: str
+    url: str
+    events: list[str]
+    is_active: bool
+    created_at: str
+    last_delivery_at: Optional[str]
+    secret: Optional[str]
+
+
+class CreateWebhookRequest(TypedDict, total=False):
+    """Request parameters for creating webhook"""
+    url: str
+    events: Optional[list[str]]
+    secret: Optional[str]
 
 
 class UsageStats(TypedDict):

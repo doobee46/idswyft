@@ -41,31 +41,31 @@ export function Layout({ children }: LayoutProps) {
       {/* Navigation */}
       <nav className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex">
-              {/* Logo */}
-              <div className="flex-shrink-0 flex items-center">
-                <Link to="/" className="flex items-center">
-                  <img 
-                    src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo.png" 
-                    alt="Idswyft" 
-                    className="h-8 w-auto flex-shrink-0"
-                    onError={(e) => {
-                      // Fallback to icon and text if image fails to load
-                      e.currentTarget.style.display = 'none';
-                      const fallback = e.currentTarget.nextSibling as HTMLElement;
-                      if (fallback) fallback.style.display = 'flex';
-                    }}
-                  />
-                  <div className="hidden items-center space-x-2">
-                    <ShieldCheckIcon className="h-8 w-8 text-primary-600 flex-shrink-0" />
-                    <span className="text-xl font-bold text-gray-900">Idswyft</span>
-                  </div>
-                </Link>
-              </div>
-              
-              {/* Navigation links */}
-              <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo */}
+            <div className="flex-shrink-0 flex items-center">
+              <Link to="/" className="flex items-center">
+                <img 
+                  src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo.png" 
+                  alt="Idswyft" 
+                  className="h-8 w-auto flex-shrink-0"
+                  onError={(e) => {
+                    // Fallback to icon and text if image fails to load
+                    e.currentTarget.style.display = 'none';
+                    const fallback = e.currentTarget.nextSibling as HTMLElement;
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
+                />
+                <div className="hidden items-center space-x-2">
+                  <ShieldCheckIcon className="h-8 w-8 text-primary-600 flex-shrink-0" />
+                  <span className="text-xl font-bold text-gray-900">Idswyft</span>
+                </div>
+              </Link>
+            </div>
+            
+            {/* Navigation links - Centered */}
+            <div className="hidden sm:flex sm:absolute sm:left-1/2 sm:transform sm:-translate-x-1/2">
+              <div className="flex space-x-8">
                 {navigation.map((item) => {
                   const Icon = item.icon
                   const isActive = location.pathname === item.href || 
