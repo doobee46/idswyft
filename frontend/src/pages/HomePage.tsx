@@ -53,9 +53,11 @@ const SyntaxHighlighter = ({ code, language }: { code: string; language: string 
         // Numbers
         highlightedLine = highlightedLine.replace(/\b(\d+(?:\.\d+)?)\b/g, 
           '<span class="text-[#79c0ff]">$1</span>')
-        // Class names and constructors
-        highlightedLine = highlightedLine.replace(/\b([A-Z][a-zA-Z0-9]*)\b/g, 
-          '<span class="text-[#ffa657]">$1</span>')
+        // Class names and constructors (simple approach)
+        highlightedLine = highlightedLine.replace(/\bnew\s+([A-Z][a-zA-Z0-9]*)/g, 
+          'new <span class="text-[#ffa657]">$1</span>')
+        highlightedLine = highlightedLine.replace(/\b([A-Z][a-zA-Z0-9]*)\s*\(/g, 
+          '<span class="text-[#ffa657]">$1</span>(')
       } else if (lang === 'python') {
         // Keywords
         highlightedLine = highlightedLine.replace(/\b(def|class|import|from|if|elif|else|for|while|return|try|except|with|as|async|await|None|True|False)\b/g, 
@@ -72,18 +74,20 @@ const SyntaxHighlighter = ({ code, language }: { code: string; language: string 
         // Numbers  
         highlightedLine = highlightedLine.replace(/\b(\d+(?:\.\d+)?)\b/g, 
           '<span class="text-[#79c0ff]">$1</span>')
-        // Class names
-        highlightedLine = highlightedLine.replace(/\b([A-Z][a-zA-Z0-9]*)\b/g, 
-          '<span class="text-[#ffa657]">$1</span>')
+        // Class names (more conservative)
+        highlightedLine = highlightedLine.replace(/\bclass\s+([A-Z][a-zA-Z0-9]*)/g, 
+          'class <span class="text-[#ffa657]">$1</span>')
+        highlightedLine = highlightedLine.replace(/\b([A-Z][a-zA-Z0-9]*)\s*\(/g, 
+          '<span class="text-[#ffa657]">$1</span>(')
       } else if (lang === 'curl' || lang === 'bash') {
         // Comments
         highlightedLine = highlightedLine.replace(/(#.*$)/g, 
           '<span class="text-[#8b949e]">$1</span>')
-        // Commands
+        // Commands (only at beginning of line)
         highlightedLine = highlightedLine.replace(/^(\s*)(curl|jq|echo|cd|ls|mkdir|npm|git)\b/g, 
           '$1<span class="text-[#79c0ff]">$2</span>')
-        // Options/flags
-        highlightedLine = highlightedLine.replace(/(\s)(-[a-zA-Z-]+)/g, 
+        // Options/flags (only after whitespace and followed by word boundary or equals)
+        highlightedLine = highlightedLine.replace(/(\s)(-[a-zA-Z]+(?:=[^\s]*)?)\b/g, 
           '$1<span class="text-[#ffa657]">$2</span>')
         // URLs
         highlightedLine = highlightedLine.replace(/(https?:\/\/[^\s]+)/g, 
@@ -92,20 +96,20 @@ const SyntaxHighlighter = ({ code, language }: { code: string; language: string 
         highlightedLine = highlightedLine.replace(/(["'])((?:\\.|[^\\])*?)\1/g, 
           '<span class="text-[#a5d6ff]">$1$2$1</span>')
       } else if (lang === 'json') {
-        // Property names
-        highlightedLine = highlightedLine.replace(/"([^"]+)"(\s*:)/g, 
+        // Strings first (both property names and values)
+        highlightedLine = highlightedLine.replace(/"([^"]*)"/g, 
+          '<span class="text-[#a5d6ff]">"$1"</span>')
+        // Property names (override string color for keys)
+        highlightedLine = highlightedLine.replace(/<span class="text-\[#a5d6ff\]">"([^"]+)"<\/span>(\s*:)/g, 
           '<span class="text-[#79c0ff]">"$1"</span>$2')
-        // String values
-        highlightedLine = highlightedLine.replace(/:\s*"([^"]*?)"/g, 
-          ': <span class="text-[#a5d6ff]">"$1"</span>')
-        // Numbers
-        highlightedLine = highlightedLine.replace(/:\s*(\d+(?:\.\d+)?)/g, 
+        // Numbers (standalone, not in strings)
+        highlightedLine = highlightedLine.replace(/:\s*(\d+(?:\.\d+)?)\b/g, 
           ': <span class="text-[#79c0ff]">$1</span>')
-        // Booleans and null
-        highlightedLine = highlightedLine.replace(/:\s*(true|false|null)\b/g, 
+        // Booleans and null (standalone values)
+        highlightedLine = highlightedLine.replace(/:\s*\b(true|false|null)\b/g, 
           ': <span class="text-[#ff7b72]">$1</span>')
         // Brackets and braces
-        highlightedLine = highlightedLine.replace(/([{}[\]])/g, 
+        highlightedLine = highlightedLine.replace(/([{}[\],])/g, 
           '<span class="text-[#ffa657]">$1</span>')
       }
       
