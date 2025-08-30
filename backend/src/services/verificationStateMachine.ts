@@ -35,7 +35,7 @@ interface StateTransition {
 }
 
 export class VerificationStateMachine {
-  private transitions: Map<VerificationEvent, StateTransition> = new Map([
+  private transitions: Map<VerificationEvent, StateTransition> = new Map<VerificationEvent, StateTransition>([
     ['document_upload', {
       from: ['pending'],
       to: 'document_uploaded'
@@ -55,7 +55,7 @@ export class VerificationStateMachine {
     ['cross_validation_success', {
       from: ['back_id_processing'],
       to: 'cross_validation_completed',
-      validations: [(ctx) => ctx.cross_validation_score >= 0.7]
+      validations: [(ctx: any) => ctx.cross_validation_score >= 0.7]
     }],
     ['cross_validation_failure', {
       from: ['back_id_processing'],
@@ -68,7 +68,7 @@ export class VerificationStateMachine {
     ['face_match_success', {
       from: ['live_capture_processing', 'face_matching'],
       to: 'liveness_checking',
-      validations: [(ctx) => ctx.face_match_score >= (ctx.is_sandbox ? 0.8 : 0.85)]
+      validations: [(ctx: any) => ctx.face_match_score >= (ctx.is_sandbox ? 0.8 : 0.85)]
     }],
     ['face_match_failure', {
       from: ['live_capture_processing', 'face_matching'],
@@ -77,7 +77,7 @@ export class VerificationStateMachine {
     ['liveness_success', {
       from: ['liveness_checking'],
       to: 'verified',
-      validations: [(ctx) => ctx.liveness_score >= (ctx.is_sandbox ? 0.65 : 0.75)]
+      validations: [(ctx: any) => ctx.liveness_score >= (ctx.is_sandbox ? 0.65 : 0.75)]
     }],
     ['liveness_failure', {
       from: ['liveness_checking'],

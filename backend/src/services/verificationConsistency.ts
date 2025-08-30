@@ -158,8 +158,8 @@ export class VerificationConsistencyService {
     }
 
     // Check 4: Document consistency
-    const frontDoc = verification.documents?.find(d => !d.is_back_of_id);
-    const backDoc = verification.documents?.find(d => d.is_back_of_id);
+    const frontDoc = verification.documents?.find((d: any) => !d.is_back_of_id);
+    const backDoc = verification.documents?.find((d: any) => d.is_back_of_id);
 
     if (frontDoc && backDoc && frontDoc.ocr_data && backDoc.barcode_data) {
       if (!frontDoc.cross_validation_results) {
