@@ -13,6 +13,7 @@ import organizationRoutes from './routes/organizations.js';
 import authRoutes from './routes/auth.js';
 import verificationRoutes from './routes/verifications.js';
 import webhookRoutes from './routes/webhooks.js';
+import adminSecretRoutes from './routes/admin-secrets.js';
 
 const app = express();
 
@@ -183,6 +184,7 @@ app.use('/api/organizations', organizationRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/verifications', verificationRoutes);
 app.use('/api/webhooks', webhookRoutes);
+app.use('/api/admin', adminSecretRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
