@@ -62,7 +62,7 @@ router.post('/login', validateLoginRequest, async (req, res) => {
     }
     
     // Check if organization is active
-    if (admin.vaas_organizations.billing_status === 'suspended' || admin.vaas_organizations.billing_status === 'cancelled') {
+    if ((admin.vaas_organizations as any).billing_status === 'suspended' || (admin.vaas_organizations as any).billing_status === 'cancelled') {
       const response: VaasApiResponse = {
         success: false,
         error: {
@@ -75,7 +75,7 @@ router.post('/login', validateLoginRequest, async (req, res) => {
     }
     
     // Verify password
-    const passwordMatch = await bcrypt.compare(password, admin.password_hash);
+    const passwordMatch = await bcrypt.compare(password, (admin as any).password_hash);
     if (!passwordMatch) {
       const response: VaasApiResponse = {
         success: false,
@@ -134,13 +134,13 @@ router.post('/login', validateLoginRequest, async (req, res) => {
         permissions: admin.permissions,
         status: admin.status,
         email_verified: admin.email_verified,
-        email_verified_at: admin.email_verified_at,
-        last_login_at: admin.last_login_at,
-        login_count: admin.login_count,
-        created_at: admin.created_at,
-        updated_at: admin.updated_at
+        email_verified_at: (admin as any).email_verified_at,
+        last_login_at: (admin as any).last_login_at,
+        login_count: (admin as any).login_count,
+        created_at: (admin as any).created_at,
+        updated_at: (admin as any).updated_at
       },
-      organization: admin.vaas_organizations,
+      organization: admin.vaas_organizations as any,
       expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
     };
     
@@ -239,7 +239,7 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res) => {
     }
     
     // Remove sensitive data
-    const { password_hash, ...adminData } = admin;
+    const { password_hash, ...adminData } = admin as any;
     
     const response: VaasApiResponse = {
       success: true,

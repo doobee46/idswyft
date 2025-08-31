@@ -40,11 +40,11 @@ body {
 
 /* File upload styles */
 .file-upload-zone {
-  @apply border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary-400 transition-colors cursor-pointer;
+  @apply border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors cursor-pointer;
 }
 
 .file-upload-zone.dragover {
-  @apply border-primary-500 bg-primary-50;
+  @apply border-blue-500 bg-blue-50;
 }
 
 /* Progress bar */

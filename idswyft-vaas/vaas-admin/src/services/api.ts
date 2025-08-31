@@ -301,6 +301,27 @@ class ApiClient {
     };
   }
 
+  // Generic HTTP methods
+  async get(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse> {
+    return this.client.get(url, config);
+  }
+
+  async post(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse> {
+    return this.client.post(url, data, config);
+  }
+
+  async put(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse> {
+    return this.client.put(url, data, config);
+  }
+
+  async patch(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse> {
+    return this.client.patch(url, data, config);
+  }
+
+  async delete(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse> {
+    return this.client.delete(url, config);
+  }
+
   // Utility methods
   isAuthenticated(): boolean {
     return !!this.token;

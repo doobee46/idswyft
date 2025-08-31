@@ -246,7 +246,7 @@ router.post('/secrets/generate', requireAuth, requireSuperAdmin, catchAsync(asyn
   envFormat += `# DO NOT COMMIT TO VERSION CONTROL\\n\\n`;
 
   Object.entries(secrets).forEach(([key, value]) => {
-    const description = SECRETS_CONFIG[key].description;
+    const description = (SECRETS_CONFIG as any)[key].description;
     envFormat += `# ${description}\\n`;
     envFormat += `${key}=${value}\\n\\n`;
   });

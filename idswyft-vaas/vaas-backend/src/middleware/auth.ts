@@ -67,7 +67,7 @@ export const requireAuth = async (req: AuthenticatedRequest, res: Response, next
     }
     
     // Check if organization is active
-    if (admin.vaas_organizations.billing_status === 'suspended' || admin.vaas_organizations.billing_status === 'cancelled') {
+    if ((admin.vaas_organizations as any).billing_status === 'suspended' || (admin.vaas_organizations as any).billing_status === 'cancelled') {
       const response: VaasApiResponse = {
         success: false,
         error: {
@@ -84,7 +84,7 @@ export const requireAuth = async (req: AuthenticatedRequest, res: Response, next
       .from('vaas_admins')
       .update({ 
         last_login_at: new Date().toISOString(),
-        login_count: admin.login_count + 1 || 1
+        login_count: ((admin as any).login_count || 0) + 1
       })
       .eq('id', admin.id);
     

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { Developer, AdminUser } from '../types/index.js';
+export declare const authenticateServiceToken: (req: Request, res: Response, next: NextFunction) => void;
 export declare const authenticateAPIKey: (req: Request, res: Response, next: NextFunction) => void;
 export declare const authenticateJWT: (req: Request, res: Response, next: NextFunction) => void;
 export declare const authenticateUser: (req: Request, res: Response, next: NextFunction) => void;
@@ -20,10 +21,12 @@ declare global {
         interface Request {
             isSandbox?: boolean;
             isPremium?: boolean;
+            serviceAuthenticated?: boolean;
         }
     }
 }
 declare const _default: {
+    authenticateServiceToken: (req: Request, res: Response, next: NextFunction) => void;
     authenticateAPIKey: (req: Request, res: Response, next: NextFunction) => void;
     authenticateJWT: (req: Request, res: Response, next: NextFunction) => void;
     authenticateDeveloperJWT: (req: Request, res: Response, next: NextFunction) => void;

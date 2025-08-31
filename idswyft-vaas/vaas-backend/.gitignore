@@ -61,3 +61,10 @@ Thumbs.db
 uploads/
 documents/
 selfies/
+
+# Generated secrets (NEVER COMMIT)
+secrets/
+*.env.production
+*.env.staging
+*-secrets-*.env
+*-secrets-*.json

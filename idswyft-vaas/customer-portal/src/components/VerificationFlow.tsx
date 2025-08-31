@@ -612,7 +612,7 @@ const CompleteStep: React.FC<{ session: VerificationSession }> = ({ session }) =
     </div>
     <h2 className="text-xl font-semibold text-gray-900 mb-4">Verification Complete!</h2>
     <p className="text-gray-600 mb-6">
-      {session.organization_branding?.success_message || 
+      {(session.organization_branding as any)?.success_message || 
         "Your identity has been successfully verified. You can now close this window."}
     </p>
     <div className="bg-green-50 border border-green-200 rounded-lg p-4">

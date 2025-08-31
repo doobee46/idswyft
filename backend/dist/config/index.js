@@ -4,6 +4,7 @@ export const config = {
     corsOrigins: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176', 'http://localhost:3000'],
     jwtSecret: process.env.JWT_SECRET || 'your-super-secret-jwt-key',
     apiKeySecret: process.env.API_KEY_SECRET || 'your-api-key-encryption-secret',
+    serviceToken: process.env.SERVICE_TOKEN || 'your-service-to-service-token',
     encryptionKey: process.env.ENCRYPTION_KEY || 'your-32-character-encryption-key',
     database: {
         url: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/idswyft'

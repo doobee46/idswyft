@@ -4,6 +4,38 @@ import { supabase } from '../config/database.js';
 import config from '../config/index.js';
 import { AuthenticationError, AuthorizationError, catchAsync } from './errorHandler.js';
 import { logger } from '../utils/logger.js';
+// Service token authentication for service-to-service communication
+export const authenticateServiceToken = catchAsync(async (req, res, next) => {
+    const serviceToken = req.headers['x-service-token'];
+    if (!serviceToken) {
+        throw new AuthenticationError('Service token is required. Include X-Service-Token header.');
+    }
+    // Validate service token (you can make this more sophisticated later)
+    const expectedToken = process.env.SERVICE_TOKEN || config.serviceToken;
+    if (!expectedToken) {
+        logger.error('SERVICE_TOKEN not configured in environment');
+        throw new AuthenticationError('Service authentication not configured');
+    }
+    // Use timing-safe comparison to prevent timing attacks
+    const tokenBuffer = Buffer.from(serviceToken);
+    const expectedBuffer = Buffer.from(expectedToken);
+    if (tokenBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(tokenBuffer, expectedBuffer)) {
+        logger.warn('Invalid service token attempted', {
+            ip: req.ip,
+            userAgent: req.get('User-Agent'),
+            tokenPrefix: serviceToken.substring(0, 8)
+        });
+        throw new AuthenticationError('Invalid service token');
+    }
+    // Mark request as authenticated service
+    req.serviceAuthenticated = true;
+    req.isSandbox = false; // Service tokens are always production
+    logger.info('Service token authenticated', {
+        ip: req.ip,
+        userAgent: req.get('User-Agent')
+    });
+    next();
+});
 // API Key authentication middleware
 export const authenticateAPIKey = catchAsync(async (req, res, next) => {
     const apiKey = req.headers['x-api-key'];
@@ -280,6 +312,7 @@ export const logAuthEvent = (event) => {
     };
 };
 export default {
+    authenticateServiceToken,
     authenticateAPIKey,
     authenticateJWT,
     authenticateDeveloperJWT,
