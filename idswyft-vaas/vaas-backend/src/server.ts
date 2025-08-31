@@ -1,0 +1,289 @@
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
+import morgan from 'morgan';
+import rateLimit from 'express-rate-limit';
+
+import config from './config/index.js';
+import { connectVaasDB } from './config/database.js';
+
+// Import routes
+import organizationRoutes from './routes/organizations.js';
+import authRoutes from './routes/auth.js';
+import verificationRoutes from './routes/verifications.js';
+import webhookRoutes from './routes/webhooks.js';
+
+const app = express();
+
+// Trust proxy for production deployment (Railway)
+if (config.nodeEnv === 'production') {
+  app.set('trust proxy', 1);
+}
+
+// Security middleware
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: false
+}));
+
+// CORS configuration for VaaS domains
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, server-to-server)
+    if (!origin) return callback(null, true);
+    
+    // Allow all localhost origins in development
+    if (config.nodeEnv === 'development') {
+      if (origin.startsWith('http://localhost:') || 
+          origin.startsWith('http://127.0.0.1:') ||
+          origin.match(/^http:\/\/192\.168\.\d{1,3}\.\d{1,3}:\d+$/)) {
+        return callback(null, true);
+      }
+    }
+    
+    // Check against configured VaaS origins
+    if (config.corsOrigins.indexOf(origin) !== -1) {
+      return callback(null, true);
+    }
+    
+    return callback(new Error('Not allowed by CORS'), false);
+  },
+  credentials: true,
+  optionsSuccessStatus: 200
+}));
+
+// Basic middleware
+app.use(compression());
+app.use(morgan('combined'));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Rate limiting for VaaS API
+const limiter = rateLimit({
+  windowMs: config.rateLimiting.windowMs,
+  max: config.rateLimiting.maxRequestsPerOrg,
+  message: 'Too many requests from this organization, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/', limiter);
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    service: 'idswyft-vaas-backend',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    environment: config.nodeEnv
+  });
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Idswyft VaaS (Verification as a Service) API',
+    service: 'idswyft-vaas-backend',
+    version: '1.0.0',
+    status: 'running',
+    environment: config.nodeEnv,
+    documentation: '/api/docs',
+    health: '/health'
+  });
+});
+
+// API documentation endpoint
+app.get('/api/docs', (req, res) => {
+  res.json({
+    title: 'Idswyft VaaS API Documentation',
+    version: '1.0.0',
+    description: 'Verification as a Service - Enterprise identity verification platform',
+    generated: new Date().toISOString(),
+    domains: {
+      'api-vaas.idswyft.app': 'VaaS Backend API',
+      'app.idswyft.app': 'Business Admin Dashboard',
+      'customer.idswyft.app': 'End-user Verification Portal',
+      'enterprise.idswyft.app': 'VaaS Marketing Site'
+    },
+    endpoints: {
+      health: {
+        'GET /health': 'Health check endpoint'
+      },
+      organizations: {
+        'POST /api/organizations': 'Create new organization',
+        'GET /api/organizations/:id': 'Get organization details',
+        'PUT /api/organizations/:id': 'Update organization',
+        'DELETE /api/organizations/:id': 'Delete organization'
+      },
+      admins: {
+        'POST /api/auth/login': 'Admin login',
+        'POST /api/auth/logout': 'Admin logout', 
+        'GET /api/auth/me': 'Get current admin info',
+        'POST /api/admins': 'Create admin user',
+        'GET /api/admins': 'List organization admins',
+        'PUT /api/admins/:id': 'Update admin user',
+        'DELETE /api/admins/:id': 'Delete admin user'
+      },
+      verifications: {
+        'POST /api/verifications/start': 'Start verification session',
+        'GET /api/verifications': 'List verifications',
+        'GET /api/verifications/:id': 'Get verification details',
+        'PUT /api/verifications/:id/review': 'Manual review verification',
+        'POST /api/verifications/:id/approve': 'Approve verification',
+        'POST /api/verifications/:id/reject': 'Reject verification'
+      },
+      users: {
+        'POST /api/users': 'Create end user',
+        'GET /api/users': 'List end users',
+        'GET /api/users/:id': 'Get user details',
+        'PUT /api/users/:id': 'Update user',
+        'DELETE /api/users/:id': 'Delete user'
+      },
+      webhooks: {
+        'POST /api/webhooks': 'Create webhook',
+        'GET /api/webhooks': 'List webhooks',
+        'PUT /api/webhooks/:id': 'Update webhook',
+        'DELETE /api/webhooks/:id': 'Delete webhook',
+        'POST /api/webhooks/:id/test': 'Test webhook delivery'
+      },
+      analytics: {
+        'GET /api/analytics/dashboard': 'Dashboard analytics',
+        'GET /api/analytics/usage': 'Usage analytics',
+        'GET /api/analytics/performance': 'Performance metrics',
+        'GET /api/analytics/export': 'Export analytics data'
+      },
+      billing: {
+        'GET /api/billing/usage': 'Current usage',
+        'GET /api/billing/invoices': 'List invoices',
+        'GET /api/billing/subscription': 'Subscription details',
+        'POST /api/billing/upgrade': 'Upgrade subscription'
+      }
+    },
+    authentication: {
+      'JWT Bearer Token': 'Include Authorization: Bearer <token> header',
+      'API Key': 'Include X-API-Key header (for webhook/integration endpoints)'
+    },
+    pricing: {
+      starter: '$299/month + $2 per verification (up to 500)',
+      professional: '$799/month + $1.50 per verification (up to 2000)', 
+      enterprise: '$2499/month + $1 per verification (unlimited)'
+    },
+    notes: {
+      'Multi-tenancy': 'All data is isolated per organization',
+      'Rate Limiting': 'API requests are rate limited per organization',
+      'Webhooks': 'Real-time event notifications with automatic retries',
+      'Integration': 'Uses main Idswyft API for verification processing'
+    }
+  });
+});
+
+// Mount API routes
+app.use('/api/organizations', organizationRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/verifications', verificationRoutes);
+app.use('/api/webhooks', webhookRoutes);
+
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    error: {
+      code: 'NOT_FOUND',
+      message: `Route ${req.method} ${req.originalUrl} not found`,
+    },
+    data: {
+      availableEndpoints: '/api/docs'
+    }
+  });
+});
+
+// Global error handling middleware
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('VaaS API Error:', err);
+  
+  // Handle specific error types
+  if (err.name === 'ValidationError') {
+    return res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: err.message,
+        details: err.details || []
+      }
+    });
+  }
+  
+  if (err.name === 'UnauthorizedError') {
+    return res.status(401).json({
+      success: false,
+      error: {
+        code: 'UNAUTHORIZED',
+        message: 'Invalid authentication credentials'
+      }
+    });
+  }
+  
+  if (err.code === '23505') { // PostgreSQL unique violation
+    return res.status(409).json({
+      success: false,
+      error: {
+        code: 'CONFLICT',
+        message: 'Resource already exists',
+        details: err.detail
+      }
+    });
+  }
+  
+  // Default error response
+  res.status(500).json({
+    success: false,
+    error: {
+      code: 'INTERNAL_SERVER_ERROR',
+      message: config.nodeEnv === 'development' ? err.message : 'Something went wrong'
+    }
+  });
+});
+
+// Start server
+const startVaasServer = async () => {
+  try {
+    // Test VaaS database connection
+    await connectVaasDB();
+    
+    // Start HTTP server
+    const server = app.listen(config.port, () => {
+      console.log(`🚀 Idswyft VaaS API server running on port ${config.port}`);
+      console.log(`📚 API Documentation: http://localhost:${config.port}/api/docs`);
+      console.log(`💻 Environment: ${config.nodeEnv}`);
+      console.log(`🔒 CORS Origins: ${config.corsOrigins.join(', ')}`);
+      console.log(`🏢 Service: Verification as a Service (VaaS)`);
+      
+      if (config.nodeEnv === 'development') {
+        console.log('🧪 Development mode enabled');
+      }
+    });
+    
+    // Graceful shutdown
+    const gracefulShutdown = (signal: string) => {
+      console.log(`Received ${signal}. Starting graceful VaaS server shutdown...`);
+      server.close(() => {
+        console.log('VaaS HTTP server closed');
+        process.exit(0);
+      });
+    };
+    
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+    
+    return server;
+  } catch (error) {
+    console.error('Failed to start VaaS server:', error);
+    process.exit(1);
+  }
+};
+
+// Start the VaaS server
+startVaasServer();
+
+export default app;
