@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { authenticateServiceToken } from '@/middleware/auth.js';
 import { catchAsync } from '@/middleware/errorHandler.js';
 import { supabase } from '@/config/database.js';
@@ -7,7 +7,7 @@ import { logger } from '@/utils/logger.js';
 const router = express.Router();
 
 // VaaS service endpoint - submit verification request
-router.post('/verify', authenticateServiceToken, catchAsync(async (req, res) => {
+router.post('/verify', authenticateServiceToken, catchAsync(async (req: Request, res: Response) => {
   const { user_id, document_url, selfie_url, organization_id } = req.body;
   
   logger.info('VaaS verification request received', {
@@ -54,7 +54,7 @@ router.post('/verify', authenticateServiceToken, catchAsync(async (req, res) => 
 }));
 
 // VaaS service endpoint - get verification status
-router.get('/verify/:verification_id/status', authenticateServiceToken, catchAsync(async (req, res) => {
+router.get('/verify/:verification_id/status', authenticateServiceToken, catchAsync(async (req: Request, res: Response) => {
   const { verification_id } = req.params;
   
   const { data: verification, error } = await supabase
