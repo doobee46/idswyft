@@ -14,6 +14,7 @@ import adminRoutes from './routes/admin.js';
 import authRoutes from './routes/auth.js';
 import healthRoutes from './routes/health.js';
 import webhookRoutes from './routes/webhooks.js';
+import vaasRoutes from './routes/vaas.js';
 
 const app = express();
 
@@ -80,6 +81,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/health', healthRoutes);
 app.use('/api/webhooks', webhookRoutes);
+app.use('/api/vaas', vaasRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

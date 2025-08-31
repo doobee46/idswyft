@@ -227,6 +227,7 @@ export interface AppConfig {
   corsOrigins: string[];
   jwtSecret: string;
   apiKeySecret: string;
+  serviceToken: string;
   encryptionKey: string;
   database: {
     url: string;
