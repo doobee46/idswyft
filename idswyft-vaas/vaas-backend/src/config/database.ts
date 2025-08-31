@@ -29,7 +29,7 @@ export const connectVaasDB = async () => {
     // Test connection with a simple query
     const { data, error } = await vaasSupabase
       .from('vaas_organizations')
-      .select('count(*)')
+      .select('id')
       .limit(1);
       
     if (error && error.code !== 'PGRST116') { // Ignore "relation does not exist" error for new DBs
