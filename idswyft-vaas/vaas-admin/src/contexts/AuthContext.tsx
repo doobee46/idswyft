@@ -143,23 +143,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Check authentication on mount
   useEffect(() => {
-    // Enable mock authentication in development if no real auth is present
-    if (import.meta.env.DEV && !apiClient.isAuthenticated() && !isMockAuthEnabled()) {
-      console.log('🧪 Development mode: Enabling mock authentication');
-      enableMockAuth();
-      
-      // Set mock authentication state
-      dispatch({
-        type: 'LOGIN_SUCCESS',
-        payload: {
-          admin: mockAdmin,
-          organization: mockOrganization,
-          token: 'mock_jwt_token_for_development',
-        },
-      });
-      return;
-    }
-    
+    // Mock authentication disabled - require real login
     if (apiClient.isAuthenticated()) {
       refreshAuth();
     }

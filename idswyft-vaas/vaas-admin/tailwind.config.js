@@ -1,26 +1,11 @@
-/** @type {import('tailwindcss').Config} */
+// Tailwind CSS v4 configuration
 export default {
+  // Tailwind v4 uses CSS-based configuration in the @import statement
+  // Most configuration is now done through CSS custom properties
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
-  theme: {
-    extend: {
-      fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-      },
-      colors: {
-        primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          900: '#1e3a8a',
-        }
-      }
-    },
-  },
   plugins: [
     require('@tailwindcss/forms'),
   ],
