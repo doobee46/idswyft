@@ -875,22 +875,22 @@ export function HomePage() {
   }, [])
 
   return (
-    <div className="bg-white">
+    <div className="bg-gray-50">
       {/* Hero section */}
-      <div className="relative overflow-hidden">
+      <div className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
         
         <div className="relative max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-12 sm:pt-20 pb-20 sm:pb-40">
           <div className="text-center">
             <div className={`transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
               {/* Badge - Mobile optimized */}
-              <div className="inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-purple-600/10 to-pink-600/10 rounded-full border border-purple-200/50 mb-6 sm:mb-8">
-                <SparklesIcon className="w-3 h-3 sm:w-4 sm:h-4 text-purple-600 mr-1 sm:mr-2" />
-                <span className="text-xs sm:text-sm font-medium text-purple-900">New: AI-Powered Verification with GPT-4o Vision</span>
+              <div className="inline-flex items-center px-4 py-2 bg-white/60 backdrop-blur-sm rounded-2xl border border-white/20 mb-8 shadow-lg shadow-blue-500/10">
+                <SparklesIcon className="w-4 h-4 text-blue-600 mr-2" />
+                <span className="text-sm font-semibold text-gray-700">New: AI-Powered Verification with GPT-4o Vision</span>
               </div>
               
-              <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-8xl font-bold text-gray-900 mb-6 sm:mb-8 leading-tight px-2">
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 mb-8 leading-tight px-2">
                 <span className="block">AI-Powered Identity</span>
-                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#25AEE5] to-[#1B3572]">
+                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600">
                   Verification
                 </span>
               </h1>
@@ -904,15 +904,15 @@ export function HomePage() {
             <div className={`flex flex-col sm:flex-row gap-3 sm:gap-6 justify-center items-center mb-12 sm:mb-20 transition-all duration-1000 delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'} px-3`}>
               <Link
                 to="/developer"
-                className="group inline-flex items-center justify-center w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:shadow-2xl hover:shadow-blue-500/25 transition-all duration-300 transform hover:scale-105 touch-manipulation"
+                className="group inline-flex items-center justify-center w-full sm:w-auto px-8 py-4 text-lg font-semibold bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl hover:shadow-2xl hover:shadow-blue-500/30 transition-all duration-300 transform hover:scale-105 touch-manipulation"
               >
-                <CommandLineIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                <CommandLineIcon className="w-5 h-5 mr-2" />
                 Get API Key Free
-                <ArrowRightIcon className="ml-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />
+                <ArrowRightIcon className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Link>
               <Link
                 to="/demo"
-                className="group inline-flex items-center justify-center w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold text-gray-700 bg-white border-2 border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-xl transition-all duration-300 transform hover:scale-105 touch-manipulation"
+                className="group inline-flex items-center justify-center w-full sm:w-auto px-8 py-4 text-lg font-semibold text-gray-700 bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-2xl hover:bg-white hover:shadow-xl transition-all duration-300 transform hover:scale-105 touch-manipulation"
               >
                 <PlayIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                 Try Live Demo
@@ -936,7 +936,7 @@ export function HomePage() {
                   className={`transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
                   style={{transitionDelay: `${(index + 1) * 200}ms`}}
                 >
-                  <div className="group bg-white/80 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-6 shadow-xl border border-gray-200/50 hover:shadow-2xl hover:border-gray-300/50 transition-all duration-300 transform hover:scale-105">
+                  <div className="group bg-white/60 backdrop-blur-lg rounded-3xl p-6 shadow-lg shadow-gray-900/5 border border-gray-100/50 hover:shadow-2xl hover:shadow-gray-900/10 hover:border-gray-200/50 transition-all duration-500 transform hover:scale-105">
                     <div className="relative">
                       <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                       <stat.icon className="relative h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 text-blue-600 mx-auto mb-2 sm:mb-3 group-hover:text-purple-600 transition-colors" />
@@ -952,7 +952,7 @@ export function HomePage() {
       </div>
 
       {/* Quick Integration Preview - Mobile optimized */}
-      <section className="py-12 sm:py-16 lg:py-24 bg-gradient-to-br from-gray-50 to-gray-100">
+      <section className="py-24 bg-white relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="text-center mb-8 sm:mb-12 lg:mb-16">
             <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 sm:mb-6 px-2">

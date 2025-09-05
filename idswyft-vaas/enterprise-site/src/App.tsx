@@ -1,4 +1,4 @@
-import { Shield, Zap, Lock, Users, ArrowRight, CheckCircle, Clock, X, Building, Mail, Phone, User } from 'lucide-react'
+import { Shield, Zap, Lock, Users, ArrowRight, CheckCircle, Clock, X, Building, Mail, Phone, User, Star, Globe, Smartphone, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 
 function App() {
@@ -73,126 +73,445 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100/50">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="flex justify-between items-center h-20">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25">
+                <Shield className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <span className="text-gray-900 text-xl font-bold">Idswyft VaaS</span>
+                <div className="text-xs text-gray-500 font-medium">Identity Verification</div>
+              </div>
+            </div>
+            <div className="hidden lg:flex items-center space-x-10">
+              <a href="#features" className="text-gray-700 hover:text-gray-900 transition-colors font-medium text-sm">Features</a>
+              <a href="#pricing" className="text-gray-700 hover:text-gray-900 transition-colors font-medium text-sm">Pricing</a>
+              <a href="#api" className="text-gray-700 hover:text-gray-900 transition-colors font-medium text-sm">API</a>
+              <a href="https://docs.idswyft.com" target="_blank" className="text-gray-700 hover:text-gray-900 transition-colors font-medium text-sm">Documentation</a>
+              <button
+                onClick={() => setShowSignupForm(true)}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-7 py-3 rounded-2xl font-semibold text-sm hover:shadow-xl hover:shadow-blue-500/25 hover:scale-105 transition-all duration-300 ease-out"
+              >
+                Start Free Trial
+              </button>
+            </div>
+            <button
+              onClick={() => setShowSignupForm(true)}
+              className="lg:hidden bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2.5 rounded-xl font-semibold text-sm"
+            >
+              Get Started
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <section className="relative py-24 lg:py-32 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50"></div>
+        <div className="absolute top-10 left-10 w-72 h-72 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-10 right-10 w-96 h-96 bg-gradient-to-br from-pink-400/20 to-orange-400/20 rounded-full blur-3xl"></div>
+        
+        <div className="relative max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="text-center max-w-4xl mx-auto">
+            <div className="inline-flex items-center space-x-2 bg-white/60 backdrop-blur-sm rounded-full px-4 py-2 mb-8 border border-white/20">
+              <Sparkles className="h-4 w-4 text-blue-600" />
+              <span className="text-sm font-medium text-gray-700">Trusted by 1000+ companies worldwide</span>
+            </div>
+            
+            <h1 className="text-5xl lg:text-7xl font-bold text-gray-900 mb-8 leading-tight">
+              Identity Verification
+              <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent"> as a Service</span>
+            </h1>
+            
+            <p className="text-xl lg:text-2xl text-gray-600 mb-12 leading-relaxed font-light">
+              Integrate powerful identity verification into your application in minutes, not months. 
+              Document processing, face recognition, and fraud detection - all through one simple API.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row justify-center gap-6 mb-16">
+              <button
+                onClick={() => setShowSignupForm(true)}
+                className="group bg-gradient-to-r from-blue-600 to-purple-600 text-white px-10 py-4 rounded-2xl font-semibold text-lg hover:shadow-2xl hover:shadow-blue-500/30 hover:scale-105 transition-all duration-300 ease-out"
+              >
+                <span className="flex items-center justify-center">
+                  Start Free Trial
+                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                </span>
+              </button>
+              <a 
+                href="https://docs.idswyft.com" 
+                target="_blank"
+                className="flex items-center justify-center px-10 py-4 rounded-2xl font-semibold text-lg text-gray-700 bg-white/80 backdrop-blur-sm border border-gray-200/50 hover:bg-white hover:shadow-lg transition-all duration-300"
+              >
+                View Documentation
+              </a>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-3xl mx-auto">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-gray-900 mb-2">99.5%</div>
+                <div className="text-gray-600 font-medium">Accuracy Rate</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-gray-900 mb-2">&lt;30s</div>
+                <div className="text-gray-600 font-medium">Average Processing</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-gray-900 mb-2">150+</div>
+                <div className="text-gray-600 font-medium">Document Types</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section id="features" className="py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-20">
+            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
+              Everything you need for identity verification
+            </h2>
+            <p className="text-xl text-gray-600 leading-relaxed">
+              From document scanning to fraud detection, our comprehensive platform handles every aspect of identity verification.
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="group">
+              <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-3xl p-8 hover:shadow-2xl hover:shadow-gray-900/5 transition-all duration-500 border border-gray-100/50 hover:border-gray-200/50">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <Shield className="h-8 w-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Document Processing</h3>
+                <p className="text-gray-600 mb-6 leading-relaxed">
+                  AI-powered OCR extracts data from government IDs, passports, and driver's licenses with 99.5% accuracy.
+                </p>
+                <ul className="space-y-3">
+                  <li className="flex items-center text-gray-600">
+                    <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
+                    150+ supported document types
+                  </li>
+                  <li className="flex items-center text-gray-600">
+                    <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
+                    Real-time fraud detection
+                  </li>
+                  <li className="flex items-center text-gray-600">
+                    <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
+                    Tamper detection algorithms
+                  </li>
+                </ul>
+              </div>
+            </div>
+            
+            <div className="group">
+              <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-3xl p-8 hover:shadow-2xl hover:shadow-gray-900/5 transition-all duration-500 border border-gray-100/50 hover:border-gray-200/50">
+                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <Users className="h-8 w-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Face Recognition</h3>
+                <p className="text-gray-600 mb-6 leading-relaxed">
+                  Advanced biometric matching compares selfies against document photos to prevent identity spoofing.
+                </p>
+                <ul className="space-y-3">
+                  <li className="flex items-center text-gray-600">
+                    <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
+                    Liveness detection
+                  </li>
+                  <li className="flex items-center text-gray-600">
+                    <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
+                    Anti-spoofing technology
+                  </li>
+                  <li className="flex items-center text-gray-600">
+                    <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
+                    99.2% accuracy rate
+                  </li>
+                </ul>
+              </div>
+            </div>
+            
+            <div className="group">
+              <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-3xl p-8 hover:shadow-2xl hover:shadow-gray-900/5 transition-all duration-500 border border-gray-100/50 hover:border-gray-200/50">
+                <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-pink-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <Zap className="h-8 w-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Developer-First API</h3>
+                <p className="text-gray-600 mb-6 leading-relaxed">
+                  RESTful APIs, webhooks, and SDKs that integrate seamlessly into your existing infrastructure.
+                </p>
+                <ul className="space-y-3">
+                  <li className="flex items-center text-gray-600">
+                    <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
+                    &lt;30 minute integration
+                  </li>
+                  <li className="flex items-center text-gray-600">
+                    <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
+                    Real-time webhooks
+                  </li>
+                  <li className="flex items-center text-gray-600">
+                    <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
+                    Comprehensive documentation
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section id="pricing" className="py-24 bg-gradient-to-br from-gray-50 to-white">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-20">
+            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
+              Simple, transparent pricing
+            </h2>
+            <p className="text-xl text-gray-600 leading-relaxed">
+              Start free, scale as you grow. No hidden fees or long-term commitments.
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            <div className="bg-white rounded-3xl p-8 border border-gray-200/50 hover:shadow-xl hover:shadow-gray-900/5 transition-all duration-500">
+              <div className="text-center mb-8">
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Starter</h3>
+                <div className="text-5xl font-bold text-gray-900 mb-2">$299</div>
+                <div className="text-gray-600">/month + $2 per verification</div>
+                <div className="text-sm text-gray-500 mt-2">Up to 500 verifications</div>
+              </div>
+              <ul className="space-y-4 mb-8">
+                <li className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
+                  <span className="text-gray-700">Document verification</span>
+                </li>
+                <li className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
+                  <span className="text-gray-700">Face matching</span>
+                </li>
+                <li className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
+                  <span className="text-gray-700">API access</span>
+                </li>
+                <li className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
+                  <span className="text-gray-700">Email support</span>
+                </li>
+              </ul>
+              <button
+                onClick={() => setShowSignupForm(true)}
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 rounded-2xl font-semibold hover:shadow-lg hover:scale-105 transition-all duration-300"
+              >
+                Start Free Trial
+              </button>
+            </div>
+            
+            <div className="bg-gradient-to-br from-blue-600 to-purple-600 rounded-3xl p-8 text-white relative overflow-hidden transform scale-105">
+              <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-medium">
+                Most Popular
+              </div>
+              <div className="text-center mb-8">
+                <h3 className="text-2xl font-bold mb-4">Professional</h3>
+                <div className="text-5xl font-bold mb-2">$799</div>
+                <div className="text-blue-100">/month + $1.50 per verification</div>
+                <div className="text-sm text-blue-100 mt-2">Up to 2,000 verifications</div>
+              </div>
+              <ul className="space-y-4 mb-8">
+                <li className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-white mr-3 flex-shrink-0" />
+                  <span className="text-white">Everything in Starter</span>
+                </li>
+                <li className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-white mr-3 flex-shrink-0" />
+                  <span className="text-white">Fraud detection</span>
+                </li>
+                <li className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-white mr-3 flex-shrink-0" />
+                  <span className="text-white">Webhooks</span>
+                </li>
+                <li className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-white mr-3 flex-shrink-0" />
+                  <span className="text-white">Priority support</span>
+                </li>
+              </ul>
+              <button
+                onClick={() => setShowSignupForm(true)}
+                className="w-full bg-white text-blue-600 py-4 rounded-2xl font-semibold hover:shadow-lg hover:scale-105 transition-all duration-300"
+              >
+                Start Free Trial
+              </button>
+            </div>
+            
+            <div className="bg-white rounded-3xl p-8 border border-gray-200/50 hover:shadow-xl hover:shadow-gray-900/5 transition-all duration-500">
+              <div className="text-center mb-8">
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Enterprise</h3>
+                <div className="text-5xl font-bold text-gray-900 mb-2">$2,499</div>
+                <div className="text-gray-600">/month + $1 per verification</div>
+                <div className="text-sm text-gray-500 mt-2">Unlimited verifications</div>
+              </div>
+              <ul className="space-y-4 mb-8">
+                <li className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
+                  <span className="text-gray-700">Everything in Professional</span>
+                </li>
+                <li className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
+                  <span className="text-gray-700">Custom integrations</span>
+                </li>
+                <li className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
+                  <span className="text-gray-700">SLA guarantee</span>
+                </li>
+                <li className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
+                  <span className="text-gray-700">Dedicated support</span>
+                </li>
+              </ul>
+              <button
+                onClick={() => setShowSignupForm(true)}
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 rounded-2xl font-semibold hover:shadow-lg hover:scale-105 transition-all duration-300"
+              >
+                Contact Sales
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-24 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 relative overflow-hidden">
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="relative max-w-7xl mx-auto px-6 lg:px-8 text-center">
+          <h2 className="text-4xl lg:text-5xl font-bold text-white mb-8">
+            Ready to get started?
+          </h2>
+          <p className="text-xl text-white/90 mb-12 max-w-2xl mx-auto leading-relaxed">
+            Join thousands of companies already using Idswyft VaaS to verify identities and prevent fraud.
+          </p>
+          <div className="flex flex-col sm:flex-row justify-center gap-6">
+            <button
+              onClick={() => setShowSignupForm(true)}
+              className="bg-white text-blue-600 px-10 py-4 rounded-2xl font-semibold text-lg hover:shadow-2xl hover:scale-105 transition-all duration-300"
+            >
+              Start Free Trial
+            </button>
+            <a 
+              href="https://docs.idswyft.com" 
+              target="_blank"
+              className="bg-white/10 backdrop-blur-sm text-white px-10 py-4 rounded-2xl font-semibold text-lg border border-white/20 hover:bg-white/20 transition-all duration-300"
+            >
+              View Documentation
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* Signup Form Modal */}
       {showSignupForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="p-8">
+              <div className="flex justify-between items-center mb-8">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Start Your Free Trial</h2>
-                  <p className="text-gray-600 mt-1">Get 1,000 free identity verifications to test our platform</p>
+                  <h2 className="text-3xl font-bold text-gray-900 mb-2">Start Your Free Trial</h2>
+                  <p className="text-gray-600">Get 1,000 free identity verifications to test our platform</p>
                 </div>
                 <button
                   onClick={() => setShowSignupForm(false)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-xl"
                 >
                   <X className="h-6 w-6" />
                 </button>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor="firstName" className="block text-sm font-semibold text-gray-900 mb-2">
                       First Name *
                     </label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                      <input
-                        type="text"
-                        id="firstName"
-                        name="firstName"
-                        required
-                        value={formData.firstName}
-                        onChange={handleInputChange}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="John"
-                      />
-                    </div>
+                    <input
+                      type="text"
+                      id="firstName"
+                      name="firstName"
+                      required
+                      value={formData.firstName}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
+                      placeholder="John"
+                    />
                   </div>
 
                   <div>
-                    <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor="lastName" className="block text-sm font-semibold text-gray-900 mb-2">
                       Last Name *
                     </label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                      <input
-                        type="text"
-                        id="lastName"
-                        name="lastName"
-                        required
-                        value={formData.lastName}
-                        onChange={handleInputChange}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Smith"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                    Business Email *
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                     <input
-                      type="email"
-                      id="email"
-                      name="email"
+                      type="text"
+                      id="lastName"
+                      name="lastName"
                       required
-                      value={formData.email}
+                      value={formData.lastName}
                       onChange={handleInputChange}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="john@company.com"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
+                      placeholder="Doe"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                      Phone Number
-                    </label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                      <input
-                        type="tel"
-                        id="phone"
-                        name="phone"
-                        value={formData.phone}
-                        onChange={handleInputChange}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="+1 (555) 123-4567"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-2">
-                      Company Name *
-                    </label>
-                    <div className="relative">
-                      <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                      <input
-                        type="text"
-                        id="company"
-                        name="company"
-                        required
-                        value={formData.company}
-                        onChange={handleInputChange}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Acme Corp"
-                      />
-                    </div>
-                  </div>
+                <div>
+                  <label htmlFor="email" className="block text-sm font-semibold text-gray-900 mb-2">
+                    Business Email *
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    required
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
+                    placeholder="john@company.com"
+                  />
                 </div>
 
                 <div>
-                  <label htmlFor="jobTitle" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="phone" className="block text-sm font-semibold text-gray-900 mb-2">
+                    Phone Number *
+                  </label>
+                  <input
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    required
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
+                    placeholder="+1 (555) 123-4567"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="company" className="block text-sm font-semibold text-gray-900 mb-2">
+                    Company Name *
+                  </label>
+                  <input
+                    type="text"
+                    id="company"
+                    name="company"
+                    required
+                    value={formData.company}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
+                    placeholder="Acme Corporation"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="jobTitle" className="block text-sm font-semibold text-gray-900 mb-2">
                     Job Title *
                   </label>
                   <input
@@ -202,13 +521,13 @@ function App() {
                     required
                     value={formData.jobTitle}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
                     placeholder="CTO, Product Manager, etc."
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="estimatedVolume" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="estimatedVolume" className="block text-sm font-semibold text-gray-900 mb-2">
                     Expected Monthly Verification Volume *
                   </label>
                   <select
@@ -217,7 +536,7 @@ function App() {
                     required
                     value={formData.estimatedVolume}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
                   >
                     <option value="">Select volume range</option>
                     <option value="1-1000">1 - 1,000 verifications</option>
@@ -228,7 +547,7 @@ function App() {
                 </div>
 
                 <div>
-                  <label htmlFor="useCase" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="useCase" className="block text-sm font-semibold text-gray-900 mb-2">
                     Primary Use Case *
                   </label>
                   <textarea
@@ -238,28 +557,28 @@ function App() {
                     value={formData.useCase}
                     onChange={handleInputChange}
                     rows={3}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white resize-none"
                     placeholder="Tell us how you plan to use identity verification (e.g., user onboarding, KYC compliance, fraud prevention, etc.)"
                   />
                 </div>
 
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-gray-900 mb-2">What happens next?</h4>
-                  <ul className="space-y-1 text-sm text-gray-600">
+                <div className="bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-2xl border border-blue-100/50">
+                  <h4 className="font-semibold text-gray-900 mb-4">What happens next?</h4>
+                  <ul className="space-y-3 text-sm text-gray-700">
                     <li className="flex items-center">
-                      <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                      <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
                       We'll create your account within 24 hours
                     </li>
                     <li className="flex items-center">
-                      <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                      <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
                       You'll receive API keys and documentation
                     </li>
                     <li className="flex items-center">
-                      <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                      <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
                       Get 1,000 free verifications to test the platform
                     </li>
                     <li className="flex items-center">
-                      <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                      <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
                       Optional onboarding call with our team
                     </li>
                   </ul>
@@ -269,14 +588,14 @@ function App() {
                   <button
                     type="button"
                     onClick={() => setShowSignupForm(false)}
-                    className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex-1 px-6 py-3 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-200 font-medium"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors font-medium"
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl hover:shadow-lg hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none transition-all duration-200 font-semibold"
                   >
                     {isSubmitting ? (
                       <div className="flex items-center justify-center">
@@ -293,445 +612,6 @@ function App() {
           </div>
         </div>
       )}
-
-      {/* Navigation */}
-      <nav className="bg-white shadow-sm border-b border-gray-200">
-        <div className="container-max section-padding">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-2">
-              <Shield className="h-8 w-8 text-blue-600" />
-              <span className="text-xl font-bold text-gray-900">Idswyft VaaS</span>
-            </div>
-            <div className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-gray-600 hover:text-gray-900 transition-colors">Solutions</a>
-              <a href="#pricing" className="text-gray-600 hover:text-gray-900 transition-colors">Pricing</a>
-              <a href="#benefits" className="text-gray-600 hover:text-gray-900 transition-colors">Benefits</a>
-              <a href="#contact" className="btn btn-primary">Get Started</a>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero Section */}
-      <section className="section-padding py-20 bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="container-max">
-          <div className="text-center animate-fadeInUp">
-            <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-              <span className="gradient-text">Identity Verification</span>
-              <br />
-              Made Simple for Business
-            </h1>
-            <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto animate-fadeInUp animate-delay-200">
-              Reduce fraud and meet compliance requirements with our turnkey identity verification solution. 
-              Verify customers instantly with 99% accuracy - no technical expertise required.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fadeInUp animate-delay-400">
-              <button 
-                className="btn btn-primary text-lg px-8 py-4"
-                onClick={() => setShowSignupForm(true)}
-              >
-                Start Free Trial <ArrowRight className="ml-2 h-5 w-5" />
-              </button>
-              <button className="btn btn-secondary text-lg px-8 py-4">
-                Schedule Demo
-              </button>
-            </div>
-            <p className="text-sm text-gray-500 mt-4">No credit card required • 1,000 free verifications</p>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="section-padding py-16 bg-white">
-        <div className="container-max">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
-            <div>
-              <div className="text-3xl font-bold text-blue-600 mb-2">85%</div>
-              <div className="text-gray-600">Fraud Reduction</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-blue-600 mb-2">&lt;30s</div>
-              <div className="text-gray-600">Customer Onboarding</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-blue-600 mb-2">24/7</div>
-              <div className="text-gray-600">Automated Processing</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-blue-600 mb-2">100%</div>
-              <div className="text-gray-600">Compliance Ready</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section id="features" className="section-padding py-20 bg-gray-50">
-        <div className="container-max">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Protect Your Business from Fraud
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Our turnkey solution helps businesses of all sizes reduce fraud, improve customer trust, 
-              and meet regulatory compliance requirements automatically.
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
-              <div className="bg-blue-100 w-12 h-12 rounded-lg flex items-center justify-center mb-6">
-                <Shield className="h-6 w-6 text-blue-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Instant Document Verification</h3>
-              <p className="text-gray-600 mb-6">
-                Automatically verify government IDs, passports, and licenses from 190+ countries. Stop fraudsters before they can harm your business.
-              </p>
-              <ul className="space-y-2">
-                <li className="flex items-center text-sm text-gray-600">
-                  <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                  Detect fake documents instantly
-                </li>
-                <li className="flex items-center text-sm text-gray-600">
-                  <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                  Global document coverage
-                </li>
-                <li className="flex items-center text-sm text-gray-600">
-                  <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                  No manual review needed
-                </li>
-              </ul>
-            </div>
-
-            <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
-              <div className="bg-purple-100 w-12 h-12 rounded-lg flex items-center justify-center mb-6">
-                <Users className="h-6 w-6 text-purple-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Customer Identity Matching</h3>
-              <p className="text-gray-600 mb-6">
-                Ensure your customers are who they claim to be. Advanced facial recognition prevents account takeover and identity theft.
-              </p>
-              <ul className="space-y-2">
-                <li className="flex items-center text-sm text-gray-600">
-                  <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                  Prevent account takeovers
-                </li>
-                <li className="flex items-center text-sm text-gray-600">
-                  <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                  Stop synthetic identities
-                </li>
-                <li className="flex items-center text-sm text-gray-600">
-                  <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                  Real person verification
-                </li>
-              </ul>
-            </div>
-
-            <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
-              <div className="bg-green-100 w-12 h-12 rounded-lg flex items-center justify-center mb-6">
-                <Zap className="h-6 w-6 text-green-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Compliance & Reporting</h3>
-              <p className="text-gray-600 mb-6">
-                Meet KYC, AML, and regulatory requirements automatically. Comprehensive audit trails and reporting keep you compliant.
-              </p>
-              <ul className="space-y-2">
-                <li className="flex items-center text-sm text-gray-600">
-                  <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                  Automatic compliance checks
-                </li>
-                <li className="flex items-center text-sm text-gray-600">
-                  <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                  Complete audit trails
-                </li>
-                <li className="flex items-center text-sm text-gray-600">
-                  <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                  Regulatory reporting
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Benefits Section */}
-      <section className="section-padding py-20 bg-white">
-        <div className="container-max">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-6">
-              Why Businesses Choose Idswyft
-            </h2>
-            <p className="text-xl text-gray-600">
-              Join thousands of companies who trust us to protect their business and customers.
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div className="space-y-8">
-              <div className="flex items-start space-x-4">
-                <div className="bg-blue-100 w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Shield className="h-6 w-6 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Reduce Fraud by 85%</h3>
-                  <p className="text-gray-600">Stop fraudulent accounts before they cost your business. Our customers see average fraud reduction of 85% within the first month.</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start space-x-4">
-                <div className="bg-green-100 w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Clock className="h-6 w-6 text-green-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Launch in Days, Not Months</h3>
-                  <p className="text-gray-600">No technical expertise required. Our turnkey solution can be deployed and operational within days.</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start space-x-4">
-                <div className="bg-purple-100 w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Lock className="h-6 w-6 text-purple-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Stay Compliant Automatically</h3>
-                  <p className="text-gray-600">Meet KYC, AML, and GDPR requirements without the headache. Automatic compliance reporting and audit trails.</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start space-x-4">
-                <div className="bg-yellow-100 w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Users className="h-6 w-6 text-yellow-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Improve Customer Experience</h3>
-                  <p className="text-gray-600">Faster onboarding means happier customers. Verify identities in under 30 seconds with minimal friction.</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl p-8">
-              <div className="text-center">
-                <div className="text-4xl font-bold text-blue-600 mb-2">$2.4M</div>
-                <div className="text-gray-600 mb-4">Average annual fraud savings</div>
-                <div className="text-2xl font-bold text-green-600 mb-2">150%</div>
-                <div className="text-gray-600 mb-4">ROI in first year</div>
-                <div className="text-2xl font-bold text-purple-600 mb-2">40%</div>
-                <div className="text-gray-600">Faster customer onboarding</div>
-              </div>
-              <div className="mt-8 text-center">
-                <button 
-                  onClick={() => setShowSignupForm(true)}
-                  className="btn btn-primary"
-                >
-                  Calculate Your Savings <ArrowRight className="ml-2 h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Section */}
-      <section id="pricing" className="section-padding py-20 bg-gray-50">
-        <div className="container-max">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Simple, transparent pricing
-            </h2>
-            <p className="text-xl text-gray-600">
-              Pay per verification with volume discounts. No hidden fees or monthly commitments.
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
-              <div className="text-center">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Starter</h3>
-                <div className="text-3xl font-bold text-gray-900 mb-4">
-                  $0.50<span className="text-sm font-normal text-gray-600">/verification</span>
-                </div>
-                <p className="text-gray-600 mb-6">Perfect for small applications and testing</p>
-                <button 
-                  onClick={() => setShowSignupForm(true)}
-                  className="btn btn-outline w-full mb-6"
-                >
-                  Start Free Trial
-                </button>
-                <ul className="space-y-3 text-sm text-gray-600">
-                  <li className="flex items-center">
-                    <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                    1,000 free verifications
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                    Document verification
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                    Face verification
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                    API access
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                    Email support
-                  </li>
-                </ul>
-              </div>
-            </div>
-
-            <div className="bg-blue-600 p-8 rounded-xl shadow-lg text-white relative">
-              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                <span className="bg-yellow-400 text-gray-900 px-3 py-1 rounded-full text-xs font-medium">
-                  Most Popular
-                </span>
-              </div>
-              <div className="text-center">
-                <h3 className="text-lg font-semibold mb-2">Professional</h3>
-                <div className="text-3xl font-bold mb-4">
-                  $0.30<span className="text-sm font-normal opacity-80">/verification</span>
-                </div>
-                <p className="opacity-80 mb-6">For growing businesses and scale</p>
-                <button 
-                  onClick={() => setShowSignupForm(true)}
-                  className="btn btn-secondary w-full mb-6"
-                >
-                  Start Free Trial
-                </button>
-                <ul className="space-y-3 text-sm opacity-90">
-                  <li className="flex items-center">
-                    <CheckCircle className="h-4 w-4 text-blue-200 mr-2" />
-                    Everything in Starter
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle className="h-4 w-4 text-blue-200 mr-2" />
-                    Volume discounts
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle className="h-4 w-4 text-blue-200 mr-2" />
-                    Webhook notifications
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle className="h-4 w-4 text-blue-200 mr-2" />
-                    Priority support
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle className="h-4 w-4 text-blue-200 mr-2" />
-                    SLA guarantee
-                  </li>
-                </ul>
-              </div>
-            </div>
-
-            <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
-              <div className="text-center">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Enterprise</h3>
-                <div className="text-3xl font-bold text-gray-900 mb-4">
-                  Custom<span className="text-sm font-normal text-gray-600"> pricing</span>
-                </div>
-                <p className="text-gray-600 mb-6">For large-scale implementations</p>
-                <button className="btn btn-primary w-full mb-6">Contact Sales</button>
-                <ul className="space-y-3 text-sm text-gray-600">
-                  <li className="flex items-center">
-                    <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                    Everything in Professional
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                    Custom integrations
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                    On-premise deployment
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                    24/7 phone support
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                    Enterprise SLA
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="section-padding py-20 bg-blue-600">
-        <div className="container-max text-center">
-          <h2 className="text-4xl font-bold text-white mb-6">
-            Ready to Protect Your Business?
-          </h2>
-          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            Join thousands of businesses who trust Idswyft to reduce fraud and improve customer trust.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button 
-              onClick={() => setShowSignupForm(true)}
-              className="btn btn-secondary text-lg px-8 py-4"
-            >
-              Start Free Trial <ArrowRight className="ml-2 h-5 w-5" />
-            </button>
-            <button className="btn btn-outline text-lg px-8 py-4 text-white border-white hover:bg-white hover:text-blue-600">
-              Contact Sales
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="section-padding py-12 bg-gray-900 text-white">
-        <div className="container-max">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <Shield className="h-6 w-6 text-blue-400" />
-                <span className="text-lg font-semibold">Idswyft VaaS</span>
-              </div>
-              <p className="text-gray-400 text-sm">
-                Enterprise-grade identity verification for modern applications.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Product</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="#" className="hover:text-white transition-colors">Features</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Pricing</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Documentation</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Status</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Company</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="#" className="hover:text-white transition-colors">About</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Privacy</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Terms</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Connect</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="#" className="hover:text-white transition-colors">Twitter</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">GitHub</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">LinkedIn</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Discord</a></li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center">
-            <p className="text-sm text-gray-400">
-              © 2024 Idswyft. All rights reserved.
-            </p>
-          </div>
-        </div>
-      </footer>
     </div>
   )
 }

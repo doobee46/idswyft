@@ -46,28 +46,20 @@ export function Layout({ children }: LayoutProps) {
   }
   
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gray-50">
       {/* Navigation */}
-      <nav className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100/50">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="flex justify-between items-center h-20">
             {/* Logo */}
             <div className="flex-shrink-0 flex items-center">
-              <Link to="/" className="flex items-center">
-                <img 
-                  src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo.png" 
-                  alt="Idswyft" 
-                  className="h-8 w-auto flex-shrink-0"
-                  onError={(e) => {
-                    // Fallback to icon and text if image fails to load
-                    e.currentTarget.style.display = 'none';
-                    const fallback = e.currentTarget.nextSibling as HTMLElement;
-                    if (fallback) fallback.style.display = 'flex';
-                  }}
-                />
-                <div className="hidden items-center space-x-2">
-                  <ShieldCheckIcon className="h-8 w-8 text-primary-600 flex-shrink-0" />
+              <Link to="/" className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25">
+                  <ShieldCheckIcon className="h-5 w-5 text-white" />
+                </div>
+                <div>
                   <span className="text-xl font-bold text-gray-900">Idswyft</span>
+                  <div className="text-xs text-gray-500 font-medium">Identity Verification</div>
                 </div>
               </Link>
             </div>
@@ -87,7 +79,7 @@ export function Layout({ children }: LayoutProps) {
                         href={item.href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium space-x-1 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                        className="text-gray-700 hover:text-gray-900 transition-colors font-medium text-sm"
                       >
                         <Icon className="h-4 w-4 flex-shrink-0" />
                         <span>{item.name}</span>
@@ -100,10 +92,10 @@ export function Layout({ children }: LayoutProps) {
                       key={item.name}
                       to={item.href}
                       className={clsx(
-                        'inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium space-x-1',
+                        'text-sm font-medium transition-colors',
                         isActive
-                          ? 'border-primary-500 text-gray-900'
-                          : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                          ? 'text-gray-900'
+                          : 'text-gray-700 hover:text-gray-900'
                       )}
                     >
                       <Icon className="h-4 w-4 flex-shrink-0" />
