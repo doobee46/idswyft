@@ -32,27 +32,61 @@ app.use(helmet({
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (mobile apps, server-to-server)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log(`CORS: No origin header, allowing request`);
+      return callback(null, true);
+    }
     
-    // Allow all localhost origins in development
+    console.log(`CORS request from origin: ${origin}, NODE_ENV: ${config.nodeEnv}`);
+    console.log(`Configured origins: ${config.corsOrigins.join(', ')}`);
+    
+    // In development, allow all localhost and local network origins
     if (config.nodeEnv === 'development') {
       if (origin.startsWith('http://localhost:') || 
           origin.startsWith('http://127.0.0.1:') ||
           origin.match(/^http:\/\/192\.168\.\d{1,3}\.\d{1,3}:\d+$/)) {
-        return callback(null, true);
+        console.log(`✅ CORS: Allowing development origin: ${origin}`);
+        return callback(null, origin); // Return the actual origin instead of true
       }
     }
     
     // Check against configured VaaS origins
     if (config.corsOrigins.indexOf(origin) !== -1) {
-      return callback(null, true);
+      console.log(`✅ CORS: Allowing configured origin: ${origin}`);
+      return callback(null, origin); // Return the actual origin instead of true
     }
     
-    return callback(new Error('Not allowed by CORS'), false);
+    console.log(`❌ CORS: Rejecting origin: ${origin}`);
+    return callback(new Error(`Not allowed by CORS: ${origin}`), false);
   },
   credentials: true,
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Requested-With']
 }));
+
+// Debug middleware to log all requests in development
+if (config.nodeEnv === 'development') {
+  app.use((req, res, next) => {
+    console.log(`\n=== ${req.method} ${req.originalUrl} ===`);
+    console.log(`Origin: ${req.headers.origin || 'No origin header'}`);
+    console.log(`User-Agent: ${req.headers['user-agent']?.substring(0, 50)}...`);
+    console.log(`Content-Type: ${req.headers['content-type'] || 'Not set'}`);
+    console.log(`Authorization: ${req.headers.authorization ? 'Present' : 'Not present'}`);
+    console.log(`X-API-Key: ${req.headers['x-api-key'] ? 'Present' : 'Not present'}`);
+    
+    // Log response headers after they're set
+    const originalSend = res.send;
+    res.send = function(body) {
+      console.log(`Response Status: ${res.statusCode}`);
+      console.log(`Access-Control-Allow-Origin: ${res.get('Access-Control-Allow-Origin') || 'Not set'}`);
+      console.log(`=== END REQUEST ===\n`);
+      return originalSend.call(this, body);
+    };
+    
+    next();
+  });
+}
 
 // Basic middleware
 app.use(compression());

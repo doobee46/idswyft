@@ -1,6 +1,12 @@
 export interface User {
   id: string;
   email?: string;
+  phone?: string;
+  first_name?: string;
+  last_name?: string;
+  external_id?: string;
+  status?: string;
+  metadata?: any;
   created_at: Date;
   updated_at?: Date;
 }

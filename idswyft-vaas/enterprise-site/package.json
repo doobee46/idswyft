@@ -1,10 +1,10 @@
 {
-  "name": "customer-portal",
+  "name": "enterprise-site",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port 3003 --host",
+    "dev": "vite --port 3015 --host",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -13,11 +13,9 @@
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/postcss": "^4.1.12",
     "@tailwindcss/vite": "^4.1.12",
-    "axios": "^1.11.0",
     "lucide-react": "^0.542.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "react-router-dom": "^7.8.2",
     "tailwindcss": "^4.0.0"
   },
   "devDependencies": {

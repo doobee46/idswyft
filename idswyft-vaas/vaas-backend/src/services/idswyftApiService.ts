@@ -53,7 +53,7 @@ export class IdswyftApiService {
       baseURL: config.idswyftApi.baseUrl,
       timeout: config.idswyftApi.timeout,
       headers: {
-        'Authorization': `Bearer ${config.idswyftApi.serviceToken}`,
+        'X-Service-Token': config.idswyftApi.serviceToken,
         'Content-Type': 'application/json',
         'User-Agent': 'VaaS-Service/1.0.0'
       }
@@ -93,7 +93,7 @@ export class IdswyftApiService {
     metadata?: Record<string, any>;
   }): Promise<IdswyftApiUser> {
     try {
-      const response: AxiosResponse<{ success: boolean; data: IdswyftApiUser }> = await this.client.post('/api/users', {
+      const response: AxiosResponse<{ success: boolean; data: IdswyftApiUser }> = await this.client.post('/api/vaas/users', {
         email: userData.email,
         phone: userData.phone,
         first_name: userData.first_name,

@@ -69,11 +69,16 @@ export class VerificationService {
         end_user: endUser
       });
       
+      // Generate VaaS customer portal URL instead of main platform URL
+      const customerPortalUrl = process.env.VAAS_CUSTOMER_PORTAL_URL || 'https://customer.idswyft.app';
+      const vaasVerificationUrl = `${customerPortalUrl}/verify?session=${session.session_token}`;
+      
       return {
         session_id: session.id,
-        verification_url: idswyftVerification.verification_url,
+        verification_url: vaasVerificationUrl,
         end_user: endUser,
-        expires_at: idswyftVerification.expires_at
+        expires_at: idswyftVerification.expires_at,
+        session_token: session.session_token // Include token for debugging/admin use
       };
     } catch (error: any) {
       console.error('[VerificationService] Start verification failed:', error);

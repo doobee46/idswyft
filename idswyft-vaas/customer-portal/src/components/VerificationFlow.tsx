@@ -62,11 +62,16 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
   const loadSession = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/public/sessions/${sessionToken}`);
-      setSession(response.data.session);
+      const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/verifications/session/${sessionToken}`);
+      
+      if (response.data.success) {
+        setSession(response.data.data);
+      } else {
+        throw new Error(response.data.error?.message || 'Failed to load session');
+      }
       
       // Determine starting step based on session status
-      const sessionData = response.data.session;
+      const sessionData = response.data.data;
       if (sessionData.status === 'expired') {
         setCurrentStep('error');
         setError('This verification session has expired. Please request a new verification link.');

@@ -4,7 +4,7 @@ import {
   ShieldCheckIcon, 
   CodeBracketIcon, 
   DocumentTextIcon,
-  CogIcon 
+  BuildingOfficeIcon 
 } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
 
@@ -12,12 +12,21 @@ interface LayoutProps {
   children: ReactNode
 }
 
+const getEnterpriseUrl = () => {
+  // In production, use the enterprise subdomain
+  if (window.location.hostname === 'idswyft.app') {
+    return 'https://enterprise.idswyft.app'
+  }
+  // In development, use localhost
+  return 'http://localhost:3015'
+}
+
 const navigation = [
   { name: 'Home', href: '/', icon: ShieldCheckIcon },
   { name: 'Developer', href: '/developer', icon: CodeBracketIcon },
   { name: 'Demo', href: '/demo', icon: DocumentTextIcon },
   { name: 'Docs', href: '/docs', icon: DocumentTextIcon },
-  { name: 'Admin', href: '/admin', icon: CogIcon },
+  { name: 'Enterprise', href: getEnterpriseUrl(), icon: BuildingOfficeIcon, external: true },
 ]
 
 export function Layout({ children }: LayoutProps) {
@@ -68,8 +77,23 @@ export function Layout({ children }: LayoutProps) {
               <div className="flex space-x-8">
                 {navigation.map((item) => {
                   const Icon = item.icon
-                  const isActive = location.pathname === item.href || 
-                    (item.href !== '/' && location.pathname.startsWith(item.href))
+                  const isActive = !item.external && (location.pathname === item.href || 
+                    (item.href !== '/' && location.pathname.startsWith(item.href)))
+                  
+                  if (item.external) {
+                    return (
+                      <a
+                        key={item.name}
+                        href={item.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium space-x-1 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                      >
+                        <Icon className="h-4 w-4 flex-shrink-0" />
+                        <span>{item.name}</span>
+                      </a>
+                    )
+                  }
                   
                   return (
                     <Link
@@ -116,8 +140,23 @@ export function Layout({ children }: LayoutProps) {
           <div className="pt-2 pb-3 space-y-1">
             {navigation.map((item) => {
               const Icon = item.icon
-              const isActive = location.pathname === item.href || 
-                (item.href !== '/' && location.pathname.startsWith(item.href))
+              const isActive = !item.external && (location.pathname === item.href || 
+                (item.href !== '/' && location.pathname.startsWith(item.href)))
+              
+              if (item.external) {
+                return (
+                  <a
+                    key={item.name}
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center px-3 py-2 text-base font-medium space-x-2 text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  >
+                    <Icon className="h-5 w-5 flex-shrink-0" />
+                    <span>{item.name}</span>
+                  </a>
+                )
+              }
               
               return (
                 <Link

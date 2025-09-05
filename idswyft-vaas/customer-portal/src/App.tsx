@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, useParams } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useParams, useSearchParams } from 'react-router-dom';
 import VerificationFlow from './components/VerificationFlow';
 import VerificationStatus from './components/VerificationStatus';
 import ErrorBoundary from './components/ErrorBoundary';
 import './index.css';
 
 function VerificationPage() {
-  const { sessionToken } = useParams<{ sessionToken: string }>();
+  const [searchParams] = useSearchParams();
+  const sessionToken = searchParams.get('session');
   
   if (!sessionToken) {
     return (
@@ -26,7 +27,8 @@ function VerificationPage() {
 }
 
 function StatusPage() {
-  const { sessionToken } = useParams<{ sessionToken: string }>();
+  const [searchParams] = useSearchParams();
+  const sessionToken = searchParams.get('session');
   
   if (!sessionToken) {
     return (
@@ -52,10 +54,10 @@ function App() {
         <div className="App">
           <Routes>
             {/* Main verification flow */}
-            <Route path="/verify/:sessionToken" element={<VerificationPage />} />
+            <Route path="/verify" element={<VerificationPage />} />
             
             {/* Verification status page */}
-            <Route path="/status/:sessionToken" element={<StatusPage />} />
+            <Route path="/status" element={<StatusPage />} />
             
             {/* Default/fallback route */}
             <Route path="*" element={

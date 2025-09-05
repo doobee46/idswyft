@@ -35,7 +35,7 @@ router.post('/start', async (req: AuthenticatedRequest, res) => {
       organizationId = req.admin!.organization_id;
       
       // Check permissions
-      if (!req.admin!.permissions.view_verifications) {
+      if (!req.admin!.permissions.manage_verifications && !req.admin!.permissions.view_verifications) {
         const response: VaasApiResponse = {
           success: false,
           error: {
@@ -379,6 +379,120 @@ router.get('/stats/overview', requireAuth, requirePermission('view_analytics'), 
       error: {
         code: 'GET_STATS_FAILED',
         message: error.message
+      }
+    };
+    
+    res.status(500).json(response);
+  }
+});
+
+// Get verification session by token (public endpoint for customer portal)
+router.get('/session/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    
+    if (!token) {
+      const response: VaasApiResponse = {
+        success: false,
+        error: {
+          code: 'INVALID_TOKEN',
+          message: 'Session token is required'
+        }
+      };
+      
+      return res.status(400).json(response);
+    }
+    
+    // Find verification session by token
+    const { data: session, error } = await vaasSupabase
+      .from('vaas_verification_sessions')
+      .select(`
+        id,
+        status,
+        expires_at,
+        results,
+        created_at,
+        updated_at,
+        vaas_organizations!inner(
+          id,
+          name,
+          branding,
+          settings
+        ),
+        vaas_end_users!inner(
+          id,
+          email,
+          first_name,
+          last_name,
+          verification_status
+        )
+      `)
+      .eq('session_token', token)
+      .single();
+      
+    if (error || !session) {
+      const response: VaasApiResponse = {
+        success: false,
+        error: {
+          code: 'SESSION_NOT_FOUND',
+          message: 'Invalid or expired verification session'
+        }
+      };
+      
+      return res.status(404).json(response);
+    }
+    
+    // Check if session is expired
+    if (new Date(session.expires_at) < new Date()) {
+      const response: VaasApiResponse = {
+        success: false,
+        error: {
+          code: 'SESSION_EXPIRED',
+          message: 'This verification session has expired'
+        }
+      };
+      
+      return res.status(410).json(response);
+    }
+    
+    // Format response for customer portal
+    const organization = (session.vaas_organizations as any);
+    const endUser = (session.vaas_end_users as any);
+    
+    const sessionData = {
+      id: session.id,
+      status: session.status,
+      expires_at: session.expires_at,
+      organization: {
+        name: organization.name,
+        branding: organization.branding || {},
+        settings: organization.settings || {}
+      },
+      user: {
+        first_name: endUser.first_name,
+        last_name: endUser.last_name,
+        email: endUser.email
+      },
+      verification_settings: {
+        require_liveness: organization.settings?.require_liveness !== false,
+        require_back_of_id: organization.settings?.require_back_of_id !== false
+      }
+    };
+    
+    const response: VaasApiResponse = {
+      success: true,
+      data: sessionData
+    };
+    
+    res.json(response);
+  } catch (error: any) {
+    console.error('[VerificationRoutes] Get session failed:', error);
+    
+    const response: VaasApiResponse = {
+      success: false,
+      error: {
+        code: 'GET_SESSION_FAILED',
+        message: 'Failed to retrieve verification session'
       }
     };
     

@@ -6,6 +6,56 @@ import { logger } from '@/utils/logger.js';
 
 const router = express.Router();
 
+// VaaS service endpoint - create user
+router.post('/users', authenticateServiceToken, catchAsync(async (req: Request, res: Response) => {
+  const { email, phone, first_name, last_name, external_id, metadata } = req.body;
+  
+  logger.info('VaaS user creation request received', {
+    email,
+    phone,
+    first_name,
+    last_name,
+    external_id
+  });
+  
+  // Create user in main Idswyft system (will be extended with full schema later)
+  // For now, store only the basic fields that exist, and track full data in VaaS system
+  const { data: user, error } = await supabase
+    .from('users')
+    .insert({
+      email,
+      created_at: new Date().toISOString()
+    })
+    .select()
+    .single();
+  
+  if (error) {
+    logger.error('Failed to create user', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to create user'
+    });
+  }
+  
+  logger.info('VaaS user created', {
+    user_id: user.id,
+    email: user.email
+  });
+  
+  res.status(201).json({
+    success: true,
+    data: {
+      id: user.id,
+      email: user.email || email,
+      phone: phone, // Return original data even if not stored yet
+      first_name: first_name,
+      last_name: last_name,
+      external_id: external_id,
+      metadata: metadata
+    }
+  });
+}));
+
 // VaaS service endpoint - submit verification request
 router.post('/verify', authenticateServiceToken, catchAsync(async (req: Request, res: Response) => {
   const { user_id, document_url, selfie_url, organization_id } = req.body;
@@ -19,14 +69,12 @@ router.post('/verify', authenticateServiceToken, catchAsync(async (req: Request,
   
   // Create verification request in main Idswyft system
   const { data: verification, error } = await supabase
-    .from('verifications')
+    .from('verification_requests')
     .insert({
       user_id,
-      document_url,
-      selfie_url,
       status: 'pending',
-      external_organization_id: organization_id, // Track which VaaS org requested this
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     })
     .select()
     .single();
@@ -58,7 +106,7 @@ router.get('/verify/:verification_id/status', authenticateServiceToken, catchAsy
   const { verification_id } = req.params;
   
   const { data: verification, error } = await supabase
-    .from('verifications')
+    .from('verification_requests')
     .select('id, status, confidence_score, failure_reason, updated_at')
     .eq('id', verification_id)
     .single();

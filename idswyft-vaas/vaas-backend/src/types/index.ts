@@ -252,6 +252,18 @@ export interface VaasLoginResponse {
   expires_at: string;
 }
 
+export interface VaasEnterpriseSignupRequest {
+  company_name: string;
+  company_email?: string;
+  admin_first_name: string;
+  admin_last_name: string;
+  admin_email: string;
+  admin_password: string;
+  phone_number?: string;
+  company_size?: 'startup' | 'small' | 'medium' | 'large' | 'enterprise';
+  industry?: string;
+}
+
 export interface VaasStartVerificationRequest {
   end_user: {
     email?: string;
@@ -275,6 +287,7 @@ export interface VaasStartVerificationResponse {
   verification_url: string;
   end_user: VaasEndUser;
   expires_at: string;
+  session_token: string;
 }
 
 // Webhook event types
