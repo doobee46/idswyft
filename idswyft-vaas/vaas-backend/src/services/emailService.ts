@@ -45,7 +45,7 @@ export class EmailService {
         return;
       }
 
-      this.transporter = nodemailer.createTransporter(emailConfig);
+      this.transporter = nodemailer.createTransport(emailConfig);
       console.log('✉️ Email transporter initialized');
     } catch (error) {
       console.error('Failed to initialize email transporter:', error);
