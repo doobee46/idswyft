@@ -1,4 +1,4 @@
-import { Shield, Zap, Lock, Users, ArrowRight, CheckCircle, Clock, X, Building, Mail, Phone, User, Star, Globe, Smartphone, Sparkles } from 'lucide-react'
+import { Shield, Zap, Users, ArrowRight, CheckCircle, X, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 
 function App() {
