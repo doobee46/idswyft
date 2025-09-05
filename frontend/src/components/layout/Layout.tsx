@@ -13,8 +13,8 @@ interface LayoutProps {
 }
 
 const getEnterpriseUrl = () => {
-  // In production, use the enterprise subdomain
-  if (window.location.hostname === 'idswyft.app') {
+  // In production, use the enterprise subdomain (check for any idswyft.app subdomain)
+  if (window.location.hostname.endsWith('.idswyft.app') || window.location.hostname === 'idswyft.app') {
     return 'https://enterprise.idswyft.app'
   }
   // In development, use localhost
