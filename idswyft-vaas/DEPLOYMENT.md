@@ -4,11 +4,12 @@ This guide covers deploying the Idswyft Verification as a Service (VaaS) platfor
 
 ## Architecture Overview
 
-The VaaS platform consists of three separate services:
+The VaaS platform consists of four separate services:
 
 1. **VaaS Backend API** → `api-vaas.idswyft.app` (Port 3002)
 2. **Admin Dashboard** → `app.idswyft.app` (Port 3000)  
-3. **Customer Portal** → `customer.idswyft.app` (Port 3000)
+3. **Customer Portal** → `customer.idswyft.app` (Port 3003)
+4. **Enterprise Site** → `enterprise.idswyft.app` (Port 3004)
 
 ## Prerequisites
 
@@ -39,27 +40,19 @@ railway up
 **Required Environment Variables:**
 ```env
 PORT=3002
-VAAS_PORT=3002
 NODE_ENV=production
 VAAS_CORS_ORIGINS=https://app.idswyft.app,https://customer.idswyft.app,https://enterprise.idswyft.app
-VAAS_SUPABASE_URL=your_supabase_project_url
-VAAS_SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-VAAS_SUPABASE_ANON_KEY=your_anon_key
+VAAS_SUPABASE_URL=https://lxexvgjgzppzeggjepzi.supabase.co
+VAAS_SUPABASE_SERVICE_ROLE_KEY=your_vaas_service_role_key
+VAAS_SUPABASE_ANON_KEY=your_vaas_anon_key
 IDSWYFT_API_URL=https://api.idswyft.app
-IDSWYFT_SERVICE_TOKEN=your_service_token
-VAAS_JWT_SECRET=your_super_secret_jwt_key_here
-VAAS_API_KEY_SECRET=your_api_key_encryption_secret
+IDSWYFT_SERVICE_TOKEN=your_service_token_matching_main_api
+VAAS_JWT_SECRET=your_jwt_secret_64_bytes
+VAAS_API_KEY_SECRET=your_api_key_secret_64_bytes  
+VAAS_WEBHOOK_SECRET=your_webhook_secret_32_bytes
+VAAS_ENCRYPTION_KEY=your_encryption_key_32_bytes
+VAAS_SESSION_SECRET=your_session_secret_32_bytes
 VAAS_SUPER_ADMIN_EMAILS=admin@idswyft.app
-VAAS_FRONTEND_URL=https://app.idswyft.app
-STRIPE_SECRET_KEY=sk_live_your_stripe_secret_key
-STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
-EMAIL_FROM=noreply@idswyft.app
-SMTP_HOST=smtp.sendgrid.net
-SMTP_PORT=587
-SMTP_USER=apikey
-SMTP_PASS=your_sendgrid_api_key
-SENTRY_DSN=your_sentry_dsn
-VAAS_WEBHOOK_BASE_URL=https://api-vaas.idswyft.app
 ```
 
 ### 2. Deploy Admin Dashboard
@@ -99,13 +92,25 @@ railway up
 **Required Environment Variables:**
 ```env
 VITE_API_URL=https://api-vaas.idswyft.app
-VITE_API_TIMEOUT=30000
 VITE_NODE_ENV=production
-VITE_MAX_FILE_SIZE=10485760
-VITE_ALLOWED_FILE_TYPES=image/jpeg,image/jpg,image/png,application/pdf
-VITE_ENABLE_LIVENESS_DETECTION=true
-VITE_BRAND_NAME=Idswyft Verification
-VITE_SUPPORT_EMAIL=support@idswyft.app
+```
+
+### 4. Deploy Enterprise Site
+
+```bash
+cd ../enterprise-site
+railway init
+railway add
+railway up
+```
+
+**Domain Configuration:**
+- Set custom domain: `enterprise.idswyft.app`
+- Enable SSL certificate
+
+**Required Environment Variables:**
+```env
+NODE_ENV=production
 ```
 
 ## Database Setup
@@ -120,13 +125,15 @@ VITE_SUPPORT_EMAIL=support@idswyft.app
 
 ### Database Schema
 
-The backend will automatically create tables on first startup. Key tables:
+The VaaS backend uses a separate Supabase project with the following key tables:
 - `organizations` - Multi-tenant organization data
-- `admins` - Organization admin users  
-- `verifications` - Verification requests and results
+- `admins` - Organization admin users with JWT authentication
+- `verifications` - Verification requests managed through main Idswyft API
 - `webhooks` - Webhook configuration and delivery logs
 - `api_keys` - Organization API keys
-- `billing` - Usage and billing information
+- `secrets` - Encrypted secret management for admin panel
+
+Note: Actual verification data is stored in the main Idswyft API database, with VaaS acting as an orchestration layer.
 
 ## Post-Deployment Configuration
 
@@ -134,14 +141,15 @@ The backend will automatically create tables on first startup. Key tables:
 
 Ensure these DNS records point to Railway:
 ```
-api-vaas.idswyft.app → Railway backend service
+api-vaas.idswyft.app → Railway VaaS backend service
 app.idswyft.app → Railway admin dashboard  
 customer.idswyft.app → Railway customer portal
+enterprise.idswyft.app → Railway enterprise site
 ```
 
 ### 2. SSL Certificates
 
-Railway automatically provisions SSL certificates for custom domains. Verify HTTPS is working for all three domains.
+Railway automatically provisions SSL certificates for custom domains. Verify HTTPS is working for all four domains.
 
 ### 3. CORS Verification
 
@@ -150,9 +158,10 @@ Test that the admin dashboard and customer portal can successfully communicate w
 ### 4. Health Checks
 
 Verify all health check endpoints are responding:
-- Backend: `https://api-vaas.idswyft.app/api/health`
+- Backend: `https://api-vaas.idswyft.app/health`
 - Admin: `https://app.idswyft.app/` (should load React app)
 - Portal: `https://customer.idswyft.app/` (should load React app)
+- Enterprise: `https://enterprise.idswyft.app/` (should load React app)
 
 ### 5. Create Super Admin
 
@@ -167,10 +176,11 @@ VALUES (gen_random_uuid(), 'admin@idswyft.app', 'super_admin', null, now(), now(
 
 1. Log into admin dashboard at `https://app.idswyft.app`
 2. Create a test organization
-3. Generate API keys
+3. Generate API keys  
 4. Test verification flow through customer portal
-5. Verify webhooks are being delivered
-6. Check billing/usage tracking
+5. Verify service-to-service integration with main Idswyft API
+6. Test secret management tools in admin panel
+7. Check enterprise site loads correctly for marketing
 
 ## Monitoring & Maintenance
 
@@ -271,3 +281,37 @@ For deployment issues:
 - Compress uploaded documents
 - Use CDN for static assets if needed
 - Set up automated backups with retention limits
+
+## Critical Service Integration
+
+### Service Token Authentication
+
+The VaaS platform requires service-to-service authentication between the VaaS backend and the main Idswyft API:
+
+**Main Idswyft API Configuration:**
+- Must have matching `SERVICE_TOKEN` environment variable
+- Service token must be the same as `IDSWYFT_SERVICE_TOKEN` in VaaS backend
+- Service token should be generated using the secret management tools
+
+**Verified Integration Endpoints:**
+- `POST /api/vaas/users` - User creation via VaaS
+- `POST /api/vaas/verify` - Verification request creation  
+- `GET /api/vaas/health` - Health check endpoint
+- `GET /api/vaas/verify/:id/status` - Verification status lookup
+
+**Testing Service Integration:**
+```bash
+# Test user creation
+curl -X POST https://api.idswyft.app/api/vaas/users \
+  -H "Content-Type: application/json" \
+  -H "X-Service-Token: your_service_token" \
+  -d '{"email":"test@example.com","first_name":"Test","last_name":"User"}'
+
+# Test verification creation
+curl -X POST https://api.idswyft.app/api/vaas/verify \
+  -H "Content-Type: application/json" \
+  -H "X-Service-Token: your_service_token" \
+  -d '{"user_id":"user_uuid","organization_id":"org_id"}'
+```
+
+This integration is essential for the VaaS platform to function as a multi-tenant verification orchestrator.
