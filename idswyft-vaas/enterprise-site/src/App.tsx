@@ -1,11 +1,261 @@
-import { Shield, Zap, Lock, Users, ArrowRight, CheckCircle, Clock } from 'lucide-react'
+import { Shield, Zap, Lock, Users, ArrowRight, CheckCircle, Clock, X, Building, Mail, Phone, User } from 'lucide-react'
 import { useState } from 'react'
 
 function App() {
   const [showSignupForm, setShowSignupForm] = useState(false)
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    company: '',
+    jobTitle: '',
+    estimatedVolume: '',
+    useCase: ''
+  })
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    setFormData(prev => ({
+      ...prev,
+      [e.target.name]: e.target.value
+    }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    // TODO: Integrate with VaaS Backend to create organization and send welcome email
+    console.log('Business signup data:', formData)
+    
+    // For now, show success message and close form
+    alert('Thank you for your interest! We\'ll contact you within 24 hours to set up your account.')
+    setShowSignupForm(false)
+    setFormData({
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      company: '',
+      jobTitle: '',
+      estimatedVolume: '',
+      useCase: ''
+    })
+  }
+
   return (
     <div className="min-h-screen bg-white">
-      {showSignupForm && <div className="hidden" />} {/* Use showSignupForm to satisfy TypeScript */}
+      {/* Signup Form Modal */}
+      {showSignupForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Start Your Free Trial</h2>
+                  <p className="text-gray-600 mt-1">Get 1,000 free identity verifications to test our platform</p>
+                </div>
+                <button
+                  onClick={() => setShowSignupForm(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
+                      First Name *
+                    </label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <input
+                        type="text"
+                        id="firstName"
+                        name="firstName"
+                        required
+                        value={formData.firstName}
+                        onChange={handleInputChange}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="John"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
+                      Last Name *
+                    </label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <input
+                        type="text"
+                        id="lastName"
+                        name="lastName"
+                        required
+                        value={formData.lastName}
+                        onChange={handleInputChange}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Smith"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                    Business Email *
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      required
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="john@company.com"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                      Phone Number
+                    </label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <input
+                        type="tel"
+                        id="phone"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleInputChange}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="+1 (555) 123-4567"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-2">
+                      Company Name *
+                    </label>
+                    <div className="relative">
+                      <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <input
+                        type="text"
+                        id="company"
+                        name="company"
+                        required
+                        value={formData.company}
+                        onChange={handleInputChange}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Acme Corp"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="jobTitle" className="block text-sm font-medium text-gray-700 mb-2">
+                    Job Title *
+                  </label>
+                  <input
+                    type="text"
+                    id="jobTitle"
+                    name="jobTitle"
+                    required
+                    value={formData.jobTitle}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="CTO, Product Manager, etc."
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="estimatedVolume" className="block text-sm font-medium text-gray-700 mb-2">
+                    Expected Monthly Verification Volume *
+                  </label>
+                  <select
+                    id="estimatedVolume"
+                    name="estimatedVolume"
+                    required
+                    value={formData.estimatedVolume}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select volume range</option>
+                    <option value="1-1000">1 - 1,000 verifications</option>
+                    <option value="1000-10000">1,000 - 10,000 verifications</option>
+                    <option value="10000-50000">10,000 - 50,000 verifications</option>
+                    <option value="50000+">50,000+ verifications</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="useCase" className="block text-sm font-medium text-gray-700 mb-2">
+                    Primary Use Case *
+                  </label>
+                  <textarea
+                    id="useCase"
+                    name="useCase"
+                    required
+                    value={formData.useCase}
+                    onChange={handleInputChange}
+                    rows={3}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    placeholder="Tell us how you plan to use identity verification (e.g., user onboarding, KYC compliance, fraud prevention, etc.)"
+                  />
+                </div>
+
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h4 className="font-medium text-gray-900 mb-2">What happens next?</h4>
+                  <ul className="space-y-1 text-sm text-gray-600">
+                    <li className="flex items-center">
+                      <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                      We'll create your account within 24 hours
+                    </li>
+                    <li className="flex items-center">
+                      <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                      You'll receive API keys and documentation
+                    </li>
+                    <li className="flex items-center">
+                      <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                      Get 1,000 free verifications to test the platform
+                    </li>
+                    <li className="flex items-center">
+                      <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                      Optional onboarding call with our team
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="flex gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowSignupForm(false)}
+                    className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  >
+                    Start Free Trial
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Navigation */}
       <nav className="bg-white shadow-sm border-b border-gray-200">
         <div className="container-max section-padding">
@@ -231,7 +481,10 @@ function App() {
                 <div className="text-gray-600">Faster customer onboarding</div>
               </div>
               <div className="mt-8 text-center">
-                <button className="btn btn-primary">
+                <button 
+                  onClick={() => setShowSignupForm(true)}
+                  className="btn btn-primary"
+                >
                   Calculate Your Savings <ArrowRight className="ml-2 h-4 w-4" />
                 </button>
               </div>
@@ -260,7 +513,12 @@ function App() {
                   $0.50<span className="text-sm font-normal text-gray-600">/verification</span>
                 </div>
                 <p className="text-gray-600 mb-6">Perfect for small applications and testing</p>
-                <button className="btn btn-outline w-full mb-6">Start Free Trial</button>
+                <button 
+                  onClick={() => setShowSignupForm(true)}
+                  className="btn btn-outline w-full mb-6"
+                >
+                  Start Free Trial
+                </button>
                 <ul className="space-y-3 text-sm text-gray-600">
                   <li className="flex items-center">
                     <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
@@ -298,7 +556,12 @@ function App() {
                   $0.30<span className="text-sm font-normal opacity-80">/verification</span>
                 </div>
                 <p className="opacity-80 mb-6">For growing businesses and scale</p>
-                <button className="btn btn-secondary w-full mb-6">Start Free Trial</button>
+                <button 
+                  onClick={() => setShowSignupForm(true)}
+                  className="btn btn-secondary w-full mb-6"
+                >
+                  Start Free Trial
+                </button>
                 <ul className="space-y-3 text-sm opacity-90">
                   <li className="flex items-center">
                     <CheckCircle className="h-4 w-4 text-blue-200 mr-2" />
@@ -370,7 +633,10 @@ function App() {
             Join thousands of businesses who trust Idswyft to reduce fraud and improve customer trust.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button className="btn btn-secondary text-lg px-8 py-4">
+            <button 
+              onClick={() => setShowSignupForm(true)}
+              className="btn btn-secondary text-lg px-8 py-4"
+            >
               Start Free Trial <ArrowRight className="ml-2 h-5 w-5" />
             </button>
             <button className="btn btn-outline text-lg px-8 py-4 text-white border-white hover:bg-white hover:text-blue-600">
