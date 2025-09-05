@@ -12,7 +12,9 @@
     "lint": "eslint src --ext .ts,.js",
     "type-check": "tsc --noEmit",
     "railway:build": "npm run build",
-    "railway:start": "npm run start"
+    "railway:start": "npm run start",
+    "migrate:create-signups": "tsx src/scripts/create-enterprise-signups-table.ts",
+    "migrate:run": "tsx src/scripts/run-migration.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",

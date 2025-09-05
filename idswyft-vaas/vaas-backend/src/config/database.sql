@@ -234,6 +234,41 @@ CREATE TABLE vaas_api_keys (
     UNIQUE(organization_id, name)
 );
 
+-- Enterprise Signup Tracking
+CREATE TABLE vaas_enterprise_signups (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organization_id UUID REFERENCES vaas_organizations(id) ON DELETE SET NULL,
+    
+    -- Signup Data (stored as JSONB for flexibility)
+    signup_data JSONB NOT NULL,
+    
+    -- Processing Status
+    status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (
+        status IN ('pending', 'processing', 'completed', 'failed')
+    ),
+    
+    -- Notifications
+    admin_notified BOOLEAN DEFAULT FALSE,
+    welcome_email_sent BOOLEAN DEFAULT FALSE,
+    
+    -- Follow-up tracking
+    sales_contacted BOOLEAN DEFAULT FALSE,
+    onboarding_scheduled BOOLEAN DEFAULT FALSE,
+    demo_completed BOOLEAN DEFAULT FALSE,
+    
+    -- Notes
+    admin_notes TEXT,
+    
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    -- Extract commonly queried fields for indexing
+    company_name VARCHAR(255) GENERATED ALWAYS AS (signup_data->>'company') STORED,
+    admin_email VARCHAR(255) GENERATED ALWAYS AS (signup_data->>'email') STORED,
+    estimated_volume VARCHAR(50) GENERATED ALWAYS AS (signup_data->>'estimatedVolume') STORED
+);
+
 -- Create indexes for performance
 CREATE INDEX idx_vaas_organizations_slug ON vaas_organizations(slug);
 CREATE INDEX idx_vaas_organizations_billing ON vaas_organizations(billing_status, subscription_tier);
@@ -260,6 +295,12 @@ CREATE INDEX idx_vaas_webhook_deliveries_status ON vaas_webhook_deliveries(statu
 CREATE INDEX idx_vaas_api_keys_org_id ON vaas_api_keys(organization_id);
 CREATE INDEX idx_vaas_api_keys_hash ON vaas_api_keys(key_hash);
 
+CREATE INDEX idx_vaas_enterprise_signups_org_id ON vaas_enterprise_signups(organization_id);
+CREATE INDEX idx_vaas_enterprise_signups_status ON vaas_enterprise_signups(status);
+CREATE INDEX idx_vaas_enterprise_signups_email ON vaas_enterprise_signups(admin_email);
+CREATE INDEX idx_vaas_enterprise_signups_company ON vaas_enterprise_signups(company_name);
+CREATE INDEX idx_vaas_enterprise_signups_created ON vaas_enterprise_signups(created_at);
+
 -- Add updated_at triggers
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -276,3 +317,4 @@ CREATE TRIGGER update_vaas_verification_sessions_updated_at BEFORE UPDATE ON vaa
 CREATE TRIGGER update_vaas_usage_records_updated_at BEFORE UPDATE ON vaas_usage_records FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_vaas_webhooks_updated_at BEFORE UPDATE ON vaas_webhooks FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_vaas_api_keys_updated_at BEFORE UPDATE ON vaas_api_keys FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_vaas_enterprise_signups_updated_at BEFORE UPDATE ON vaas_enterprise_signups FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
