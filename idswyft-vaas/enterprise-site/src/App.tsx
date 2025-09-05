@@ -28,7 +28,7 @@ function App() {
     
     try {
       // Get VaaS Backend URL from environment or use default
-      const vaasBackendUrl = import.meta.env.VITE_VAAS_BACKEND_URL || 'https://api-vaas.railway.app'
+      const vaasBackendUrl = import.meta.env.VITE_VAAS_BACKEND_URL || 'https://api-vaas.idswyft.app'
       
       const response = await fetch(`${vaasBackendUrl}/api/organizations/signup`, {
         method: 'POST',
