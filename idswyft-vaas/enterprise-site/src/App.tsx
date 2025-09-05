@@ -3,6 +3,7 @@ import { useState } from 'react'
 
 function App() {
   const [showSignupForm, setShowSignupForm] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -23,23 +24,52 @@ function App() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsSubmitting(true)
     
-    // TODO: Integrate with VaaS Backend to create organization and send welcome email
-    console.log('Business signup data:', formData)
-    
-    // For now, show success message and close form
-    alert('Thank you for your interest! We\'ll contact you within 24 hours to set up your account.')
-    setShowSignupForm(false)
-    setFormData({
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      company: '',
-      jobTitle: '',
-      estimatedVolume: '',
-      useCase: ''
-    })
+    try {
+      // Get VaaS Backend URL from environment or use default
+      const vaasBackendUrl = import.meta.env.VITE_VAAS_BACKEND_URL || 'https://api-vaas.railway.app'
+      
+      const response = await fetch(`${vaasBackendUrl}/api/organizations/signup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+      })
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        alert(`🎉 Success! Your account has been created for ${result.data.organization.name}.\n\nYou'll receive login credentials via email within 24 hours.\n\nSubscription Tier: ${result.data.organization.subscription_tier.toUpperCase()}`)
+        setShowSignupForm(false)
+        setFormData({
+          firstName: '',
+          lastName: '',
+          email: '',
+          phone: '',
+          company: '',
+          jobTitle: '',
+          estimatedVolume: '',
+          useCase: ''
+        })
+      } else {
+        // Handle validation errors
+        if (result.error?.details && Array.isArray(result.error.details)) {
+          const errorMessages = result.error.details.map((detail: any) => 
+            `${detail.field}: ${detail.message}`
+          ).join('\n')
+          alert(`❌ Please fix the following errors:\n\n${errorMessages}`)
+        } else {
+          alert(`❌ Signup failed: ${result.error?.message || 'Unknown error occurred'}`)
+        }
+      }
+    } catch (error) {
+      console.error('Signup error:', error)
+      alert('❌ Network error. Please check your connection and try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -245,9 +275,17 @@ function App() {
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                    disabled={isSubmitting}
+                    className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors font-medium"
                   >
-                    Start Free Trial
+                    {isSubmitting ? (
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                        Creating Account...
+                      </div>
+                    ) : (
+                      'Start Free Trial'
+                    )}
                   </button>
                 </div>
               </form>

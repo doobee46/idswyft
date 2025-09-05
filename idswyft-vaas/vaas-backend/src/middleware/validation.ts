@@ -216,6 +216,69 @@ export const validatePagination = (req: Request, res: Response, next: NextFuncti
   next();
 };
 
+export const validateEnterpriseSignup = (req: Request, res: Response, next: NextFunction) => {
+  const errors: ValidationError[] = [];
+  const { firstName, lastName, email, phone, company, jobTitle, estimatedVolume, useCase } = req.body;
+  
+  // Required fields validation
+  if (!firstName || typeof firstName !== 'string' || firstName.trim().length < 1) {
+    errors.push({ field: 'firstName', message: 'First name is required' });
+  }
+  
+  if (!lastName || typeof lastName !== 'string' || lastName.trim().length < 1) {
+    errors.push({ field: 'lastName', message: 'Last name is required' });
+  }
+  
+  if (!email || !isValidEmail(email)) {
+    errors.push({ field: 'email', message: 'Valid business email is required' });
+  }
+  
+  if (!company || typeof company !== 'string' || company.trim().length < 2) {
+    errors.push({ field: 'company', message: 'Company name must be at least 2 characters' });
+  }
+  
+  if (!jobTitle || typeof jobTitle !== 'string' || jobTitle.trim().length < 1) {
+    errors.push({ field: 'jobTitle', message: 'Job title is required' });
+  }
+  
+  if (!estimatedVolume || !['1-1000', '1000-10000', '10000-50000', '50000+'].includes(estimatedVolume)) {
+    errors.push({ field: 'estimatedVolume', message: 'Valid estimated volume range is required' });
+  }
+  
+  if (!useCase || typeof useCase !== 'string' || useCase.trim().length < 10) {
+    errors.push({ field: 'useCase', message: 'Use case description must be at least 10 characters' });
+  }
+  
+  // Optional phone validation
+  if (phone && !isValidPhone(phone)) {
+    errors.push({ field: 'phone', message: 'Valid phone number format required' });
+  }
+  
+  // Business email domain validation (no free email providers)
+  if (email && isValidEmail(email)) {
+    const freeProviders = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com', 'icloud.com'];
+    const domain = email.split('@')[1]?.toLowerCase();
+    if (freeProviders.includes(domain)) {
+      errors.push({ field: 'email', message: 'Please use a business email address' });
+    }
+  }
+  
+  if (errors.length > 0) {
+    const response: VaasApiResponse = {
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Validation failed',
+        details: errors
+      }
+    };
+    
+    return res.status(400).json(response);
+  }
+  
+  next();
+};
+
 // Utility functions
 function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

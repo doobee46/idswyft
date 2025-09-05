@@ -1,7 +1,8 @@
 import { vaasSupabase } from '../config/database.js';
-import { VaasOrganization, VaasCreateOrganizationRequest } from '../types/index.js';
+import { VaasOrganization, VaasCreateOrganizationRequest, VaasEnterpriseSignupRequest } from '../types/index.js';
 import bcrypt from 'bcrypt';
 import { generateSlug } from '../utils/slug.js';
+import crypto from 'crypto';
 
 export class OrganizationService {
   
@@ -255,6 +256,156 @@ export class OrganizationService {
       },
       monthly_limit: tier.limit,
       overage_cost_per_verification: tier.overage
+    };
+  }
+  
+  async createEnterpriseSignup(data: VaasEnterpriseSignupRequest): Promise<{
+    organization: VaasOrganization;
+    adminPassword: string;
+    signupId: string;
+  }> {
+    const slug = generateSlug(data.company);
+    
+    // Check if company/slug already exists
+    const { data: existingOrg } = await vaasSupabase
+      .from('vaas_organizations')
+      .select('id')
+      .eq('slug', slug)
+      .single();
+      
+    if (existingOrg) {
+      throw new Error(`Organization with name '${data.company}' already exists`);
+    }
+    
+    // Check if admin email already exists
+    const { data: existingAdmin } = await vaasSupabase
+      .from('vaas_admins')
+      .select('id')
+      .eq('email', data.email)
+      .single();
+      
+    if (existingAdmin) {
+      throw new Error(`An account with email '${data.email}' already exists`);
+    }
+    
+    // Generate secure password for the admin
+    const adminPassword = crypto.randomBytes(12).toString('base64').replace(/[\/+=]/g, '').substring(0, 12);
+    const passwordHash = await bcrypt.hash(adminPassword, 12);
+    
+    // Determine subscription tier based on volume
+    let subscriptionTier: 'starter' | 'professional' | 'enterprise' = 'starter';
+    if (data.estimatedVolume === '1000-10000') {
+      subscriptionTier = 'professional';
+    } else if (data.estimatedVolume === '10000-50000' || data.estimatedVolume === '50000+') {
+      subscriptionTier = 'enterprise';
+    }
+    
+    // Create organization
+    const { data: organization, error: orgError } = await vaasSupabase
+      .from('vaas_organizations')
+      .insert({
+        name: data.company,
+        slug: slug,
+        subscription_tier: subscriptionTier,
+        billing_status: 'active', // Start with active trial
+        contact_email: data.email,
+        contact_phone: data.phone,
+        settings: {
+          require_liveness: true,
+          require_back_of_id: true,
+          auto_approve_threshold: 0.9,
+          manual_review_threshold: 0.7,
+          theme: 'light',
+          language: 'en',
+          email_notifications: true,
+          webhook_notifications: true,
+          session_timeout: 3600,
+          max_verification_attempts: 3
+        },
+        branding: {
+          company_name: data.company,
+          welcome_message: `Welcome to ${data.company} identity verification`,
+          success_message: 'Your identity has been successfully verified!'
+        }
+      })
+      .select()
+      .single();
+      
+    if (orgError) {
+      throw new Error(`Failed to create organization: ${orgError.message}`);
+    }
+    
+    // Create owner admin user
+    const { error: adminError } = await vaasSupabase
+      .from('vaas_admins')
+      .insert({
+        organization_id: organization.id,
+        email: data.email,
+        password_hash: passwordHash,
+        first_name: data.firstName,
+        last_name: data.lastName,
+        role: 'owner',
+        status: 'active',
+        email_verified: false, // Will be verified via welcome email
+        permissions: {
+          manage_organization: true,
+          manage_admins: true,
+          manage_billing: true,
+          view_users: true,
+          manage_users: true,
+          export_users: true,
+          view_verifications: true,
+          review_verifications: true,
+          approve_verifications: true,
+          manage_settings: true,
+          manage_webhooks: true,
+          manage_integrations: true,
+          view_analytics: true,
+          export_analytics: true
+        }
+      });
+      
+    if (adminError) {
+      // Rollback organization creation
+      await vaasSupabase
+        .from('vaas_organizations')
+        .delete()
+        .eq('id', organization.id);
+        
+      throw new Error(`Failed to create admin user: ${adminError.message}`);
+    }
+    
+    // Create signup record for tracking and follow-up
+    const signupId = crypto.randomUUID();
+    const { error: signupError } = await vaasSupabase
+      .from('vaas_enterprise_signups')
+      .insert({
+        id: signupId,
+        organization_id: organization.id,
+        signup_data: {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
+          phone: data.phone,
+          company: data.company,
+          jobTitle: data.jobTitle,
+          estimatedVolume: data.estimatedVolume,
+          useCase: data.useCase
+        },
+        status: 'completed',
+        admin_notified: false,
+        welcome_email_sent: false
+      });
+      
+    if (signupError) {
+      console.warn('Failed to create signup record:', signupError.message);
+      // Don't fail the entire process for this
+    }
+    
+    return {
+      organization,
+      adminPassword,
+      signupId
     };
   }
 }

@@ -253,15 +253,19 @@ export interface VaasLoginResponse {
 }
 
 export interface VaasEnterpriseSignupRequest {
-  company_name: string;
-  company_email?: string;
-  admin_first_name: string;
-  admin_last_name: string;
-  admin_email: string;
-  admin_password: string;
-  phone_number?: string;
-  company_size?: 'startup' | 'small' | 'medium' | 'large' | 'enterprise';
-  industry?: string;
+  // Personal information
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  
+  // Company information
+  company: string;
+  jobTitle: string;
+  
+  // Business context
+  estimatedVolume: string;
+  useCase: string;
 }
 
 export interface VaasStartVerificationRequest {

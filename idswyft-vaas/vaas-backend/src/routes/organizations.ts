@@ -1,10 +1,76 @@
 import { Router } from 'express';
 import { organizationService } from '../services/organizationService.js';
-import { VaasApiResponse, VaasCreateOrganizationRequest } from '../types/index.js';
-import { validateCreateOrganization } from '../middleware/validation.js';
+import { emailService } from '../services/emailService.js';
+import { VaasApiResponse, VaasCreateOrganizationRequest, VaasEnterpriseSignupRequest } from '../types/index.js';
+import { validateCreateOrganization, validateEnterpriseSignup } from '../middleware/validation.js';
 import { requireAuth, requireSuperAdmin } from '../middleware/auth.js';
 
 const router = Router();
+
+// Enterprise signup - public endpoint
+router.post('/signup', validateEnterpriseSignup, async (req, res) => {
+  try {
+    const signupData: VaasEnterpriseSignupRequest = req.body;
+    const result = await organizationService.createEnterpriseSignup(signupData);
+    
+    // Send welcome email with credentials
+    try {
+      const dashboardUrl = process.env.VAAS_ADMIN_URL || 'https://app.idswyft.app';
+      
+      await emailService.sendWelcomeEmail({
+        organization: result.organization,
+        adminEmail: signupData.email,
+        adminName: `${signupData.firstName} ${signupData.lastName}`,
+        adminPassword: result.adminPassword,
+        dashboardUrl
+      });
+      
+      // Send notification to admin team
+      await emailService.sendNotificationToAdmin({
+        organizationName: signupData.company,
+        adminName: `${signupData.firstName} ${signupData.lastName}`,
+        adminEmail: signupData.email,
+        jobTitle: signupData.jobTitle,
+        estimatedVolume: signupData.estimatedVolume,
+        useCase: signupData.useCase,
+        signupId: result.signupId
+      });
+      
+      console.log('✅ Welcome email and admin notification sent successfully');
+    } catch (emailError) {
+      console.error('Failed to send emails:', emailError);
+      // Don't fail the entire signup process for email issues
+    }
+    
+    const response: VaasApiResponse = {
+      success: true,
+      data: {
+        organization: {
+          id: result.organization.id,
+          name: result.organization.name,
+          slug: result.organization.slug,
+          subscription_tier: result.organization.subscription_tier
+        },
+        message: 'Organization created successfully! You will receive login credentials via email within 24 hours.',
+        signup_id: result.signupId
+      }
+    };
+    
+    res.status(201).json(response);
+  } catch (error: any) {
+    console.error('Enterprise signup error:', error);
+    
+    const response: VaasApiResponse = {
+      success: false,
+      error: {
+        code: 'ENTERPRISE_SIGNUP_FAILED',
+        message: error.message
+      }
+    };
+    
+    res.status(400).json(response);
+  }
+});
 
 // Create new organization (super admin only)
 router.post('/', requireSuperAdmin, validateCreateOrganization, async (req, res) => {
