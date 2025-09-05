@@ -4,14 +4,14 @@ FROM node:20-alpine
 # Set working directory
 WORKDIR /app
 
-# Copy package files from enterprise-site directory
-COPY idswyft-vaas/enterprise-site/package*.json ./
+# Copy package files
+COPY package*.json ./
 
 # Install dependencies
 RUN npm ci
 
-# Copy source code from enterprise-site directory
-COPY idswyft-vaas/enterprise-site/ ./
+# Copy source code
+COPY . .
 
 # Build the application
 RUN npm run build
