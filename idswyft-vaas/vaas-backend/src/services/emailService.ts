@@ -303,6 +303,130 @@ The Idswyft Team
       return false;
     }
   }
+
+  async testConnection(): Promise<{ connected: boolean; error?: string }> {
+    if (!this.transporter) {
+      return { 
+        connected: false, 
+        error: 'Email transporter not configured - emails will be logged only' 
+      };
+    }
+
+    try {
+      await this.transporter.verify();
+      return { connected: true };
+    } catch (error) {
+      return { 
+        connected: false, 
+        error: error.message || 'Unknown email connection error' 
+      };
+    }
+  }
+
+  async sendVerificationEmail(data: {
+    adminEmail: string;
+    adminName: string;
+    organizationName: string;
+    verificationToken: string;
+    dashboardUrl: string;
+  }): Promise<boolean> {
+    const subject = `Verify Your ${data.organizationName} Admin Account - Idswyft VaaS`;
+    
+    const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.6; color: #374151; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { text-align: center; padding: 30px 0; border-bottom: 1px solid #e5e7eb; }
+            .logo { font-size: 24px; font-weight: bold; color: #1f2937; }
+            .content { padding: 40px 20px; }
+            .button { display: inline-block; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 20px 0; }
+            .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb; }
+            .verification-code { background: #f3f4f6; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 16px; margin: 20px 0; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <div class="logo">🛡️ Idswyft VaaS</div>
+                <p style="margin-top: 10px; color: #6b7280;">Identity Verification as a Service</p>
+            </div>
+            
+            <div class="content">
+                <h2>Verify Your Admin Account</h2>
+                
+                <p>Hello ${data.adminName},</p>
+                
+                <p>Please verify your admin account for <strong>${data.organizationName}</strong> to complete your VaaS setup.</p>
+                
+                <p>Click the button below to verify your email address and activate your account:</p>
+                
+                <p style="text-align: center;">
+                    <a href="${data.dashboardUrl}/verify-email?token=${data.verificationToken}&email=${encodeURIComponent(data.adminEmail)}" class="button">
+                        Verify Email Address
+                    </a>
+                </p>
+                
+                <p>Or use this verification code in your dashboard:</p>
+                <div class="verification-code">
+                    <strong>${data.verificationToken}</strong>
+                </div>
+                
+                <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; margin: 30px 0;">
+                    <h4 style="margin: 0 0 10px 0; color: #1e40af;">🎯 Next Steps:</h4>
+                    <ul style="margin: 10px 0; padding-left: 20px; color: #1f2937;">
+                        <li>Click the verification link above</li>
+                        <li>Access your admin dashboard at <a href="${data.dashboardUrl}">${data.dashboardUrl}</a></li>
+                        <li>Set up your organization settings and webhooks</li>
+                        <li>Start integrating our verification API</li>
+                    </ul>
+                </div>
+                
+                <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
+                    If you didn't create this account, please ignore this email or contact our support team.
+                </p>
+            </div>
+            
+            <div class="footer">
+                <p>© ${new Date().getFullYear()} Idswyft. All rights reserved.</p>
+                <p>This is an automated message from our verification service.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    `;
+
+    const textContent = `
+    Verify Your ${data.organizationName} Admin Account - Idswyft VaaS
+    
+    Hello ${data.adminName},
+    
+    Please verify your admin account for ${data.organizationName} to complete your VaaS setup.
+    
+    Verification Link: ${data.dashboardUrl}/verify-email?token=${data.verificationToken}&email=${encodeURIComponent(data.adminEmail)}
+    
+    Verification Code: ${data.verificationToken}
+    
+    Next Steps:
+    - Click the verification link above  
+    - Access your admin dashboard at ${data.dashboardUrl}
+    - Set up your organization settings and webhooks
+    - Start integrating our verification API
+    
+    If you didn't create this account, please ignore this email or contact our support team.
+    
+    © ${new Date().getFullYear()} Idswyft. All rights reserved.
+    `;
+
+    return await this.sendEmail({
+      to: data.adminEmail,
+      subject,
+      html: htmlContent,
+      text: textContent
+    });
+  }
 }
 
 export const emailService = new EmailService();
