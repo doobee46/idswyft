@@ -61,6 +61,15 @@ app.use(cors({
       return callback(null, origin); // Return the actual origin instead of true
     }
     
+    // Allow Railway-generated domains for VaaS services
+    if (origin.match(/^https:\/\/.*\.up\.railway\.app$/)) {
+      // Only allow VaaS-related Railway domains
+      if (origin.match(/vaas|admin|customer|enterprise/i)) {
+        console.log(`✅ CORS: Allowing Railway VaaS origin: ${origin}`);
+        return callback(null, origin);
+      }
+    }
+    
     console.log(`❌ CORS: Rejecting origin: ${origin}`);
     return callback(new Error(`Not allowed by CORS: ${origin}`), false);
   },
