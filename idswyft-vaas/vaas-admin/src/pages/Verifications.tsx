@@ -44,29 +44,37 @@ export default function Verifications() {
   const loadVerifications = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
-        per_page: '20'
-      });
+      const params: any = {
+        page: currentPage,
+        per_page: 20
+      };
 
       if (filters.status !== 'all') {
-        params.append('status', filters.status);
+        params.status = filters.status;
       }
       if (filters.dateFrom) {
-        params.append('date_from', filters.dateFrom);
+        params.start_date = filters.dateFrom;
       }
       if (filters.dateTo) {
-        params.append('date_to', filters.dateTo);
+        params.end_date = filters.dateTo;
       }
       if (filters.searchTerm) {
-        params.append('search', filters.searchTerm);
+        params.search = filters.searchTerm;
       }
 
-      const response = await apiClient.get(`/verifications?${params}`);
-      setVerifications(response.data.verifications);
-      setTotalPages(response.data.pagination.pages);
+      const result = await apiClient.listVerifications(params);
+      setVerifications(result.verifications || []);
+      
+      // Handle pagination meta - safely extract total pages
+      const totalPages = result.meta?.pagination?.total_pages || 
+                        result.meta?.pages || 
+                        Math.ceil((result.meta?.total || 0) / 20) || 1;
+      setTotalPages(totalPages);
     } catch (error) {
       console.error('Failed to load verifications:', error);
+      // Set safe defaults on error
+      setVerifications([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
@@ -74,18 +82,25 @@ export default function Verifications() {
 
   const handleStatusUpdate = async (verificationId: string, newStatus: VerificationStatus, reason?: string) => {
     try {
-      await apiClient.patch(`/verifications/${verificationId}/status`, {
-        status: newStatus,
-        reason
-      });
+      if (newStatus === 'verified') {
+        await apiClient.approveVerification(verificationId, reason);
+      } else if (newStatus === 'failed') {
+        await apiClient.rejectVerification(verificationId, reason || 'Rejected', reason);
+      } else {
+        // For other status updates, use generic patch
+        await apiClient.patch(`/verifications/${verificationId}/status`, {
+          status: newStatus,
+          reason
+        });
+      }
       
-      // Update the verification in the list
+      // Update the verification in the list safely
       setVerifications(prev => 
-        prev.map(v => 
+        prev ? prev.map(v => 
           v.id === verificationId 
             ? { ...v, status: newStatus, updated_at: new Date().toISOString() }
             : v
-        )
+        ) : []
       );
       
       if (selectedVerification?.id === verificationId) {
@@ -294,7 +309,7 @@ export default function Verifications() {
                     </div>
                   </td>
                 </tr>
-              ) : verifications.length === 0 ? (
+              ) : !verifications || verifications.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
                     No verifications found matching your criteria
