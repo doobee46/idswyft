@@ -318,7 +318,7 @@ The Idswyft Team
     } catch (error) {
       return { 
         connected: false, 
-        error: error.message || 'Unknown email connection error' 
+        error: (error as Error).message || 'Unknown email connection error' 
       };
     }
   }

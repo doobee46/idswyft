@@ -46,7 +46,7 @@ router.post('/send-verification/:email', async (req, res) => {
     const emailSent = await emailService.sendVerificationEmail({
       adminEmail: admin.email,
       adminName: `${admin.first_name} ${admin.last_name}`,
-      organizationName: admin.vaas_organizations.name,
+      organizationName: (admin.vaas_organizations as any).name,
       verificationToken,
       dashboardUrl: process.env.VAAS_ADMIN_URL || 'https://app.idswyft.app'
     });
@@ -104,7 +104,7 @@ router.get('/test-email', async (req, res) => {
       success: false,
       error: {
         code: 'EMAIL_TEST_FAILED',
-        message: error.message || 'Email service test failed'
+        message: (error as Error).message || 'Email service test failed'
       }
     } as VaasApiResponse);
   }
