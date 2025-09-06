@@ -1,5 +1,7 @@
 import { Router } from 'express';
+import jwt from 'jsonwebtoken';
 import { vaasSupabase } from '../config/database.js';
+import config from '../config/index.js';
 
 console.log('📧 Importing email service...');
 import { emailService } from '../services/emailService.js';
@@ -44,9 +46,16 @@ router.post('/send-verification/:email', async (req, res) => {
       } as VaasApiResponse);
     }
 
-    // Generate a verification token (in real app, store this in DB)
-    const verificationToken = Math.random().toString(36).substring(2, 15) + 
-                             Math.random().toString(36).substring(2, 15);
+    // Generate a JWT verification token
+    const verificationToken = jwt.sign(
+      { 
+        admin_id: admin.id, 
+        email: admin.email,
+        type: 'email_verification'
+      },
+      config.jwtSecret,
+      { expiresIn: '24h' }
+    );
 
     // Send verification email
     const emailSent = await emailService.sendVerificationEmail({

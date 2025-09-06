@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Login from './components/auth/Login';
+import EmailVerification from './components/auth/EmailVerification';
 import DashboardLayout from './components/layout/DashboardLayout';
 import Dashboard from './components/dashboard/Dashboard';
 import Organization from './pages/Organization';
@@ -30,6 +31,7 @@ function App() {
           <Routes>
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
+            <Route path="/verify-email" element={<EmailVerification />} />
             <Route path="/dev" element={<DevInfo />} />
             
             {/* Protected routes */}
