@@ -1,77 +1,93 @@
-// Using built-in fetch (Node.js 18+)
+#!/usr/bin/env tsx
 
-// Test admin user data
-const testAdminData = {
-  company_name: 'Test Enterprise Solutions',
-  company_email: 'contact@testenterprise.com',
-  admin_first_name: 'John',
-  admin_last_name: 'Doe',
-  admin_email: 'admin@testenterprise.com',
-  admin_password: 'TestPassword123!',
-  phone_number: '+1-555-0123',
-  company_size: 'medium' as const,
-  industry: 'Technology'
-};
+import bcrypt from 'bcrypt';
+import { vaasSupabase } from '../config/database.js';
 
 async function createTestAdmin() {
   try {
-    console.log('Creating test admin user...');
+    console.log('🔄 Creating test admin user...');
     
-    // Get the API base URL from environment or default to localhost
-    const apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:3001';
+    const testData = {
+      firstName: 'Test',
+      lastName: 'Admin',
+      email: 'admintest@example.com',
+      company: 'TestCompany2025',
+      password: 'Demotest@2025'
+    };
     
-    const response = await fetch(`${apiBaseUrl}/api/v1/auth/signup`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(testAdminData)
-    });
-    
-    const result = await response.json();
-    
-    if (response.ok) {
-      console.log('✅ Test admin user created successfully!');
-      console.log('\n--- Account Details ---');
-      console.log(`Organization: ${result.data.organization.name}`);
-      console.log(`Organization Slug: ${result.data.organization.slug}`);
-      console.log(`Admin Email: ${result.data.admin.email}`);
-      console.log(`Admin Name: ${result.data.admin.first_name} ${result.data.admin.last_name}`);
-      console.log(`Role: ${result.data.admin.role}`);
-      console.log(`Free Credits: ${result.data.organization.verification_credits}`);
-      console.log(`Email Verified: ${result.data.admin.email_verified}`);
-      console.log('\n--- Login Instructions ---');
-      console.log('1. Go to the VaaS Admin Dashboard');
-      console.log('2. Use these credentials:');
-      console.log(`   Email: ${testAdminData.admin_email}`);
-      console.log(`   Password: ${testAdminData.admin_password}`);
-      console.log(`   Organization: ${result.data.organization.slug}`);
-      console.log('\n--- Next Steps ---');
-      console.log('- Email verification is required (check console logs for verification link)');
-      console.log('- You can now test the admin dashboard features');
-      console.log('- API keys can be generated from the admin panel');
-    } else {
-      console.error('❌ Failed to create test admin user');
-      console.error('Status:', response.status);
-      console.error('Error:', result);
+    // First, create the organization
+    console.log('📋 Creating organization...');
+    const { data: orgData, error: orgError } = await vaasSupabase
+      .from('vaas_organizations')
+      .insert({
+        name: testData.company,
+        slug: testData.company.toLowerCase().replace(/\s+/g, '-'),
+        subscription_tier: 'starter',
+        status: 'active',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select('*')
+      .single();
       
-      if (result.error?.code === 'EMAIL_ALREADY_EXISTS') {
-        console.log('\n--- Existing Account ---');
-        console.log('The test admin user already exists. You can login with:');
-        console.log(`Email: ${testAdminData.admin_email}`);
-        console.log(`Password: ${testAdminData.admin_password}`);
-        console.log('Organization: test-enterprise-solutions');
-      }
+    if (orgError) {
+      console.error('❌ Failed to create organization:', orgError);
+      process.exit(1);
     }
-  } catch (error) {
-    console.error('❌ Error creating test admin user:', error);
-    console.log('\nMake sure the VaaS backend is running on the expected port.');
+    
+    console.log('✅ Organization created:', orgData.name);
+    
+    // Hash the password
+    console.log('🔐 Hashing password...');
+    const passwordHash = await bcrypt.hash(testData.password, 10);
+    
+    // Create the admin user
+    console.log('👤 Creating admin user...');
+    const { data: adminData, error: adminError } = await vaasSupabase
+      .from('vaas_admins')
+      .insert({
+        first_name: testData.firstName,
+        last_name: testData.lastName,
+        email: testData.email,
+        password_hash: passwordHash,
+        organization_id: orgData.id,
+        role: 'owner',
+        status: 'active',
+        email_verified: true, // Mark as verified for testing
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select('*')
+      .single();
+      
+    if (adminError) {
+      console.error('❌ Failed to create admin user:', adminError);
+      process.exit(1);
+    }
+    
+    console.log('✅ Test admin user created successfully!');
+    console.log('');
+    console.log('🎯 Test Account Details:');
+    console.log('  Email:', testData.email);
+    console.log('  Password:', testData.password);
+    console.log('  Organization:', testData.company);
+    console.log('  Admin ID:', adminData.id);
+    console.log('  Organization ID:', orgData.id);
+    console.log('  Status: active');
+    console.log('  Email Verified: true');
+    console.log('  Login URL: https://app.idswyft.app');
+    console.log('');
+    console.log('📝 Account is ready for login!');
+    
+    process.exit(0);
+  } catch (err) {
+    console.error('❌ Script error:', err);
+    process.exit(1);
   }
 }
 
-// Run the script
 if (import.meta.url === `file://${process.argv[1]}`) {
   createTestAdmin();
 }
 
-export default createTestAdmin;
+export { createTestAdmin };

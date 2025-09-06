@@ -9,12 +9,16 @@ import config from './config/index.js';
 import { connectVaasDB } from './config/database.js';
 
 // Import routes
+console.log('📦 Importing route modules...');
 import organizationRoutes from './routes/organizations.js';
 import authRoutes from './routes/auth.js';
 import verificationRoutes from './routes/verifications.js';
 import webhookRoutes from './routes/webhooks.js';
 import adminSecretRoutes from './routes/admin-secrets.js';
+
+console.log('📧 Importing email routes...');
 import emailUtilRoutes from './routes/email-utils.js';
+console.log('✅ Email routes imported:', !!emailUtilRoutes);
 
 const app = express();
 
@@ -214,13 +218,21 @@ app.get('/api/docs', (req, res) => {
   });
 });
 
-// Mount API routes
+// Mount API routes with debug logging
+console.log('🔗 Mounting API routes...');
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/verifications', verificationRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/admin', adminSecretRoutes);
-app.use('/api/email', emailUtilRoutes);
+
+console.log('📧 Mounting email routes...');
+try {
+  app.use('/api/email', emailUtilRoutes);
+  console.log('✅ Email routes mounted successfully');
+} catch (error) {
+  console.error('❌ Failed to mount email routes:', error);
+}
 
 // 404 handler
 app.use('*', (req, res) => {

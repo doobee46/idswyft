@@ -1,9 +1,15 @@
 import { Router } from 'express';
 import { vaasSupabase } from '../config/database.js';
+
+console.log('📧 Importing email service...');
 import { emailService } from '../services/emailService.js';
+console.log('✅ Email service imported:', !!emailService);
+
 import { VaasApiResponse } from '../types/index.js';
 
 const router = Router();
+
+console.log('📧 Email routes module loaded');
 
 // Send password reset/verification email
 router.post('/send-verification/:email', async (req, res) => {
@@ -90,7 +96,17 @@ router.post('/send-verification/:email', async (req, res) => {
 // Test email service configuration
 router.get('/test-email', async (req, res) => {
   try {
-    const testResult = await emailService.testConnection();
+    console.log('📧 Testing email service configuration...');
+    
+    // Add a timeout wrapper for the email service test
+    const testPromise = emailService.testConnection();
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Email test timeout after 5 seconds')), 5000)
+    );
+    
+    const testResult = await Promise.race([testPromise, timeoutPromise]);
+    
+    console.log('📧 Email service test result:', testResult);
     
     res.json({
       success: true,
@@ -100,6 +116,8 @@ router.get('/test-email', async (req, res) => {
       }
     } as VaasApiResponse);
   } catch (error) {
+    console.error('📧 Email test error:', error);
+    
     res.status(500).json({
       success: false,
       error: {
@@ -108,6 +126,18 @@ router.get('/test-email', async (req, res) => {
       }
     } as VaasApiResponse);
   }
+});
+
+// Simple health check for email routes
+router.get('/health', async (req, res) => {
+  console.log('📧 Email routes health check');
+  res.json({
+    success: true,
+    data: {
+      message: 'Email routes are working',
+      timestamp: new Date().toISOString()
+    }
+  } as VaasApiResponse);
 });
 
 export default router;

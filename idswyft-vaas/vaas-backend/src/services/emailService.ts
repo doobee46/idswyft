@@ -1,4 +1,3 @@
-import nodemailer from 'nodemailer';
 import config from '../config/index.js';
 import { VaasOrganization, VaasAdmin } from '../types/index.js';
 
@@ -20,35 +19,114 @@ interface NotificationEmailData {
   signupId: string;
 }
 
+interface VerificationEmailData {
+  adminEmail: string;
+  adminName: string;
+  organizationName: string;
+  verificationToken: string;
+  dashboardUrl: string;
+}
+
+interface SendEmailOptions {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+}
+
 export class EmailService {
-  private transporter: nodemailer.Transporter | null = null;
+  private mailgunDomain: string;
+  private mailgunApiKey: string;
+  private mailgunApiUrl: string;
+  private fromAddress: string;
+  private isConfigured: boolean = false;
 
   constructor() {
-    this.initializeTransporter();
+    this.mailgunDomain = process.env.MAILGUN_DOMAIN || '';
+    this.mailgunApiKey = process.env.MAILGUN_API_KEY || '';
+    this.fromAddress = process.env.MAILGUN_FROM || `Idswyft VaaS <postmaster@${this.mailgunDomain}>`;
+    this.mailgunApiUrl = `https://api.mailgun.net/v3/${this.mailgunDomain}/messages`;
+    
+    this.isConfigured = !!(this.mailgunDomain && this.mailgunApiKey);
+    
+    if (this.isConfigured) {
+      console.log(`✉️ Mailgun HTTP API configured for domain: ${this.mailgunDomain}`);
+    } else {
+      console.warn('❌ Mailgun not configured. Emails will be logged instead of sent.');
+      console.warn(`Missing: MAILGUN_DOMAIN=${!this.mailgunDomain ? 'MISSING' : 'OK'}, MAILGUN_API_KEY=${!this.mailgunApiKey ? 'MISSING' : 'OK'}`);
+    }
   }
 
-  private initializeTransporter() {
+  private async sendMailgunRequest(options: SendEmailOptions): Promise<boolean> {
     try {
-      // Use environment variables for email configuration
-      const emailConfig = {
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS
-        }
-      };
+      const formData = new FormData();
+      formData.append('from', this.fromAddress);
+      formData.append('to', options.to);
+      formData.append('subject', options.subject);
+      formData.append('text', options.text);
+      formData.append('html', options.html);
 
-      if (!emailConfig.auth.user || !emailConfig.auth.pass) {
-        console.warn('Email credentials not configured. Email notifications will be logged instead of sent.');
-        return;
+      console.log(`📧 Sending email to: ${options.to}`);
+      console.log(`📧 Subject: ${options.subject}`);
+      
+      // Create timeout promise
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Mailgun request timeout after 8 seconds')), 8000)
+      );
+
+      // Create fetch promise
+      const fetchPromise = fetch(this.mailgunApiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${Buffer.from(`api:${this.mailgunApiKey}`).toString('base64')}`
+        },
+        body: formData
+      });
+
+      // Race timeout vs fetch
+      const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unable to read error response');
+        console.error(`❌ Mailgun API error: ${response.status} ${response.statusText}`);
+        console.error(`❌ Error details: ${errorText}`);
+        return false;
       }
 
-      this.transporter = nodemailer.createTransport(emailConfig);
-      console.log('✉️ Email transporter initialized');
+      const result = await response.json().catch(() => ({ message: 'Email sent but unable to parse response' }));
+      console.log(`✅ Email sent via Mailgun: ${result.id || result.message || 'Success'}`);
+      return true;
+
     } catch (error) {
-      console.error('Failed to initialize email transporter:', error);
+      console.error('❌ Mailgun request failed:', error instanceof Error ? error.message : String(error));
+      return false;
+    }
+  }
+
+  private async sendEmail(options: SendEmailOptions): Promise<boolean> {
+    try {
+      if (!this.isConfigured) {
+        console.log('\n📧 EMAIL (not sent - Mailgun not configured):');
+        console.log(`To: ${options.to}`);
+        console.log(`Subject: ${options.subject}`);
+        console.log(`From: ${this.fromAddress}`);
+        console.log('─'.repeat(50));
+        return true; // Return true for development mode
+      }
+
+      return await this.sendMailgunRequest(options);
+
+    } catch (error) {
+      console.error('❌ Email service error:', error instanceof Error ? error.message : String(error));
+      
+      // Log email for debugging
+      console.log('\n📧 EMAIL (failed to send):');
+      console.log(`To: ${options.to}`);
+      console.log(`Subject: ${options.subject}`);
+      console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
+      console.log('─'.repeat(50));
+      
+      return false;
     }
   }
 
@@ -61,110 +139,59 @@ export class EmailService {
 <head>
   <meta charset="utf-8">
   <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
     .header { background: #1e40af; color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
     .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
     .button { display: inline-block; background: #1e40af; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
     .credentials { background: #fff; padding: 20px; border-radius: 8px; border-left: 4px solid #1e40af; margin: 20px 0; }
     .warning { background: #fef3c7; padding: 15px; border-radius: 6px; border-left: 4px solid #f59e0b; margin: 20px 0; }
-    .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; }
-    .logo { font-size: 24px; font-weight: bold; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <div class="logo">🛡️ Idswyft VaaS</div>
-      <h1>Welcome to Identity Verification as a Service</h1>
+  <div class="header">
+    <h1>🛡️ Welcome to Idswyft VaaS</h1>
+  </div>
+  
+  <div class="content">
+    <h2>Hello ${data.adminName}!</h2>
+    
+    <p>Your Idswyft VaaS account for <strong>${data.organization.name}</strong> has been successfully created.</p>
+    
+    <div class="credentials">
+      <h3>🔐 Your Login Credentials</h3>
+      <p><strong>Dashboard:</strong> <a href="${data.dashboardUrl}">${data.dashboardUrl}</a></p>
+      <p><strong>Email:</strong> ${data.adminEmail}</p>
+      <p><strong>Password:</strong> <code>${data.adminPassword}</code></p>
+      <p><strong>Organization:</strong> ${data.organization.name}</p>
     </div>
     
-    <div class="content">
-      <h2>Hello ${data.adminName}!</h2>
-      
-      <p>Congratulations! Your Idswyft VaaS account for <strong>${data.organization.name}</strong> has been successfully created.</p>
-      
-      <div class="credentials">
-        <h3>🔐 Your Login Credentials</h3>
-        <p><strong>Dashboard URL:</strong> <a href="${data.dashboardUrl}">${data.dashboardUrl}</a></p>
-        <p><strong>Email:</strong> ${data.adminEmail}</p>
-        <p><strong>Temporary Password:</strong> <code style="background: #f3f4f6; padding: 4px 8px; border-radius: 4px;">${data.adminPassword}</code></p>
-        <p><strong>Organization:</strong> ${data.organization.name}</p>
-        <p><strong>Subscription:</strong> ${data.organization.subscription_tier.toUpperCase()}</p>
-      </div>
-      
-      <div class="warning">
-        <strong>⚠️ Important Security Notice</strong><br>
-        Please change your password immediately after logging in for security purposes.
-      </div>
-      
-      <a href="${data.dashboardUrl}" class="button">Access Your Dashboard</a>
-      
-      <h3>🚀 What's Next?</h3>
-      <ul>
-        <li><strong>Step 1:</strong> Log into your dashboard using the credentials above</li>
-        <li><strong>Step 2:</strong> Update your password and profile information</li>
-        <li><strong>Step 3:</strong> Generate API keys for your applications</li>
-        <li><strong>Step 4:</strong> Configure webhook endpoints (optional)</li>
-        <li><strong>Step 5:</strong> Start verifying identities!</li>
-      </ul>
-      
-      <h3>📚 Resources</h3>
-      <ul>
-        <li><a href="https://docs.idswyft.com/vaas">VaaS Documentation</a></li>
-        <li><a href="https://docs.idswyft.com/api">API Reference</a></li>
-        <li><a href="https://github.com/idswyft/javascript-sdk">JavaScript SDK</a></li>
-        <li><a href="mailto:support@idswyft.com">Contact Support</a></li>
-      </ul>
-      
-      <h3>🎁 Your Free Trial</h3>
-      <p>Your account comes with <strong>1,000 free identity verifications</strong> to get you started. No credit card required!</p>
+    <div class="warning">
+      <strong>⚠️ Important:</strong> Please change your password after logging in.
     </div>
     
-    <div class="footer">
-      <p>Need help? Reply to this email or contact us at <a href="mailto:support@idswyft.com">support@idswyft.com</a></p>
-      <p>Idswyft - Secure Identity Verification Platform</p>
-    </div>
+    <a href="${data.dashboardUrl}" class="button">Access Dashboard</a>
+    
+    <p>Best regards,<br>The Idswyft Team</p>
   </div>
 </body>
-</html>
-    `;
+</html>`;
 
-    const textContent = `
-Welcome to Idswyft VaaS!
+    const textContent = `Welcome to Idswyft VaaS!
 
 Hello ${data.adminName},
 
-Your Idswyft VaaS account for ${data.organization.name} has been successfully created.
+Your account for ${data.organization.name} has been created.
 
-Login Credentials:
-- Dashboard URL: ${data.dashboardUrl}
-- Email: ${data.adminEmail}
-- Temporary Password: ${data.adminPassword}
+Login Details:
+- Dashboard: ${data.dashboardUrl}
+- Email: ${data.adminEmail}  
+- Password: ${data.adminPassword}
 - Organization: ${data.organization.name}
-- Subscription: ${data.organization.subscription_tier.toUpperCase()}
 
-IMPORTANT: Please change your password immediately after logging in.
-
-What's Next:
-1. Log into your dashboard
-2. Update your password and profile
-3. Generate API keys for your applications
-4. Configure webhook endpoints (optional)
-5. Start verifying identities!
-
-Your account includes 1,000 free identity verifications to get started.
-
-Resources:
-- Documentation: https://docs.idswyft.com/vaas
-- API Reference: https://docs.idswyft.com/api
-- JavaScript SDK: https://github.com/idswyft/javascript-sdk
-
-Need help? Contact support@idswyft.com
+Please change your password after logging in.
 
 Best regards,
-The Idswyft Team
-    `;
+The Idswyft Team`;
 
     return this.sendEmail({
       to: data.adminEmail,
@@ -183,249 +210,158 @@ The Idswyft Team
 <head>
   <meta charset="utf-8">
   <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
     .header { background: #059669; color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
     .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
-    .info-box { background: #fff; padding: 20px; border-radius: 8px; border-left: 4px solid #059669; margin: 20px 0; }
-    .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; }
+    .info-box { background: #fff; padding: 20px; border-radius: 8px; margin: 20px 0; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>New VaaS Enterprise Signup</h1>
-    </div>
-    
-    <div class="content">
-      <h2>📋 Signup Details</h2>
-      
-      <div class="info-box">
-        <p><strong>Company:</strong> ${data.organizationName}</p>
-        <p><strong>Contact:</strong> ${data.adminName} (${data.adminEmail})</p>
-        <p><strong>Job Title:</strong> ${data.jobTitle}</p>
-        <p><strong>Expected Volume:</strong> ${data.estimatedVolume} verifications/month</p>
-        <p><strong>Use Case:</strong></p>
-        <p style="background: #f3f4f6; padding: 10px; border-radius: 4px;">${data.useCase}</p>
-        <p><strong>Signup ID:</strong> ${data.signupId}</p>
-        <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
-      </div>
-      
-      <h3>✅ Actions Completed</h3>
-      <ul>
-        <li>Organization account created</li>
-        <li>Admin user provisioned with owner permissions</li>
-        <li>Subscription tier automatically assigned based on volume</li>
-        <li>Welcome email sent to customer</li>
-      </ul>
-      
-      <h3>📞 Follow-up Recommended</h3>
-      <ul>
-        <li>Contact customer within 24 hours to discuss onboarding</li>
-        <li>Schedule demo/training session if needed</li>
-        <li>Verify subscription tier matches their needs</li>
-        <li>Discuss integration support requirements</li>
-      </ul>
-    </div>
-    
-    <div class="footer">
-      <p>VaaS Admin Notification System</p>
+  <div class="header">
+    <h1>New VaaS Enterprise Signup</h1>
+  </div>
+  
+  <div class="content">
+    <div class="info-box">
+      <p><strong>Company:</strong> ${data.organizationName}</p>
+      <p><strong>Contact:</strong> ${data.adminName} (${data.adminEmail})</p>
+      <p><strong>Job Title:</strong> ${data.jobTitle}</p>
+      <p><strong>Volume:</strong> ${data.estimatedVolume}/month</p>
+      <p><strong>Use Case:</strong> ${data.useCase}</p>
+      <p><strong>Signup ID:</strong> ${data.signupId}</p>
     </div>
   </div>
 </body>
-</html>
-    `;
+</html>`;
 
-    // Send to admin/support team
+    const textContent = `New VaaS Signup: ${data.organizationName}
+
+Company: ${data.organizationName}
+Contact: ${data.adminName} (${data.adminEmail})
+Job Title: ${data.jobTitle}
+Volume: ${data.estimatedVolume}/month
+Use Case: ${data.useCase}
+Signup ID: ${data.signupId}`;
+
     const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL || 'admin@idswyft.com';
     
     return this.sendEmail({
       to: adminEmail,
       subject,
       html: htmlContent,
-      text: `New VaaS Signup: ${data.organizationName} (${data.adminName} - ${data.adminEmail})\nVolume: ${data.estimatedVolume}\nUse Case: ${data.useCase}\nSignup ID: ${data.signupId}`
+      text: textContent
     });
   }
 
-  private async sendEmail(options: {
-    to: string;
-    subject: string;
-    html: string;
-    text: string;
-  }): Promise<boolean> {
-    try {
-      if (!this.transporter) {
-        // Log email instead of sending if transporter not configured
-        console.log('\n📧 EMAIL (not sent - no transporter configured):');
-        console.log(`To: ${options.to}`);
-        console.log(`Subject: ${options.subject}`);
-        console.log(`Text Content:\n${options.text}`);
-        console.log('─'.repeat(80));
-        return true;
-      }
-
-      const info = await this.transporter.sendMail({
-        from: process.env.SMTP_FROM || '"Idswyft VaaS" <noreply@idswyft.com>',
-        to: options.to,
-        subject: options.subject,
-        text: options.text,
-        html: options.html
-      });
-
-      console.log(`✅ Email sent to ${options.to}:`, info.messageId);
-      return true;
-    } catch (error) {
-      console.error('Failed to send email:', error);
-      
-      // Log email content for debugging
-      console.log('\n📧 EMAIL (failed to send):');
-      console.log(`To: ${options.to}`);
-      console.log(`Subject: ${options.subject}`);
-      console.log(`Error: ${error}`);
-      console.log('─'.repeat(80));
-      
-      return false;
-    }
-  }
-
-  async verifyConnection(): Promise<boolean> {
-    if (!this.transporter) {
-      console.log('Email transporter not configured - emails will be logged only');
-      return false;
-    }
-
-    try {
-      await this.transporter.verify();
-      console.log('✅ Email connection verified');
-      return true;
-    } catch (error) {
-      console.error('❌ Email connection failed:', error);
-      return false;
-    }
-  }
-
-  async testConnection(): Promise<{ connected: boolean; error?: string }> {
-    if (!this.transporter) {
-      return { 
-        connected: false, 
-        error: 'Email transporter not configured - emails will be logged only' 
-      };
-    }
-
-    try {
-      await this.transporter.verify();
-      return { connected: true };
-    } catch (error) {
-      return { 
-        connected: false, 
-        error: (error as Error).message || 'Unknown email connection error' 
-      };
-    }
-  }
-
-  async sendVerificationEmail(data: {
-    adminEmail: string;
-    adminName: string;
-    organizationName: string;
-    verificationToken: string;
-    dashboardUrl: string;
-  }): Promise<boolean> {
+  async sendVerificationEmail(data: VerificationEmailData): Promise<boolean> {
     const subject = `Verify Your ${data.organizationName} Admin Account - Idswyft VaaS`;
     
     const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <style>
-            body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.6; color: #374151; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { text-align: center; padding: 30px 0; border-bottom: 1px solid #e5e7eb; }
-            .logo { font-size: 24px; font-weight: bold; color: #1f2937; }
-            .content { padding: 40px 20px; }
-            .button { display: inline-block; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 20px 0; }
-            .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb; }
-            .verification-code { background: #f3f4f6; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 16px; margin: 20px 0; }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <div class="logo">🛡️ Idswyft VaaS</div>
-                <p style="margin-top: 10px; color: #6b7280;">Identity Verification as a Service</p>
-            </div>
-            
-            <div class="content">
-                <h2>Verify Your Admin Account</h2>
-                
-                <p>Hello ${data.adminName},</p>
-                
-                <p>Please verify your admin account for <strong>${data.organizationName}</strong> to complete your VaaS setup.</p>
-                
-                <p>Click the button below to verify your email address and activate your account:</p>
-                
-                <p style="text-align: center;">
-                    <a href="${data.dashboardUrl}/verify-email?token=${data.verificationToken}&email=${encodeURIComponent(data.adminEmail)}" class="button">
-                        Verify Email Address
-                    </a>
-                </p>
-                
-                <p>Or use this verification code in your dashboard:</p>
-                <div class="verification-code">
-                    <strong>${data.verificationToken}</strong>
-                </div>
-                
-                <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; margin: 30px 0;">
-                    <h4 style="margin: 0 0 10px 0; color: #1e40af;">🎯 Next Steps:</h4>
-                    <ul style="margin: 10px 0; padding-left: 20px; color: #1f2937;">
-                        <li>Click the verification link above</li>
-                        <li>Access your admin dashboard at <a href="${data.dashboardUrl}">${data.dashboardUrl}</a></li>
-                        <li>Set up your organization settings and webhooks</li>
-                        <li>Start integrating our verification API</li>
-                    </ul>
-                </div>
-                
-                <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-                    If you didn't create this account, please ignore this email or contact our support team.
-                </p>
-            </div>
-            
-            <div class="footer">
-                <p>© ${new Date().getFullYear()} Idswyft. All rights reserved.</p>
-                <p>This is an automated message from our verification service.</p>
-            </div>
-        </div>
-    </body>
-    </html>
-    `;
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { text-align: center; padding: 30px 0; border-bottom: 1px solid #e5e7eb; }
+    .content { padding: 30px 20px; }
+    .button { display: inline-block; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 20px 0; }
+    .verification-code { background: #f3f4f6; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 16px; margin: 20px 0; text-align: center; }
+    .next-steps { background: #f0f9ff; padding: 20px; border-radius: 8px; margin: 30px 0; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🛡️ Idswyft VaaS</h1>
+    <p>Identity Verification as a Service</p>
+  </div>
+  
+  <div class="content">
+    <h2>Verify Your Admin Account</h2>
+    
+    <p>Hello ${data.adminName},</p>
+    
+    <p>Please verify your admin account for <strong>${data.organizationName}</strong> to complete your VaaS setup.</p>
+    
+    <p style="text-align: center;">
+      <a href="${data.dashboardUrl}/verify-email?token=${data.verificationToken}&email=${encodeURIComponent(data.adminEmail)}" class="button">
+        Verify Email Address
+      </a>
+    </p>
+    
+    <p>Or use this verification code:</p>
+    <div class="verification-code">
+      <strong>${data.verificationToken}</strong>
+    </div>
+    
+    <div class="next-steps">
+      <h4>🎯 Next Steps:</h4>
+      <ul>
+        <li>Click the verification link above</li>
+        <li>Access your dashboard at <a href="${data.dashboardUrl}">${data.dashboardUrl}</a></li>
+        <li>Set up your organization settings</li>
+        <li>Start integrating our verification API</li>
+      </ul>
+    </div>
+    
+    <p style="color: #6b7280; font-size: 14px;">
+      If you didn't create this account, please ignore this email.
+    </p>
+  </div>
+</body>
+</html>`;
 
-    const textContent = `
-    Verify Your ${data.organizationName} Admin Account - Idswyft VaaS
-    
-    Hello ${data.adminName},
-    
-    Please verify your admin account for ${data.organizationName} to complete your VaaS setup.
-    
-    Verification Link: ${data.dashboardUrl}/verify-email?token=${data.verificationToken}&email=${encodeURIComponent(data.adminEmail)}
-    
-    Verification Code: ${data.verificationToken}
-    
-    Next Steps:
-    - Click the verification link above  
-    - Access your admin dashboard at ${data.dashboardUrl}
-    - Set up your organization settings and webhooks
-    - Start integrating our verification API
-    
-    If you didn't create this account, please ignore this email or contact our support team.
-    
-    © ${new Date().getFullYear()} Idswyft. All rights reserved.
-    `;
+    const textContent = `Verify Your ${data.organizationName} Admin Account - Idswyft VaaS
 
-    return await this.sendEmail({
+Hello ${data.adminName},
+
+Please verify your admin account for ${data.organizationName}.
+
+Verification Link: ${data.dashboardUrl}/verify-email?token=${data.verificationToken}&email=${encodeURIComponent(data.adminEmail)}
+
+Verification Code: ${data.verificationToken}
+
+Next Steps:
+- Click the verification link above  
+- Access your dashboard at ${data.dashboardUrl}
+- Set up your organization settings
+- Start integrating our verification API
+
+If you didn't create this account, please ignore this email.`;
+
+    return this.sendEmail({
       to: data.adminEmail,
       subject,
       html: htmlContent,
       text: textContent
     });
+  }
+
+  async testConnection(): Promise<{ connected: boolean; error?: string }> {
+    if (!this.isConfigured) {
+      return { 
+        connected: false, 
+        error: 'Mailgun not configured - missing MAILGUN_DOMAIN or MAILGUN_API_KEY' 
+      };
+    }
+
+    try {
+      console.log('🔍 Testing Mailgun configuration...');
+      return { 
+        connected: true, 
+        error: `Domain: ${this.mailgunDomain}, From: ${this.fromAddress}` 
+      };
+    } catch (error) {
+      return { 
+        connected: false, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      };
+    }
+  }
+
+  async verifyConnection(): Promise<boolean> {
+    const result = await this.testConnection();
+    return result.connected;
   }
 }
 
