@@ -7,6 +7,7 @@ import DashboardLayout from './components/layout/DashboardLayout';
 import Dashboard from './components/dashboard/Dashboard';
 import Organization from './pages/Organization';
 import Verifications from './pages/Verifications';
+import Users from './pages/Users';
 import Webhooks from './pages/Webhooks';
 import DebugInfo from './components/debug/DebugInfo';
 
@@ -19,7 +20,6 @@ const DevInfo = () => (
 );
 
 // Placeholder components for other routes
-const Users = () => <div className="p-6"><h1 className="text-2xl font-bold">End Users</h1><p>Coming soon...</p></div>;
 const Analytics = () => <div className="p-6"><h1 className="text-2xl font-bold">Analytics</h1><p>Coming soon...</p></div>;
 const Settings = () => <div className="p-6"><h1 className="text-2xl font-bold">Settings</h1><p>Coming soon...</p></div>;
 

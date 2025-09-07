@@ -301,6 +301,90 @@ class ApiClient {
     };
   }
 
+  // End Users
+  async listEndUsers(params?: {
+    status?: string;
+    search?: string;
+    tags?: string[];
+    page?: number;
+    per_page?: number;
+  }): Promise<{ users: EndUser[]; meta: any }> {
+    const response: AxiosResponse<ApiResponse<EndUser[]>> = await this.client.get('/users', { params });
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to list end users');
+    }
+
+    return {
+      users: response.data.data!,
+      meta: response.data.meta || {}
+    };
+  }
+
+  async getEndUser(id: string): Promise<EndUser> {
+    const response: AxiosResponse<ApiResponse<EndUser>> = await this.client.get(`/users/${id}`);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to get end user');
+    }
+
+    return response.data.data!;
+  }
+
+  async createEndUser(userData: Partial<EndUser>): Promise<EndUser> {
+    const response: AxiosResponse<ApiResponse<EndUser>> = await this.client.post('/users', userData);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to create end user');
+    }
+
+    return response.data.data!;
+  }
+
+  async updateEndUser(id: string, updates: Partial<EndUser>): Promise<EndUser> {
+    const response: AxiosResponse<ApiResponse<EndUser>> = await this.client.put(`/users/${id}`, updates);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to update end user');
+    }
+
+    return response.data.data!;
+  }
+
+  async deleteEndUser(id: string): Promise<void> {
+    const response: AxiosResponse<ApiResponse> = await this.client.delete(`/users/${id}`);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to delete end user');
+    }
+  }
+
+  async getEndUserVerifications(id: string, params?: PaginationParams): Promise<{ verifications: VerificationSession[]; meta: any }> {
+    const response: AxiosResponse<ApiResponse<VerificationSession[]>> = await this.client.get(`/users/${id}/verifications`, { params });
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to get user verifications');
+    }
+
+    return {
+      verifications: response.data.data!,
+      meta: response.data.meta || {}
+    };
+  }
+
+  async exportEndUsers(params?: {
+    status?: string;
+    search?: string;
+    tags?: string[];
+  }): Promise<Blob> {
+    const response = await this.client.get('/users/export', {
+      params,
+      responseType: 'blob'
+    });
+    
+    return response.data;
+  }
+
   // Generic HTTP methods
   async get(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse> {
     return this.client.get(url, config);
