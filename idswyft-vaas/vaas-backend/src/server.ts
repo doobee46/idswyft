@@ -12,6 +12,7 @@ import { connectVaasDB } from './config/database.js';
 console.log('📦 Importing route modules...');
 import organizationRoutes from './routes/organizations.js';
 import authRoutes from './routes/auth.js';
+import userRoutes from './routes/users.js';
 import verificationRoutes from './routes/verifications.js';
 import webhookRoutes from './routes/webhooks.js';
 import adminSecretRoutes from './routes/admin-secrets.js';
@@ -231,6 +232,7 @@ app.get('/api/docs', (req, res) => {
 console.log('🔗 Mounting API routes...');
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
 app.use('/api/verifications', verificationRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/admin', adminSecretRoutes);

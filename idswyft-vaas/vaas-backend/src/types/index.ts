@@ -268,6 +268,29 @@ export interface VaasEnterpriseSignupRequest {
   useCase: string;
 }
 
+export interface VaasCreateEndUserRequest {
+  email?: string;
+  phone?: string;
+  first_name?: string;
+  last_name?: string;
+  external_id?: string;
+  metadata?: Record<string, any>;
+  tags?: string[];
+}
+
+export interface VaasSendVerificationInvitationRequest {
+  custom_message?: string;
+  expiration_days?: number;
+}
+
+export interface VaasSendVerificationInvitationResponse extends VaasEndUser {
+  verification_url: string;
+  session_token: string;
+  expires_at: string;
+  invitation_sent: boolean;
+  invitation_sent_at: string;
+}
+
 export interface VaasStartVerificationRequest {
   end_user: {
     email?: string;
