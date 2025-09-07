@@ -409,18 +409,6 @@ class ApiClient {
     return response.data;
   }
 
-  async sendVerificationInvitation(userId: string, options?: {
-    custom_message?: string;
-    expiration_days?: number;
-  }): Promise<EndUser> {
-    const response: AxiosResponse<ApiResponse<EndUser>> = await this.client.post(`/users/${userId}/send-verification-invitation`, options);
-    
-    if (!response.data.success) {
-      throw new Error(response.data.error?.message || 'Failed to send verification invitation');
-    }
-
-    return response.data.data!;
-  }
 
   // API Keys
   async listApiKeys(): Promise<ApiKey[]> {
@@ -811,6 +799,24 @@ class ApiClient {
 
   async delete(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse> {
     return this.client.delete(url, config);
+  }
+
+  // Send verification invitation to a user
+  async sendVerificationInvitation(userId: string, options?: {
+    custom_message?: string;
+    expiration_days?: number;
+  }): Promise<EndUser> {
+    console.log(`[API] Sending verification invitation to user ${userId}:`, options);
+    
+    const response: AxiosResponse<ApiResponse<EndUser>> = await this.client.post(`/users/${userId}/send-verification-invitation`, options);
+    
+    console.log(`[API] Verification invitation response:`, response.data);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to send verification invitation');
+    }
+
+    return response.data.data!;
   }
 
   // Utility methods

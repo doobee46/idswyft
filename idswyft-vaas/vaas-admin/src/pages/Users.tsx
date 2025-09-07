@@ -113,6 +113,8 @@ export default function Users() {
     
     try {
       setSendingInvitation(true);
+      
+      console.log('Sending verification invitation for user:', selectedUser.id);
       const updatedUser = await apiClient.sendVerificationInvitation(selectedUser.id, {
         custom_message: customMessage,
         expiration_days: 7
@@ -123,10 +125,31 @@ export default function Users() {
         user.id === updatedUser.id ? updatedUser : user
       ));
       
+      // Show success message
+      alert(`✅ Verification invitation sent successfully to ${selectedUser.email}!`);
+      
       setShowInvitationModal(false);
       setSelectedUser(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to send verification invitation:', error);
+      
+      // Show detailed error message
+      let errorMessage = 'Failed to send verification invitation. ';
+      if (error.response?.data?.error?.message) {
+        errorMessage += error.response.data.error.message;
+      } else if (error.response?.status === 404) {
+        errorMessage += 'API endpoint not found. Please check if the backend server is running and the endpoint is implemented.';
+      } else if (error.response?.status === 403) {
+        errorMessage += 'You do not have permission to send verification invitations.';
+      } else if (error.response?.status === 500) {
+        errorMessage += 'Server error occurred. Please try again later.';
+      } else if (error.message) {
+        errorMessage += error.message;
+      } else {
+        errorMessage += 'Please check your network connection and try again.';
+      }
+      
+      alert(`❌ ${errorMessage}`);
     } finally {
       setSendingInvitation(false);
     }
@@ -404,8 +427,15 @@ export default function Users() {
                         </div>
                       )}
                       {!user.invitation_sent && user.email && user.verification_status === 'pending' && (
-                        <div className="text-xs text-orange-600 mt-1">
-                          No invitation sent
+                        <div className="text-xs text-orange-600 mt-1 flex items-center">
+                          <AlertTriangle className="w-3 h-3 mr-1" />
+                          Ready to send invitation
+                        </div>
+                      )}
+                      {!user.invitation_sent && !user.email && user.verification_status === 'pending' && (
+                        <div className="text-xs text-red-600 mt-1 flex items-center">
+                          <AlertTriangle className="w-3 h-3 mr-1" />
+                          Email required for invitation
                         </div>
                       )}
                     </td>
@@ -465,11 +495,16 @@ export default function Users() {
                               setSelectedUser(user);
                               setShowInvitationModal(true);
                             }}
-                            className="text-green-600 hover:text-green-900"
+                            className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 p-1.5 rounded"
                             title="Send Verification Link"
                           >
                             <Send className="w-4 h-4" />
                           </button>
+                        )}
+                        {!user.email && (
+                          <div className="text-gray-400 p-1.5" title="No email address - cannot send invitation">
+                            <Send className="w-4 h-4 opacity-30" />
+                          </div>
                         )}
                         <button
                           onClick={() => setDeleteConfirm(user.id)}
