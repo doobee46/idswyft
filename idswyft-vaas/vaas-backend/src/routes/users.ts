@@ -166,21 +166,30 @@ router.post('/', async (req: AuthenticatedRequest, res) => {
       return res.status(400).json(response);
     }
     
-    // Check for duplicate email in organization
+    // Check for duplicate email in organization (case insensitive)
     if (email) {
-      const { data: existingUser } = await vaasSupabase
+      const normalizedEmail = email.toLowerCase().trim();
+      const { data: existingUsers, error: duplicateError } = await vaasSupabase
         .from('vaas_end_users')
-        .select('id')
+        .select('id, email')
         .eq('organization_id', organizationId)
-        .eq('email', email)
-        .single();
+        .ilike('email', normalizedEmail);
         
-      if (existingUser) {
+      if (duplicateError) {
+        console.error('[UserRoutes] Error checking for duplicate email:', duplicateError);
+        throw new Error(`Failed to check for duplicate email: ${duplicateError.message}`);
+      }
+      
+      if (existingUsers && existingUsers.length > 0) {
+        console.log('[UserRoutes] Found existing users with email:', existingUsers);
         const response: VaasApiResponse = {
           success: false,
           error: {
             code: 'DUPLICATE_EMAIL',
-            message: 'A user with this email already exists in your organization'
+            message: 'A user with this email already exists in your organization',
+            details: {
+              existing_users: existingUsers.map(u => ({ id: u.id, email: u.email }))
+            }
           }
         };
         
@@ -190,19 +199,27 @@ router.post('/', async (req: AuthenticatedRequest, res) => {
     
     // Check for duplicate external_id in organization
     if (external_id) {
-      const { data: existingUser } = await vaasSupabase
+      const { data: existingUsers, error: duplicateIdError } = await vaasSupabase
         .from('vaas_end_users')
-        .select('id')
+        .select('id, external_id')
         .eq('organization_id', organizationId)
-        .eq('external_id', external_id)
-        .single();
+        .eq('external_id', external_id);
         
-      if (existingUser) {
+      if (duplicateIdError) {
+        console.error('[UserRoutes] Error checking for duplicate external_id:', duplicateIdError);
+        throw new Error(`Failed to check for duplicate external_id: ${duplicateIdError.message}`);
+      }
+        
+      if (existingUsers && existingUsers.length > 0) {
+        console.log('[UserRoutes] Found existing users with external_id:', existingUsers);
         const response: VaasApiResponse = {
           success: false,
           error: {
             code: 'DUPLICATE_EXTERNAL_ID',
-            message: 'A user with this external ID already exists in your organization'
+            message: 'A user with this external ID already exists in your organization',
+            details: {
+              existing_users: existingUsers.map(u => ({ id: u.id, external_id: u.external_id }))
+            }
           }
         };
         
@@ -214,7 +231,7 @@ router.post('/', async (req: AuthenticatedRequest, res) => {
     const newUser = {
       id: uuidv4(),
       organization_id: organizationId,
-      email: email || null,
+      email: email ? email.toLowerCase().trim() : null,
       phone: phone || null,
       first_name: first_name || null,
       last_name: last_name || null,
@@ -403,21 +420,30 @@ router.put('/:id', requireAuth, requirePermission('manage_users'), async (req: A
     }
     
     // Check for duplicate email (excluding current user)
-    if (email && email !== existingUser.email) {
-      const { data: duplicateUser } = await vaasSupabase
+    if (email && email.toLowerCase().trim() !== (existingUser.email || '').toLowerCase().trim()) {
+      const normalizedEmail = email.toLowerCase().trim();
+      const { data: duplicateUsers, error: duplicateError } = await vaasSupabase
         .from('vaas_end_users')
-        .select('id')
+        .select('id, email')
         .eq('organization_id', organizationId)
-        .eq('email', email)
-        .neq('id', id)
-        .single();
+        .ilike('email', normalizedEmail)
+        .neq('id', id);
         
-      if (duplicateUser) {
+      if (duplicateError) {
+        console.error('[UserRoutes] Error checking for duplicate email in update:', duplicateError);
+        throw new Error(`Failed to check for duplicate email: ${duplicateError.message}`);
+      }
+        
+      if (duplicateUsers && duplicateUsers.length > 0) {
+        console.log('[UserRoutes] Found existing users with email during update:', duplicateUsers);
         const response: VaasApiResponse = {
           success: false,
           error: {
             code: 'DUPLICATE_EMAIL',
-            message: 'A user with this email already exists in your organization'
+            message: 'A user with this email already exists in your organization',
+            details: {
+              existing_users: duplicateUsers.map(u => ({ id: u.id, email: u.email }))
+            }
           }
         };
         
@@ -427,20 +453,28 @@ router.put('/:id', requireAuth, requirePermission('manage_users'), async (req: A
     
     // Check for duplicate external_id (excluding current user)
     if (external_id && external_id !== existingUser.external_id) {
-      const { data: duplicateUser } = await vaasSupabase
+      const { data: duplicateUsers, error: duplicateIdError } = await vaasSupabase
         .from('vaas_end_users')
-        .select('id')
+        .select('id, external_id')
         .eq('organization_id', organizationId)
         .eq('external_id', external_id)
-        .neq('id', id)
-        .single();
+        .neq('id', id);
         
-      if (duplicateUser) {
+      if (duplicateIdError) {
+        console.error('[UserRoutes] Error checking for duplicate external_id in update:', duplicateIdError);
+        throw new Error(`Failed to check for duplicate external_id: ${duplicateIdError.message}`);
+      }
+        
+      if (duplicateUsers && duplicateUsers.length > 0) {
+        console.log('[UserRoutes] Found existing users with external_id during update:', duplicateUsers);
         const response: VaasApiResponse = {
           success: false,
           error: {
             code: 'DUPLICATE_EXTERNAL_ID',
-            message: 'A user with this external ID already exists in your organization'
+            message: 'A user with this external ID already exists in your organization',
+            details: {
+              existing_users: duplicateUsers.map(u => ({ id: u.id, external_id: u.external_id }))
+            }
           }
         };
         
@@ -453,7 +487,7 @@ router.put('/:id', requireAuth, requirePermission('manage_users'), async (req: A
       updated_at: new Date().toISOString()
     };
     
-    if (email !== undefined) updateData.email = email;
+    if (email !== undefined) updateData.email = email ? email.toLowerCase().trim() : null;
     if (phone !== undefined) updateData.phone = phone;
     if (first_name !== undefined) updateData.first_name = first_name;
     if (last_name !== undefined) updateData.last_name = last_name;
