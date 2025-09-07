@@ -13,24 +13,11 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
-import axios from 'axios';
+import { VerificationSession } from '../types';
+import customerPortalAPI from '../services/api';
+import { useOrganization } from '../contexts/OrganizationContext';
+import BrandedHeader from './BrandedHeader';
 
-interface VerificationSession {
-  id: string;
-  status: 'pending' | 'document_uploaded' | 'processing' | 'completed' | 'failed' | 'expired';
-  organization_name: string;
-  organization_branding?: {
-    company_name: string;
-    logo_url?: string;
-    primary_color?: string;
-    welcome_message: string;
-  };
-  settings: {
-    require_liveness: boolean;
-    require_back_of_id: boolean;
-  };
-  expires_at: string;
-}
 
 interface VerificationFlowProps {
   sessionToken: string;
@@ -50,6 +37,9 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
     selfie?: File;
   }>({});
 
+  // Organization context for branding
+  const { setBranding, setOrganizationName } = useOrganization();
+
   // File input refs
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
@@ -62,16 +52,16 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
   const loadSession = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/verifications/session/${sessionToken}`);
+      const sessionData = await customerPortalAPI.getVerificationSession(sessionToken);
+      setSession(sessionData);
       
-      if (response.data.success) {
-        setSession(response.data.data);
-      } else {
-        throw new Error(response.data.error?.message || 'Failed to load session');
+      // Apply organization branding
+      if (sessionData.organization_branding) {
+        setBranding(sessionData.organization_branding);
       }
+      setOrganizationName(sessionData.organization_name);
       
       // Determine starting step based on session status
-      const sessionData = response.data.data;
       if (sessionData.status === 'expired') {
         setCurrentStep('error');
         setError('This verification session has expired. Please request a new verification link.');
@@ -98,24 +88,12 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
 
     try {
       setUploadProgress(0);
-      const formData = new FormData();
-      formData.append('document', file);
-      formData.append('type', type);
-
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/public/sessions/${sessionToken}/documents`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-          onUploadProgress: (progressEvent) => {
-            if (progressEvent.total) {
-              const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-              setUploadProgress(progress);
-            }
-          },
-        }
+      
+      await customerPortalAPI.uploadDocument(
+        sessionToken,
+        file,
+        type,
+        (progress) => setUploadProgress(progress)
       );
 
       setDocuments(prev => ({ ...prev, [type]: file }));
@@ -148,10 +126,7 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
   const submitVerification = async () => {
     try {
       setCurrentStep('processing');
-      
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/public/sessions/${sessionToken}/submit`
-      );
+      await customerPortalAPI.submitVerification(sessionToken);
       
       // Poll for completion
       pollVerificationStatus();
@@ -168,11 +143,8 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
     
     const poll = async () => {
       try {
-        const response = await axios.get(
-          `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/public/sessions/${sessionToken}/status`
-        );
-        
-        const status = response.data.status;
+        const statusResponse = await customerPortalAPI.getVerificationStatus(sessionToken);
+        const status = statusResponse.status;
         
         if (status === 'completed' || status === 'verified') {
           setCurrentStep('complete');
@@ -264,31 +236,11 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
 
   if (!session) return null;
 
-  const brandingStyles = session.organization_branding?.primary_color 
-    ? { '--primary-color': session.organization_branding.primary_color } as React.CSSProperties
-    : {};
-
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4" style={brandingStyles}>
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-md mx-auto">
-        {/* Header */}
-        <div className="text-center mb-6">
-          {session.organization_branding?.logo_url ? (
-            <img
-              src={session.organization_branding.logo_url}
-              alt={session.organization_branding.company_name}
-              className="h-12 mx-auto mb-4"
-            />
-          ) : (
-            <div className="w-12 h-12 bg-primary-600 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <Shield className="w-6 h-6 text-white" />
-            </div>
-          )}
-          <h1 className="text-2xl font-bold text-gray-900">
-            {session.organization_branding?.company_name || session.organization_name}
-          </h1>
-          <p className="text-gray-600 text-sm">Identity Verification</p>
-        </div>
+        {/* Branded Header */}
+        <BrandedHeader className="mb-6" />
 
         {/* Progress Bar */}
         {currentStep !== 'welcome' && currentStep !== 'complete' && renderProgressBar()}
@@ -356,16 +308,19 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
 };
 
 // Individual Step Components
-const WelcomeStep: React.FC<{ session: VerificationSession; onNext: () => void }> = ({ session, onNext }) => (
-  <div className="text-center">
-    <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
-      <Shield className="w-8 h-8 text-primary-600" />
-    </div>
-    <h2 className="text-xl font-semibold text-gray-900 mb-4">Welcome to Identity Verification</h2>
-    <p className="text-gray-600 mb-6">
-      {session.organization_branding?.welcome_message || 
-        "We need to verify your identity to proceed. This process is secure and typically takes just a few minutes."}
-    </p>
+const WelcomeStep: React.FC<{ session: VerificationSession; onNext: () => void }> = ({ session, onNext }) => {
+  const welcomeMessage = session.organization_branding?.welcome_message || 
+    "We need to verify your identity to proceed. This process is secure and typically takes just a few minutes.";
+
+  return (
+    <div className="text-center">
+      <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
+        <Shield className="w-8 h-8 text-primary-600" />
+      </div>
+      <h2 className="text-xl font-semibold text-gray-900 mb-4">Welcome to Identity Verification</h2>
+      <p className="text-gray-600 mb-6">
+        {welcomeMessage}
+      </p>
     
     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
       <h3 className="font-medium text-blue-900 mb-2">What you'll need:</h3>
@@ -382,7 +337,8 @@ const WelcomeStep: React.FC<{ session: VerificationSession; onNext: () => void }
       <ArrowRight className="w-4 h-4 ml-2" />
     </button>
   </div>
-);
+  );
+};
 
 const DocumentStep: React.FC<{
   type: 'front' | 'back';
@@ -610,22 +566,29 @@ const ProcessingStep: React.FC = () => (
   </div>
 );
 
-const CompleteStep: React.FC<{ session: VerificationSession }> = ({ session }) => (
-  <div className="text-center">
-    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-      <CheckCircle className="w-8 h-8 text-green-600" />
-    </div>
-    <h2 className="text-xl font-semibold text-gray-900 mb-4">Verification Complete!</h2>
-    <p className="text-gray-600 mb-6">
-      {(session.organization_branding as any)?.success_message || 
-        "Your identity has been successfully verified. You can now close this window."}
-    </p>
-    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-      <p className="text-sm text-green-800">
-        The requesting organization has been notified of your successful verification.
+const CompleteStep: React.FC<{ session: VerificationSession }> = ({ session }) => {
+  const successMessage = session.organization_branding?.success_message || 
+    "Your identity has been successfully verified. You can now close this window.";
+
+  return (
+    <div className="text-center">
+      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+        <CheckCircle className="w-8 h-8 text-green-600" />
+      </div>
+      <h2 className="text-xl font-semibold text-gray-900 mb-4">Verification Complete!</h2>
+      <p className="text-gray-600 mb-6">
+        {successMessage}
       </p>
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+        <p className="text-sm text-green-800">
+          {session.organization_branding?.company_name ? 
+            `${session.organization_branding.company_name} has been notified of your successful verification.` :
+            "The requesting organization has been notified of your successful verification."
+          }
+        </p>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default VerificationFlow;

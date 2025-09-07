@@ -4,12 +4,13 @@
 @theme {
   --font-sans: 'Inter', system-ui, sans-serif;
   
-  --color-primary-50: #eff6ff;
-  --color-primary-100: #dbeafe;
-  --color-primary-500: #3b82f6;
-  --color-primary-600: #2563eb;
-  --color-primary-700: #1d4ed8;
-  --color-primary-900: #1e3a8a;
+  /* Default primary colors - can be overridden by organization branding */
+  --color-primary-50: var(--org-primary-50, #eff6ff);
+  --color-primary-100: var(--org-primary-100, #dbeafe);
+  --color-primary-500: var(--org-primary-500, #3b82f6);
+  --color-primary-600: var(--org-primary-600, #2563eb);
+  --color-primary-700: var(--org-primary-700, #1d4ed8);
+  --color-primary-900: var(--org-primary-900, #1e3a8a);
 }
 
 /* Base styles */

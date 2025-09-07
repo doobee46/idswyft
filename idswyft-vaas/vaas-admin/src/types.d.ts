@@ -109,6 +109,10 @@ export interface EndUser {
   external_id?: string;
   verification_status: 'pending' | 'in_progress' | 'verified' | 'failed' | 'expired' | 'manual_review';
   verification_completed_at?: string;
+  verification_url?: string;
+  invitation_sent: boolean;
+  invitation_sent_at?: string;
+  invitation_expires_at?: string;
   metadata: Record<string, any>;
   tags: string[];
   created_at: string;

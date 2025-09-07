@@ -409,6 +409,19 @@ class ApiClient {
     return response.data;
   }
 
+  async sendVerificationInvitation(userId: string, options?: {
+    custom_message?: string;
+    expiration_days?: number;
+  }): Promise<EndUser> {
+    const response: AxiosResponse<ApiResponse<EndUser>> = await this.client.post(`/users/${userId}/send-verification-invitation`, options);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to send verification invitation');
+    }
+
+    return response.data.data!;
+  }
+
   // API Keys
   async listApiKeys(): Promise<ApiKey[]> {
     const response: AxiosResponse<ApiResponse<ApiKey[]>> = await this.client.get('/api-keys');

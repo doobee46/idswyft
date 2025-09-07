@@ -10,7 +10,9 @@ import {
   FileText,
   User
 } from 'lucide-react';
-import axios from 'axios';
+import { useOrganization } from '../contexts/OrganizationContext';
+import BrandedHeader from './BrandedHeader';
+import customerPortalAPI from '../services/api';
 
 interface VerificationStatusData {
   id: string;
@@ -40,6 +42,9 @@ const VerificationStatus: React.FC<VerificationStatusProps> = ({ sessionToken })
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Organization context for branding
+  const { setBranding, setOrganizationName } = useOrganization();
+
   useEffect(() => {
     loadStatus();
     
@@ -58,11 +63,17 @@ const VerificationStatus: React.FC<VerificationStatusProps> = ({ sessionToken })
       if (!silent) setLoading(true);
       setRefreshing(!silent);
       
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/public/sessions/${sessionToken}/status`
-      );
+      const statusData = await customerPortalAPI.getVerificationStatus(sessionToken);
+      setStatus(statusData as any); // Type compatibility for now
       
-      setStatus(response.data);
+      // Apply organization branding if available
+      if ((statusData as any).organization_branding) {
+        setBranding((statusData as any).organization_branding);
+      }
+      if ((statusData as any).organization_name) {
+        setOrganizationName((statusData as any).organization_name);
+      }
+      
       setError(null);
     } catch (error: any) {
       console.error('Failed to load status:', error);
@@ -194,31 +205,14 @@ const VerificationStatus: React.FC<VerificationStatusProps> = ({ sessionToken })
 
   if (!status) return null;
 
-  const brandingStyles = status.organization_branding?.primary_color 
-    ? { '--primary-color': status.organization_branding.primary_color } as React.CSSProperties
-    : {};
-
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4" style={brandingStyles}>
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          {status.organization_branding?.logo_url ? (
-            <img
-              src={status.organization_branding.logo_url}
-              alt={status.organization_branding.company_name}
-              className="h-12 mx-auto mb-4"
-            />
-          ) : (
-            <div className="w-12 h-12 bg-primary-600 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <Shield className="w-6 h-6 text-white" />
-            </div>
-          )}
-          <h1 className="text-2xl font-bold text-gray-900">
-            {status.organization_branding?.company_name || status.organization_name}
-          </h1>
-          <p className="text-gray-600 text-sm">Verification Status</p>
-        </div>
+        {/* Branded Header */}
+        <BrandedHeader 
+          subtitle="Verification Status"
+          className="mb-8"
+        />
 
         {/* Status Card */}
         <div className="card p-8 mb-6">

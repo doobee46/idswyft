@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useParams, useSearchParams } fr
 import VerificationFlow from './components/VerificationFlow';
 import VerificationStatus from './components/VerificationStatus';
 import ErrorBoundary from './components/ErrorBoundary';
+import { OrganizationProvider } from './contexts/OrganizationContext';
 import './index.css';
 
 function VerificationPage() {
@@ -50,38 +51,40 @@ function StatusPage() {
 function App() {
   return (
     <ErrorBoundary>
-      <Router>
-        <div className="App">
-          <Routes>
-            {/* Main verification flow */}
-            <Route path="/verify" element={<VerificationPage />} />
-            
-            {/* Verification status page */}
-            <Route path="/status" element={<StatusPage />} />
-            
-            {/* Default/fallback route */}
-            <Route path="*" element={
-              <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <div className="text-center max-w-md">
-                  <h1 className="text-3xl font-bold text-gray-900 mb-4">
-                    Identity Verification Portal
-                  </h1>
-                  <p className="text-gray-600 mb-6">
-                    This is a secure portal for identity verification. 
-                    To begin verification, you'll need a verification link provided by the requesting organization.
-                  </p>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-sm text-blue-800">
-                      <strong>Need help?</strong> If you believe you should have access to this verification portal, 
-                      please contact the organization that requested your verification.
+      <OrganizationProvider>
+        <Router>
+          <div className="App">
+            <Routes>
+              {/* Main verification flow */}
+              <Route path="/verify" element={<VerificationPage />} />
+              
+              {/* Verification status page */}
+              <Route path="/status" element={<StatusPage />} />
+              
+              {/* Default/fallback route */}
+              <Route path="*" element={
+                <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                  <div className="text-center max-w-md">
+                    <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                      Identity Verification Portal
+                    </h1>
+                    <p className="text-gray-600 mb-6">
+                      This is a secure portal for identity verification. 
+                      To begin verification, you'll need a verification link provided by the requesting organization.
                     </p>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <p className="text-sm text-blue-800">
+                        <strong>Need help?</strong> If you believe you should have access to this verification portal, 
+                        please contact the organization that requested your verification.
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            } />
-          </Routes>
-        </div>
-      </Router>
+              } />
+            </Routes>
+          </div>
+        </Router>
+      </OrganizationProvider>
     </ErrorBoundary>
   );
 }

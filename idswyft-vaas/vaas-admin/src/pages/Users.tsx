@@ -16,7 +16,8 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Clock
+  Clock,
+  Send
 } from 'lucide-react';
 import { apiClient } from '../services/api';
 import type { EndUser } from '../types.js';
@@ -55,6 +56,8 @@ export default function Users() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [showInvitationModal, setShowInvitationModal] = useState(false);
+  const [sendingInvitation, setSendingInvitation] = useState(false);
 
   useEffect(() => {
     loadUsers();
@@ -102,6 +105,30 @@ export default function Users() {
       setDeleteConfirm(null);
     } catch (error) {
       console.error('Failed to delete user:', error);
+    }
+  };
+
+  const handleSendVerificationInvitation = async (customMessage?: string) => {
+    if (!selectedUser) return;
+    
+    try {
+      setSendingInvitation(true);
+      const updatedUser = await apiClient.sendVerificationInvitation(selectedUser.id, {
+        custom_message: customMessage,
+        expiration_days: 7
+      });
+      
+      // Update the user in the list
+      setUsers(prev => prev.map(user => 
+        user.id === updatedUser.id ? updatedUser : user
+      ));
+      
+      setShowInvitationModal(false);
+      setSelectedUser(null);
+    } catch (error) {
+      console.error('Failed to send verification invitation:', error);
+    } finally {
+      setSendingInvitation(false);
     }
   };
 
@@ -370,6 +397,17 @@ export default function Users() {
                           Completed: {formatDate(user.verification_completed_at)}
                         </div>
                       )}
+                      {user.invitation_sent && (
+                        <div className="text-xs text-green-600 mt-1 flex items-center">
+                          <Send className="w-3 h-3 mr-1" />
+                          Invitation sent {user.invitation_sent_at && formatDate(user.invitation_sent_at)}
+                        </div>
+                      )}
+                      {!user.invitation_sent && user.email && user.verification_status === 'pending' && (
+                        <div className="text-xs text-orange-600 mt-1">
+                          No invitation sent
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-wrap gap-1">
@@ -421,6 +459,18 @@ export default function Users() {
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
+                        {!user.invitation_sent && user.email && (
+                          <button
+                            onClick={() => {
+                              setSelectedUser(user);
+                              setShowInvitationModal(true);
+                            }}
+                            className="text-green-600 hover:text-green-900"
+                            title="Send Verification Link"
+                          >
+                            <Send className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
                           onClick={() => setDeleteConfirm(user.id)}
                           className="text-red-600 hover:text-red-900"
@@ -535,6 +585,72 @@ export default function Users() {
             }
           }}
         />
+      )}
+
+      {/* Send Verification Invitation Modal */}
+      {showInvitationModal && selectedUser && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="flex items-center mb-4">
+              <Send className="w-6 h-6 text-green-500 mr-3" />
+              <h3 className="text-lg font-semibold text-gray-900">Send Verification Link</h3>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-gray-600 mb-4">
+                Send a verification invitation email to <strong>{selectedUser.first_name} {selectedUser.last_name}</strong> at <strong>{selectedUser.email}</strong>.
+              </p>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <h4 className="text-sm font-medium text-blue-800 mb-2">What happens next:</h4>
+                <ul className="text-sm text-blue-700 space-y-1">
+                  <li>• User receives an email with a verification link</li>
+                  <li>• Link is valid for 7 days</li>
+                  <li>• User completes verification on your branded portal</li>
+                  <li>• You'll receive notification of completion</li>
+                </ul>
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Custom Message (Optional)
+                </label>
+                <textarea
+                  id="customMessage"
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Add a personalized message to the invitation email..."
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowInvitationModal(false);
+                  setSelectedUser(null);
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                disabled={sendingInvitation}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const customMessage = (document.getElementById('customMessage') as HTMLTextAreaElement)?.value;
+                  handleSendVerificationInvitation(customMessage);
+                }}
+                disabled={sendingInvitation}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              >
+                {sendingInvitation && (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                )}
+                {sendingInvitation ? 'Sending...' : 'Send Invitation'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Delete Confirmation Modal */}
