@@ -14,7 +14,10 @@ import {
   Shield,
   Bell,
   User,
-  ChevronDown
+  ChevronDown,
+  Key,
+  CreditCard,
+  UserCog
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -53,6 +56,30 @@ const navigationItems = [
     name: 'Organization',
     href: '/organization',
     icon: Building,
+    current: false,
+  },
+  {
+    name: 'Billing',
+    href: '/billing',
+    icon: CreditCard,
+    current: false,
+  },
+  {
+    name: 'API Keys',
+    href: '/api-keys',
+    icon: Key,
+    current: false,
+  },
+  {
+    name: 'Audit Logs',
+    href: '/audit-logs',
+    icon: Shield,
+    current: false,
+  },
+  {
+    name: 'Team',
+    href: '/team',
+    icon: UserCog,
     current: false,
   },
   {

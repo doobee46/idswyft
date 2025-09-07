@@ -11,6 +11,10 @@ import Users from './pages/Users';
 import Webhooks from './pages/Webhooks';
 import Settings from './pages/Settings';
 import Analytics from './pages/Analytics';
+import ApiKeys from './pages/ApiKeys';
+import Billing from './pages/Billing';
+import AuditLogs from './pages/AuditLogs';
+import AdminUserManagement from './pages/AdminUserManagement';
 import DebugInfo from './components/debug/DebugInfo';
 
 // Development route for debugging
@@ -43,6 +47,10 @@ function App() {
               <Route path="webhooks" element={<Webhooks />} />
               <Route path="analytics" element={<Analytics />} />
               <Route path="organization" element={<Organization />} />
+              <Route path="billing" element={<Billing />} />
+              <Route path="api-keys" element={<ApiKeys />} />
+              <Route path="audit-logs" element={<AuditLogs />} />
+              <Route path="team" element={<AdminUserManagement />} />
               <Route path="settings" element={<Settings />} />
             </Route>
             

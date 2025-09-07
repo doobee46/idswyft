@@ -15,7 +15,31 @@ import {
   WebhookFormData,
   UsageStats,
   DashboardStats,
-  PaginationParams
+  PaginationParams,
+  ApiKey,
+  ApiKeyFormData,
+  ApiKeyCreateResponse,
+  ApiKeyUsage,
+  BillingPlan,
+  BillingSubscription,
+  BillingInvoice,
+  BillingOverview,
+  BillingUsageItem,
+  AuditLogEntry,
+  AuditLogFilters,
+  AuditLogResponse,
+  AuditLogStats,
+  AdminRole,
+  AdminPermission,
+  AdminUser,
+  AdminUserFormData,
+  AdminUserUpdateData,
+  AdminUserInvite,
+  AdminUserStats,
+  AdminUserFilters,
+  AdminUserResponse,
+  RolePermissionUpdate,
+  AdminUserPasswordReset
 } from '../types.js';
 
 class ApiClient {
@@ -383,6 +407,376 @@ class ApiClient {
     });
     
     return response.data;
+  }
+
+  // API Keys
+  async listApiKeys(): Promise<ApiKey[]> {
+    const response: AxiosResponse<ApiResponse<ApiKey[]>> = await this.client.get('/api-keys');
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to list API keys');
+    }
+
+    return response.data.data!;
+  }
+
+  async getApiKey(id: string): Promise<ApiKey> {
+    const response: AxiosResponse<ApiResponse<ApiKey>> = await this.client.get(`/api-keys/${id}`);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to get API key');
+    }
+
+    return response.data.data!;
+  }
+
+  async createApiKey(data: ApiKeyFormData): Promise<ApiKeyCreateResponse> {
+    const response: AxiosResponse<ApiResponse<ApiKeyCreateResponse>> = await this.client.post('/api-keys', data);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to create API key');
+    }
+
+    return response.data.data!;
+  }
+
+  async updateApiKey(id: string, updates: Partial<ApiKey>): Promise<ApiKey> {
+    const response: AxiosResponse<ApiResponse<ApiKey>> = await this.client.put(`/api-keys/${id}`, updates);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to update API key');
+    }
+
+    return response.data.data!;
+  }
+
+  async deleteApiKey(id: string): Promise<void> {
+    const response: AxiosResponse<ApiResponse> = await this.client.delete(`/api-keys/${id}`);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to delete API key');
+    }
+  }
+
+  async rotateApiKey(id: string): Promise<{ secret_key: string }> {
+    const response: AxiosResponse<ApiResponse<{ secret_key: string }>> = await this.client.post(`/api-keys/${id}/rotate`);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to rotate API key');
+    }
+
+    return response.data.data!;
+  }
+
+  async getApiKeyUsage(id: string, params?: { 
+    start_date?: string; 
+    end_date?: string; 
+    granularity?: 'hour' | 'day' | 'month' 
+  }): Promise<ApiKeyUsage[]> {
+    const response: AxiosResponse<ApiResponse<ApiKeyUsage[]>> = await this.client.get(`/api-keys/${id}/usage`, { params });
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to get API key usage');
+    }
+
+    return response.data.data!;
+  }
+
+  // Billing
+  async getBillingOverview(organizationId: string): Promise<BillingOverview> {
+    const response: AxiosResponse<ApiResponse<BillingOverview>> = await this.client.get(`/organizations/${organizationId}/billing`);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to get billing overview');
+    }
+
+    return response.data.data!;
+  }
+
+  async listBillingPlans(): Promise<BillingPlan[]> {
+    const response: AxiosResponse<ApiResponse<BillingPlan[]>> = await this.client.get('/billing/plans');
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to list billing plans');
+    }
+
+    return response.data.data!;
+  }
+
+  async changeBillingPlan(subscriptionId: string, planId: string, billingCycle: 'monthly' | 'yearly'): Promise<BillingSubscription> {
+    const response: AxiosResponse<ApiResponse<BillingSubscription>> = await this.client.post(`/billing/subscriptions/${subscriptionId}/change-plan`, {
+      plan_id: planId,
+      billing_cycle: billingCycle
+    });
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to change billing plan');
+    }
+
+    return response.data.data!;
+  }
+
+  async getBillingInvoices(organizationId: string, params?: { limit?: number; status?: string }): Promise<BillingInvoice[]> {
+    const response: AxiosResponse<ApiResponse<BillingInvoice[]>> = await this.client.get(`/organizations/${organizationId}/billing/invoices`, { params });
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to get billing invoices');
+    }
+
+    return response.data.data!;
+  }
+
+  async getBillingUsageHistory(organizationId: string, params?: { 
+    start_date?: string; 
+    end_date?: string; 
+    granularity?: 'day' | 'month' 
+  }): Promise<BillingUsageItem[]> {
+    const response: AxiosResponse<ApiResponse<BillingUsageItem[]>> = await this.client.get(`/organizations/${organizationId}/billing/usage-history`, { params });
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to get usage history');
+    }
+
+    return response.data.data!;
+  }
+
+  async downloadInvoice(invoiceId: string): Promise<Blob> {
+    const response = await this.client.get(`/billing/invoices/${invoiceId}/download`, {
+      responseType: 'blob'
+    });
+    
+    return response.data;
+  }
+
+  async updatePaymentMethod(organizationId: string, paymentMethodId: string): Promise<void> {
+    const response: AxiosResponse<ApiResponse> = await this.client.post(`/organizations/${organizationId}/billing/payment-method`, {
+      payment_method_id: paymentMethodId
+    });
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to update payment method');
+    }
+  }
+
+  // Audit Logs API methods (Organization-scoped)
+  async getAuditLogs(organizationId: string, params?: AuditLogFilters & PaginationParams): Promise<AuditLogResponse> {
+    const response: AxiosResponse<ApiResponse<AuditLogResponse>> = await this.client.get(`/organizations/${organizationId}/audit-logs`, { params });
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to get audit logs');
+    }
+
+    return response.data.data!;
+  }
+
+  async getAuditLogStats(organizationId: string): Promise<AuditLogStats> {
+    const response: AxiosResponse<ApiResponse<AuditLogStats>> = await this.client.get(`/organizations/${organizationId}/audit-logs/stats`);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to get audit log statistics');
+    }
+
+    return response.data.data!;
+  }
+
+  async exportAuditLogs(organizationId: string, filters?: AuditLogFilters & { format?: 'csv' | 'json' }): Promise<Blob> {
+    const response = await this.client.get(`/organizations/${organizationId}/audit-logs/export`, {
+      params: filters,
+      responseType: 'blob'
+    });
+
+    if (response.status !== 200) {
+      throw new Error('Failed to export audit logs');
+    }
+
+    return response.data;
+  }
+
+  async createAuditLog(organizationId: string, entry: Omit<AuditLogEntry, 'id' | 'organization_id' | 'created_at' | 'timestamp'>): Promise<AuditLogEntry> {
+    const response: AxiosResponse<ApiResponse<AuditLogEntry>> = await this.client.post(`/organizations/${organizationId}/audit-logs`, entry);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to create audit log entry');
+    }
+
+    return response.data.data!;
+  }
+
+  // Admin User Management API methods (Organization-scoped)
+  
+  // Roles and Permissions
+  async getAdminRoles(organizationId: string): Promise<AdminRole[]> {
+    const response: AxiosResponse<ApiResponse<AdminRole[]>> = await this.client.get(`/organizations/${organizationId}/admin-roles`);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to get admin roles');
+    }
+
+    return response.data.data!;
+  }
+
+  async getAdminPermissions(): Promise<AdminPermission[]> {
+    const response: AxiosResponse<ApiResponse<AdminPermission[]>> = await this.client.get('/admin-permissions');
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to get admin permissions');
+    }
+
+    return response.data.data!;
+  }
+
+  async updateRolePermissions(organizationId: string, data: RolePermissionUpdate): Promise<AdminRole> {
+    const response: AxiosResponse<ApiResponse<AdminRole>> = await this.client.put(`/organizations/${organizationId}/admin-roles/${data.role_id}/permissions`, {
+      permission_ids: data.permission_ids
+    });
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to update role permissions');
+    }
+
+    return response.data.data!;
+  }
+
+  // Admin Users CRUD
+  async getAdminUsers(organizationId: string, params?: AdminUserFilters & PaginationParams): Promise<AdminUserResponse> {
+    const response: AxiosResponse<ApiResponse<AdminUserResponse>> = await this.client.get(`/organizations/${organizationId}/admin-users`, { params });
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to get admin users');
+    }
+
+    return response.data.data!;
+  }
+
+  async getAdminUser(organizationId: string, adminId: string): Promise<AdminUser> {
+    const response: AxiosResponse<ApiResponse<AdminUser>> = await this.client.get(`/organizations/${organizationId}/admin-users/${adminId}`);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to get admin user');
+    }
+
+    return response.data.data!;
+  }
+
+  async createAdminUser(organizationId: string, data: AdminUserFormData): Promise<AdminUser> {
+    const response: AxiosResponse<ApiResponse<AdminUser>> = await this.client.post(`/organizations/${organizationId}/admin-users`, data);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to create admin user');
+    }
+
+    return response.data.data!;
+  }
+
+  async updateAdminUser(organizationId: string, adminId: string, data: AdminUserUpdateData): Promise<AdminUser> {
+    const response: AxiosResponse<ApiResponse<AdminUser>> = await this.client.put(`/organizations/${organizationId}/admin-users/${adminId}`, data);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to update admin user');
+    }
+
+    return response.data.data!;
+  }
+
+  async deleteAdminUser(organizationId: string, adminId: string): Promise<void> {
+    const response: AxiosResponse<ApiResponse<void>> = await this.client.delete(`/organizations/${organizationId}/admin-users/${adminId}`);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to delete admin user');
+    }
+  }
+
+  // Admin User Status Management
+  async suspendAdminUser(organizationId: string, adminId: string, reason?: string): Promise<AdminUser> {
+    const response: AxiosResponse<ApiResponse<AdminUser>> = await this.client.post(`/organizations/${organizationId}/admin-users/${adminId}/suspend`, { reason });
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to suspend admin user');
+    }
+
+    return response.data.data!;
+  }
+
+  async activateAdminUser(organizationId: string, adminId: string): Promise<AdminUser> {
+    const response: AxiosResponse<ApiResponse<AdminUser>> = await this.client.post(`/organizations/${organizationId}/admin-users/${adminId}/activate`);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to activate admin user');
+    }
+
+    return response.data.data!;
+  }
+
+  async unlockAdminUser(organizationId: string, adminId: string): Promise<AdminUser> {
+    const response: AxiosResponse<ApiResponse<AdminUser>> = await this.client.post(`/organizations/${organizationId}/admin-users/${adminId}/unlock`);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to unlock admin user');
+    }
+
+    return response.data.data!;
+  }
+
+  // Admin User Invites
+  async getAdminUserInvites(organizationId: string): Promise<AdminUserInvite[]> {
+    const response: AxiosResponse<ApiResponse<AdminUserInvite[]>> = await this.client.get(`/organizations/${organizationId}/admin-invites`);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to get admin invites');
+    }
+
+    return response.data.data!;
+  }
+
+  async resendAdminInvite(organizationId: string, inviteId: string): Promise<AdminUserInvite> {
+    const response: AxiosResponse<ApiResponse<AdminUserInvite>> = await this.client.post(`/organizations/${organizationId}/admin-invites/${inviteId}/resend`);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to resend admin invite');
+    }
+
+    return response.data.data!;
+  }
+
+  async revokeAdminInvite(organizationId: string, inviteId: string): Promise<void> {
+    const response: AxiosResponse<ApiResponse<void>> = await this.client.delete(`/organizations/${organizationId}/admin-invites/${inviteId}`);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to revoke admin invite');
+    }
+  }
+
+  // Password Management
+  async resetAdminPassword(organizationId: string, adminId: string, data: AdminUserPasswordReset): Promise<{ temporary_password?: string }> {
+    const response: AxiosResponse<ApiResponse<{ temporary_password?: string }>> = await this.client.post(`/organizations/${organizationId}/admin-users/${adminId}/reset-password`, data);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to reset admin password');
+    }
+
+    return response.data.data!;
+  }
+
+  // Statistics and Analytics
+  async getAdminUserStats(organizationId: string): Promise<AdminUserStats> {
+    const response: AxiosResponse<ApiResponse<AdminUserStats>> = await this.client.get(`/organizations/${organizationId}/admin-users/stats`);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to get admin user statistics');
+    }
+
+    return response.data.data!;
+  }
+
+  // Bulk Operations
+  async bulkUpdateAdminUsers(organizationId: string, updates: Array<{ admin_id: string; data: AdminUserUpdateData }>): Promise<AdminUser[]> {
+    const response: AxiosResponse<ApiResponse<AdminUser[]>> = await this.client.post(`/organizations/${organizationId}/admin-users/bulk-update`, { updates });
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to bulk update admin users');
+    }
+
+    return response.data.data!;
   }
 
   // Generic HTTP methods

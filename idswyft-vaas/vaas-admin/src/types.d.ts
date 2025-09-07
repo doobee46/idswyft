@@ -305,3 +305,382 @@ export interface VerificationDocument {
   metadata?: Record<string, any>;
   created_at: string;
 }
+
+export interface ApiKeyPermissions {
+  read_verifications: boolean;
+  write_verifications: boolean;
+  read_users: boolean;
+  write_users: boolean;
+  read_webhooks: boolean;
+  write_webhooks: boolean;
+  read_analytics: boolean;
+  admin_access: boolean;
+}
+
+export interface ApiKey {
+  id: string;
+  organization_id: string;
+  name: string;
+  description?: string;
+  key_prefix: string;
+  key_suffix: string;
+  permissions: ApiKeyPermissions;
+  environment: 'sandbox' | 'production';
+  status: 'active' | 'disabled' | 'revoked';
+  rate_limit?: number;
+  allowed_ips?: string[];
+  expires_at?: string;
+  last_used_at?: string;
+  usage_count: number;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApiKeyFormData {
+  name: string;
+  description?: string;
+  permissions: ApiKeyPermissions;
+  environment: 'sandbox' | 'production';
+  rate_limit?: number;
+  allowed_ips?: string[];
+  expires_at?: string;
+}
+
+export interface ApiKeyCreateResponse {
+  api_key: ApiKey;
+  secret_key: string;
+}
+
+export interface ApiKeyUsage {
+  api_key_id: string;
+  date: string;
+  request_count: number;
+  success_count: number;
+  error_count: number;
+  rate_limit_hits: number;
+}
+
+export interface BillingPlan {
+  id: string;
+  name: string;
+  price_monthly: number;
+  price_yearly: number;
+  verification_limit: number;
+  api_calls_limit: number;
+  storage_limit_gb: number;
+  features: string[];
+  is_popular?: boolean;
+}
+
+export interface BillingSubscription {
+  id: string;
+  organization_id: string;
+  plan_id: string;
+  plan_name: string;
+  status: 'active' | 'past_due' | 'canceled' | 'unpaid' | 'trialing';
+  current_period_start: string;
+  current_period_end: string;
+  trial_end?: string;
+  billing_cycle: 'monthly' | 'yearly';
+  amount: number;
+  currency: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BillingInvoice {
+  id: string;
+  organization_id: string;
+  subscription_id: string;
+  number: string;
+  status: 'paid' | 'open' | 'overdue' | 'draft' | 'void';
+  amount_due: number;
+  amount_paid: number;
+  currency: string;
+  period_start: string;
+  period_end: string;
+  due_date: string;
+  paid_at?: string;
+  invoice_url?: string;
+  created_at: string;
+}
+
+export interface BillingUsageItem {
+  date: string;
+  verifications: number;
+  api_calls: number;
+  storage_mb: number;
+  overage_verifications: number;
+  overage_cost: number;
+}
+
+export interface BillingOverview {
+  current_subscription: BillingSubscription;
+  usage_current_period: UsageStats;
+  upcoming_invoice?: {
+    amount_due: number;
+    due_date: string;
+    period_end: string;
+  };
+  payment_method?: {
+    type: string;
+    last4: string;
+    exp_month: number;
+    exp_year: number;
+  };
+  billing_history: BillingInvoice[];
+}
+
+// Audit Log System Types (Organization-scoped)
+export interface AuditLogEntry {
+  id: string;
+  organization_id: string; // Ensures organization-scoped access
+  actor_type: 'admin' | 'api_key' | 'system';
+  actor_id: string;
+  actor_name: string;
+  actor_email?: string;
+  action: AuditAction;
+  resource_type: AuditResourceType;
+  resource_id?: string;
+  resource_name?: string;
+  details: Record<string, any>;
+  metadata?: {
+    ip_address?: string;
+    user_agent?: string;
+    api_key_name?: string;
+    location?: string;
+    session_id?: string;
+  };
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  status: 'success' | 'failure' | 'warning';
+  timestamp: string;
+  created_at: string;
+}
+
+export type AuditAction = 
+  // Authentication & Authorization
+  | 'login' | 'logout' | 'login_failed' | 'password_reset' | 'password_changed'
+  | 'session_expired' | 'account_locked' | 'mfa_enabled' | 'mfa_disabled'
+  
+  // User Management
+  | 'user_created' | 'user_updated' | 'user_deleted' | 'user_suspended'
+  | 'user_activated' | 'user_permissions_changed' | 'user_role_changed'
+  
+  // API Key Management
+  | 'api_key_created' | 'api_key_updated' | 'api_key_deleted' | 'api_key_rotated'
+  | 'api_key_permissions_changed' | 'api_key_suspended' | 'api_key_usage_exceeded'
+  
+  // Verification Operations
+  | 'verification_created' | 'verification_updated' | 'verification_deleted'
+  | 'verification_approved' | 'verification_rejected' | 'verification_flagged'
+  | 'manual_review_assigned' | 'manual_review_completed'
+  
+  // Organization & Settings
+  | 'organization_updated' | 'settings_changed' | 'webhook_created'
+  | 'webhook_updated' | 'webhook_deleted' | 'webhook_test_sent'
+  
+  // Billing & Subscription
+  | 'plan_upgraded' | 'plan_downgraded' | 'payment_method_added'
+  | 'payment_method_removed' | 'invoice_generated' | 'payment_succeeded'
+  | 'payment_failed' | 'subscription_cancelled'
+  
+  // Security Events
+  | 'suspicious_activity_detected' | 'rate_limit_exceeded' | 'unauthorized_access_attempt'
+  | 'data_export_requested' | 'data_export_completed' | 'data_deletion_requested'
+  | 'data_deletion_completed' | 'compliance_report_generated'
+  
+  // System Operations
+  | 'backup_created' | 'backup_restored' | 'maintenance_started'
+  | 'maintenance_completed' | 'system_alert_triggered';
+
+export type AuditResourceType = 
+  | 'user' | 'admin' | 'organization' | 'verification' | 'document'
+  | 'api_key' | 'webhook' | 'settings' | 'billing' | 'subscription'
+  | 'report' | 'export' | 'backup' | 'system';
+
+export interface AuditLogFilters {
+  actor_type?: 'admin' | 'api_key' | 'system';
+  actor_id?: string;
+  action?: AuditAction;
+  resource_type?: AuditResourceType;
+  severity?: 'low' | 'medium' | 'high' | 'critical';
+  status?: 'success' | 'failure' | 'warning';
+  date_from?: string;
+  date_to?: string;
+  ip_address?: string;
+  search?: string;
+}
+
+export interface AuditLogResponse {
+  entries: AuditLogEntry[];
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+  has_next_page: boolean;
+  has_prev_page: boolean;
+}
+
+export interface AuditLogStats {
+  total_events_today: number;
+  total_events_week: number;
+  total_events_month: number;
+  security_alerts_count: number;
+  failed_login_attempts: number;
+  api_key_usage_violations: number;
+  recent_critical_events: AuditLogEntry[];
+  activity_by_hour: Array<{
+    hour: string;
+    count: number;
+  }>;
+  activity_by_action: Array<{
+    action: AuditAction;
+    count: number;
+  }>;
+  top_actors: Array<{
+    actor_name: string;
+    actor_type: 'admin' | 'api_key' | 'system';
+    event_count: number;
+  }>;
+}
+
+// Admin User Management Types (Organization-scoped)
+export interface AdminRole {
+  id: string;
+  name: string;
+  display_name: string;
+  description: string;
+  permissions: AdminPermission[];
+  is_system_role: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminPermission {
+  id: string;
+  name: string;
+  display_name: string;
+  description: string;
+  category: PermissionCategory;
+  is_system_permission: boolean;
+}
+
+export type PermissionCategory = 
+  | 'dashboard' | 'verifications' | 'users' | 'webhooks' | 'analytics'
+  | 'organization' | 'billing' | 'api_keys' | 'audit_logs' | 'settings'
+  | 'admin_management' | 'system';
+
+export interface AdminUser {
+  id: string;
+  organization_id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role_id: string;
+  role: AdminRole;
+  status: AdminStatus;
+  last_login_at?: string;
+  last_ip_address?: string;
+  failed_login_attempts: number;
+  locked_until?: string;
+  email_verified: boolean;
+  phone_number?: string;
+  avatar_url?: string;
+  timezone?: string;
+  language?: string;
+  two_factor_enabled: boolean;
+  invite_token?: string;
+  invite_expires_at?: string;
+  invited_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type AdminStatus = 'active' | 'inactive' | 'pending' | 'suspended' | 'locked';
+
+export interface AdminUserFormData {
+  email: string;
+  first_name: string;
+  last_name: string;
+  role_id: string;
+  phone_number?: string;
+  timezone?: string;
+  language?: string;
+  send_invite?: boolean;
+}
+
+export interface AdminUserUpdateData {
+  first_name?: string;
+  last_name?: string;
+  role_id?: string;
+  phone_number?: string;
+  timezone?: string;
+  language?: string;
+  status?: AdminStatus;
+}
+
+export interface AdminUserInvite {
+  id: string;
+  organization_id: string;
+  email: string;
+  role_id: string;
+  role: AdminRole;
+  invited_by: string;
+  invited_by_name: string;
+  invite_token: string;
+  expires_at: string;
+  accepted_at?: string;
+  status: 'pending' | 'accepted' | 'expired' | 'revoked';
+  created_at: string;
+}
+
+export interface AdminUserStats {
+  total_admins: number;
+  active_admins: number;
+  pending_invites: number;
+  suspended_admins: number;
+  admins_by_role: Array<{
+    role_name: string;
+    count: number;
+  }>;
+  recent_logins: Array<{
+    admin_id: string;
+    admin_name: string;
+    login_at: string;
+    ip_address: string;
+  }>;
+  recent_invites: AdminUserInvite[];
+}
+
+export interface AdminUserFilters {
+  role_id?: string;
+  status?: AdminStatus;
+  search?: string;
+  last_login_from?: string;
+  last_login_to?: string;
+  created_from?: string;
+  created_to?: string;
+}
+
+export interface AdminUserResponse {
+  users: AdminUser[];
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+  has_next_page: boolean;
+  has_prev_page: boolean;
+}
+
+export interface RolePermissionUpdate {
+  role_id: string;
+  permission_ids: string[];
+}
+
+export interface AdminUserPasswordReset {
+  admin_id: string;
+  temporary_password?: string;
+  require_password_change: boolean;
+  send_email: boolean;
+}
