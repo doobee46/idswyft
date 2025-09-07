@@ -711,11 +711,11 @@ router.post('/:id/send-verification-invitation', requireAuth, requirePermission(
     const baseUrl = process.env.CUSTOMER_PORTAL_URL || 'https://customer.idswyft.app';
     const verificationUrl = `${baseUrl}/verify/${sessionToken}`;
     
-    // Update user with invitation details
+    // Update user with invitation details (keep status as 'pending' since invitation hasn't been completed yet)
     const { data: updatedUser, error: updateError } = await vaasSupabase
       .from('vaas_end_users')
       .update({
-        verification_status: 'invited',
+        verification_status: 'pending', // Keep as pending until user actually starts verification
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
