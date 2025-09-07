@@ -7,6 +7,7 @@ import DashboardLayout from './components/layout/DashboardLayout';
 import Dashboard from './components/dashboard/Dashboard';
 import Organization from './pages/Organization';
 import Verifications from './pages/Verifications';
+import StartVerification from './pages/StartVerification';
 import Users from './pages/Users';
 import Webhooks from './pages/Webhooks';
 import Settings from './pages/Settings';
@@ -43,6 +44,7 @@ function App() {
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="verifications" element={<Verifications />} />
+              <Route path="verifications/start" element={<StartVerification />} />
               <Route path="users" element={<Users />} />
               <Route path="webhooks" element={<Webhooks />} />
               <Route path="analytics" element={<Analytics />} />
