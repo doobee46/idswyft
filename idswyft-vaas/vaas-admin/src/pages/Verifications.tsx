@@ -14,17 +14,20 @@ import {
   Calendar
 } from 'lucide-react';
 import { apiClient } from '../services/api';
-import type { Verification, VerificationStatus } from '../types.js';
+import type { VerificationSession } from '../types.js';
+
+// Type alias for VerificationSession status
+type VerificationSessionStatus = VerificationSession['status'];
 
 interface VerificationFilters {
-  status: VerificationStatus | 'all';
+  status: VerificationSessionStatus | 'all';
   dateFrom: string;
   dateTo: string;
   searchTerm: string;
 }
 
 export default function Verifications() {
-  const [verifications, setVerifications] = useState<Verification[]>([]);
+  const [verifications, setVerifications] = useState<VerificationSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<VerificationFilters>({
     status: 'all',
@@ -32,7 +35,7 @@ export default function Verifications() {
     dateTo: '',
     searchTerm: ''
   });
-  const [selectedVerification, setSelectedVerification] = useState<Verification | null>(null);
+  const [selectedVerification, setSelectedVerification] = useState<VerificationSession | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -80,9 +83,9 @@ export default function Verifications() {
     }
   };
 
-  const handleStatusUpdate = async (verificationId: string, newStatus: VerificationStatus, reason?: string) => {
+  const handleStatusUpdate = async (verificationId: string, newStatus: VerificationSessionStatus, reason?: string) => {
     try {
-      if (newStatus === 'verified') {
+      if (newStatus === 'completed') {
         await apiClient.approveVerification(verificationId, reason);
       } else if (newStatus === 'failed') {
         await apiClient.rejectVerification(verificationId, reason || 'Rejected', reason);
@@ -111,31 +114,37 @@ export default function Verifications() {
     }
   };
 
-  const getStatusIcon = (status: VerificationStatus) => {
+  const getStatusIcon = (status: VerificationSessionStatus) => {
     switch (status) {
-      case 'verified':
+      case 'completed':
         return <CheckCircle className="w-4 h-4 text-green-500" />;
       case 'failed':
         return <XCircle className="w-4 h-4 text-red-500" />;
-      case 'manual_review':
+      case 'processing':
         return <AlertTriangle className="w-4 h-4 text-yellow-500" />;
+      case 'document_uploaded':
+        return <AlertTriangle className="w-4 h-4 text-blue-500" />;
       default:
         return <Clock className="w-4 h-4 text-gray-400" />;
     }
   };
 
-  const getStatusBadge = (status: VerificationStatus) => {
+  const getStatusBadge = (status: VerificationSessionStatus) => {
     const baseClass = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium";
     
     switch (status) {
-      case 'verified':
+      case 'completed':
         return `${baseClass} bg-green-100 text-green-800`;
       case 'failed':
         return `${baseClass} bg-red-100 text-red-800`;
-      case 'manual_review':
+      case 'processing':
         return `${baseClass} bg-yellow-100 text-yellow-800`;
+      case 'document_uploaded':
+        return `${baseClass} bg-blue-100 text-blue-800`;
       case 'pending':
         return `${baseClass} bg-blue-100 text-blue-800`;
+      case 'expired':
+        return `${baseClass} bg-gray-100 text-gray-800`;
       default:
         return `${baseClass} bg-gray-100 text-gray-800`;
     }
@@ -217,13 +226,15 @@ export default function Verifications() {
             <select
               className="form-input"
               value={filters.status}
-              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value as VerificationStatus | 'all' }))}
+              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value as VerificationSessionStatus | 'all' }))}
             >
               <option value="all">All Statuses</option>
               <option value="pending">Pending</option>
-              <option value="verified">Verified</option>
+              <option value="document_uploaded">Document Uploaded</option>
+              <option value="processing">Processing</option>
+              <option value="completed">Completed</option>
               <option value="failed">Failed</option>
-              <option value="manual_review">Manual Review</option>
+              <option value="expired">Expired</option>
             </select>
           </div>
 
@@ -323,7 +334,7 @@ export default function Verifications() {
                         <User className="w-8 h-8 text-gray-400 mr-3" />
                         <div>
                           <div className="text-sm font-medium text-gray-900">
-                            {verification.customer_email || 'Anonymous'}
+                            {verification.vaas_end_users?.email || 'Anonymous'}
                           </div>
                           <div className="text-sm text-gray-500">
                             ID: {verification.id.substring(0, 8)}...
@@ -340,7 +351,7 @@ export default function Verifications() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {verification.verification_type || 'Document'}
+                      Document Verification
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div className="flex items-center">
@@ -360,17 +371,17 @@ export default function Verifications() {
                           <Eye className="w-4 h-4" />
                         </button>
                         
-                        {verification.status === 'manual_review' && (
+                        {verification.status === 'processing' && (
                           <>
                             <button
-                              onClick={() => handleStatusUpdate(verification.id, 'verified')}
+                              onClick={() => handleStatusUpdate(verification.id, 'completed')}
                               className="text-green-600 hover:text-green-900"
-                              title="Approve"
+                              title="Complete"
                             >
                               <CheckCircle className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => handleStatusUpdate(verification.id, 'failed', 'Rejected during manual review')}
+                              onClick={() => handleStatusUpdate(verification.id, 'failed', 'Rejected during review')}
                               className="text-red-600 hover:text-red-900"
                               title="Reject"
                             >
@@ -452,9 +463,9 @@ export default function Verifications() {
 }
 
 interface VerificationDetailsModalProps {
-  verification: Verification;
+  verification: VerificationSession;
   onClose: () => void;
-  onStatusUpdate: (id: string, status: VerificationStatus, reason?: string) => void;
+  onStatusUpdate: (id: string, status: VerificationSessionStatus, reason?: string) => void;
 }
 
 function VerificationDetailsModal({ verification, onClose, onStatusUpdate }: VerificationDetailsModalProps) {
@@ -478,7 +489,7 @@ function VerificationDetailsModal({ verification, onClose, onStatusUpdate }: Ver
     }
   };
 
-  const handleStatusUpdate = async (newStatus: VerificationStatus) => {
+  const handleStatusUpdate = async (newStatus: VerificationSessionStatus) => {
     await onStatusUpdate(verification.id, newStatus, reason);
     onClose();
   };
@@ -507,17 +518,17 @@ function VerificationDetailsModal({ verification, onClose, onStatusUpdate }: Ver
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Status:</span>
-                  <span className={`font-medium ${verification.status === 'verified' ? 'text-green-600' : verification.status === 'failed' ? 'text-red-600' : 'text-yellow-600'}`}>
+                  <span className={`font-medium ${verification.status === 'completed' ? 'text-green-600' : verification.status === 'failed' ? 'text-red-600' : 'text-yellow-600'}`}>
                     {verification.status.replace('_', ' ')}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Type:</span>
-                  <span className="font-medium">{verification.verification_type || 'Document'}</span>
+                  <span className="font-medium">Document Verification</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Customer:</span>
-                  <span className="font-medium">{verification.customer_email || 'Anonymous'}</span>
+                  <span className="font-medium">{verification.vaas_end_users?.email || 'Anonymous'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Created:</span>
@@ -532,9 +543,9 @@ function VerificationDetailsModal({ verification, onClose, onStatusUpdate }: Ver
               </div>
             </div>
 
-            {verification.status === 'manual_review' && (
+            {verification.status === 'processing' && (
               <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-                <h4 className="font-medium text-gray-900 mb-3">Manual Review Actions</h4>
+                <h4 className="font-medium text-gray-900 mb-3">Review Actions</h4>
                 <div className="space-y-3">
                   <div>
                     <label className="form-label">Reason (Optional)</label>
@@ -548,11 +559,11 @@ function VerificationDetailsModal({ verification, onClose, onStatusUpdate }: Ver
                   </div>
                   <div className="flex space-x-3">
                     <button
-                      onClick={() => handleStatusUpdate('verified')}
+                      onClick={() => handleStatusUpdate('completed')}
                       className="btn btn-primary flex-1"
                     >
                       <CheckCircle className="w-4 h-4 mr-2" />
-                      Approve
+                      Complete
                     </button>
                     <button
                       onClick={() => handleStatusUpdate('failed')}
