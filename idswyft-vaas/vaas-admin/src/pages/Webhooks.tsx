@@ -12,7 +12,18 @@ import {
   Eye,
   EyeOff,
   Copy,
-  ExternalLink
+  ExternalLink,
+  Download,
+  Settings,
+  Activity,
+  Clock,
+  Filter,
+  Search,
+  MoreHorizontal,
+  Zap,
+  Shield,
+  Code,
+  History
 } from 'lucide-react';
 import { apiClient } from '../services/api';
 import type { Webhook, WebhookDelivery, WebhookFormData } from '../types.js';
@@ -30,21 +41,60 @@ const WEBHOOK_EVENTS = [
 
 export default function Webhooks() {
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
+  const [filteredWebhooks, setFilteredWebhooks] = useState<Webhook[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeliveriesModal, setShowDeliveriesModal] = useState(false);
+  const [showHealthModal, setShowHealthModal] = useState(false);
   const [selectedWebhook, setSelectedWebhook] = useState<Webhook | null>(null);
   const [deliveries, setDeliveries] = useState<WebhookDelivery[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'disabled' | 'failing'>('all');
+  const [selectedWebhooks, setSelectedWebhooks] = useState<string[]>([]);
 
   useEffect(() => {
     loadWebhooks();
   }, []);
 
+  useEffect(() => {
+    filterWebhooks();
+  }, [webhooks, searchTerm, statusFilter]);
+
+  const filterWebhooks = () => {
+    let filtered = webhooks;
+
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(webhook =>
+        webhook.url.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        webhook.events.some(event => event.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+
+    // Status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(webhook => {
+        switch (statusFilter) {
+          case 'active':
+            return webhook.enabled && webhook.failure_count === 0;
+          case 'disabled':
+            return !webhook.enabled;
+          case 'failing':
+            return webhook.enabled && webhook.failure_count > 0;
+          default:
+            return true;
+        }
+      });
+    }
+
+    setFilteredWebhooks(filtered);
+  };
+
   const loadWebhooks = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/webhooks');
-      setWebhooks(response.data.webhooks);
+      const response = await apiClient.listWebhooks();
+      setWebhooks(response);
     } catch (error) {
       console.error('Failed to load webhooks:', error);
     } finally {
@@ -58,16 +108,109 @@ export default function Webhooks() {
     }
 
     try {
-      await apiClient.delete(`/webhooks/${webhookId}`);
+      await apiClient.deleteWebhook(webhookId);
       setWebhooks(prev => prev.filter(w => w.id !== webhookId));
     } catch (error) {
       console.error('Failed to delete webhook:', error);
     }
   };
 
+  const bulkToggleWebhooks = async (enabled: boolean) => {
+    if (selectedWebhooks.length === 0) return;
+    
+    try {
+      const promises = selectedWebhooks.map(webhookId =>
+        apiClient.updateWebhook(webhookId, { enabled })
+      );
+      
+      await Promise.all(promises);
+      setWebhooks(prev =>
+        prev.map(w =>
+          selectedWebhooks.includes(w.id) ? { ...w, enabled } : w
+        )
+      );
+      setSelectedWebhooks([]);
+    } catch (error) {
+      console.error('Failed to bulk toggle webhooks:', error);
+    }
+  };
+
+  const bulkDeleteWebhooks = async () => {
+    if (selectedWebhooks.length === 0) return;
+    
+    if (!confirm(`Are you sure you want to delete ${selectedWebhooks.length} webhook(s)?`)) {
+      return;
+    }
+
+    try {
+      const promises = selectedWebhooks.map(webhookId =>
+        apiClient.deleteWebhook(webhookId)
+      );
+      
+      await Promise.all(promises);
+      setWebhooks(prev => prev.filter(w => !selectedWebhooks.includes(w.id)));
+      setSelectedWebhooks([]);
+    } catch (error) {
+      console.error('Failed to bulk delete webhooks:', error);
+    }
+  };
+
+  const testAllWebhooks = async () => {
+    if (filteredWebhooks.length === 0) return;
+    
+    try {
+      const promises = filteredWebhooks
+        .filter(w => w.enabled)
+        .map(w => apiClient.testWebhook(w.id));
+      
+      await Promise.all(promises);
+      alert(`Test requests sent to ${promises.length} active webhook(s)!`);
+    } catch (error) {
+      console.error('Failed to test webhooks:', error);
+      alert('Failed to send test requests to some webhooks');
+    }
+  };
+
+  const exportWebhookConfig = () => {
+    const exportData = webhooks.map(webhook => ({
+      url: webhook.url,
+      events: webhook.events,
+      enabled: webhook.enabled,
+      created_at: webhook.created_at,
+      last_success_at: webhook.last_success_at,
+      failure_count: webhook.failure_count
+    }));
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `webhook-config-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const selectAllWebhooks = (checked: boolean) => {
+    if (checked) {
+      setSelectedWebhooks(filteredWebhooks.map(w => w.id));
+    } else {
+      setSelectedWebhooks([]);
+    }
+  };
+
+  const toggleWebhookSelection = (webhookId: string) => {
+    setSelectedWebhooks(prev =>
+      prev.includes(webhookId)
+        ? prev.filter(id => id !== webhookId)
+        : [...prev, webhookId]
+    );
+  };
+
   const toggleWebhook = async (webhookId: string, enabled: boolean) => {
     try {
-      await apiClient.patch(`/webhooks/${webhookId}`, { enabled });
+      await apiClient.updateWebhook(webhookId, { enabled });
       setWebhooks(prev => 
         prev.map(w => 
           w.id === webhookId ? { ...w, enabled } : w
@@ -80,7 +223,7 @@ export default function Webhooks() {
 
   const testWebhook = async (webhookId: string) => {
     try {
-      await apiClient.post(`/webhooks/${webhookId}/test`);
+      await apiClient.testWebhook(webhookId);
       alert('Test webhook sent successfully!');
     } catch (error) {
       console.error('Failed to test webhook:', error);
@@ -91,8 +234,8 @@ export default function Webhooks() {
   const viewDeliveries = async (webhook: Webhook) => {
     try {
       setSelectedWebhook(webhook);
-      const response = await apiClient.get(`/webhooks/${webhook.id}/deliveries`);
-      setDeliveries(response.data.deliveries);
+      const response = await apiClient.getWebhookDeliveries(webhook.id);
+      setDeliveries(response.deliveries);
       setShowDeliveriesModal(true);
     } catch (error) {
       console.error('Failed to load webhook deliveries:', error);
@@ -121,21 +264,145 @@ export default function Webhooks() {
     return <CheckCircle className="w-4 h-4 text-green-500" />;
   };
 
+  const webhookStats = {
+    total: webhooks.length,
+    active: webhooks.filter(w => w.enabled && w.failure_count === 0).length,
+    disabled: webhooks.filter(w => !w.enabled).length,
+    failing: webhooks.filter(w => w.enabled && w.failure_count > 0).length,
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-start">
+      {/* Enhanced Header */}
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start space-y-4 lg:space-y-0">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Webhooks</h1>
-          <p className="text-gray-600 mt-1">Manage webhook endpoints for real-time notifications</p>
+          <h1 className="text-3xl font-bold text-gray-900">Webhook Management</h1>
+          <p className="text-gray-600 mt-1">Monitor and manage webhook endpoints for real-time event notifications</p>
+          
+          {/* Stats Bar */}
+          <div className="flex items-center space-x-6 mt-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+              <span className="text-sm text-gray-600">Total: {webhookStats.total}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <span className="text-sm text-gray-600">Active: {webhookStats.active}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+              <span className="text-sm text-gray-600">Failing: {webhookStats.failing}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+              <span className="text-sm text-gray-600">Disabled: {webhookStats.disabled}</span>
+            </div>
+          </div>
         </div>
         
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="btn btn-primary"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Webhook
-        </button>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+          <button
+            onClick={exportWebhookConfig}
+            className="btn btn-secondary"
+            disabled={webhooks.length === 0}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export Config
+          </button>
+          
+          <button
+            onClick={() => setShowHealthModal(true)}
+            className="btn btn-secondary"
+            disabled={webhooks.length === 0}
+          >
+            <Activity className="w-4 h-4 mr-2" />
+            Health Check
+          </button>
+          
+          <button
+            onClick={testAllWebhooks}
+            className="btn btn-secondary"
+            disabled={filteredWebhooks.filter(w => w.enabled).length === 0}
+          >
+            <Zap className="w-4 h-4 mr-2" />
+            Test All
+          </button>
+          
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="btn btn-primary"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Webhook
+          </button>
+        </div>
+      </div>
+
+      {/* Enhanced Filters and Search */}
+      <div className="bg-white shadow rounded-lg">
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Search webhooks..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full sm:w-64"
+                />
+              </div>
+
+              {/* Status Filter */}
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="failing">Failing</option>
+                <option value="disabled">Disabled</option>
+              </select>
+
+              <div className="text-sm text-gray-500">
+                Showing {filteredWebhooks.length} of {webhooks.length} webhooks
+              </div>
+            </div>
+
+            {/* Bulk Actions */}
+            {selectedWebhooks.length > 0 && (
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-600">
+                  {selectedWebhooks.length} selected
+                </span>
+                
+                <button
+                  onClick={() => bulkToggleWebhooks(true)}
+                  className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200"
+                >
+                  Enable
+                </button>
+                
+                <button
+                  onClick={() => bulkToggleWebhooks(false)}
+                  className="px-3 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-md hover:bg-yellow-200"
+                >
+                  Disable
+                </button>
+                
+                <button
+                  onClick={bulkDeleteWebhooks}
+                  className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded-md hover:bg-red-200"
+                >
+                  Delete
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Webhook List */}
@@ -145,7 +412,7 @@ export default function Webhooks() {
             <div className="w-6 h-6 border-2 border-primary-600 border-t-transparent rounded-full animate-spin mr-3"></div>
             Loading webhooks...
           </div>
-        ) : webhooks.length === 0 ? (
+        ) : filteredWebhooks.length === 0 ? (
           <div className="text-center py-12">
             <Globe className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No webhooks configured</h3>
@@ -165,6 +432,14 @@ export default function Webhooks() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-6 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedWebhooks.length === filteredWebhooks.length && filteredWebhooks.length > 0}
+                      onChange={(e) => selectAllWebhooks(e.target.checked)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Webhook URL
                   </th>
@@ -172,7 +447,7 @@ export default function Webhooks() {
                     Events
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                    Status & Health
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Last Activity
@@ -183,8 +458,16 @@ export default function Webhooks() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {webhooks.map((webhook) => (
+                {filteredWebhooks.map((webhook) => (
                   <tr key={webhook.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={selectedWebhooks.includes(webhook.id)}
+                        onChange={() => toggleWebhookSelection(webhook.id)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <Globe className="w-5 h-5 text-gray-400 mr-3" />
@@ -208,22 +491,32 @@ export default function Webhooks() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        {getStatusIcon(webhook)}
-                        <span className={`ml-2 text-sm ${
-                          !webhook.enabled 
-                            ? 'text-gray-500' 
-                            : webhook.failure_count > 0 
-                              ? 'text-yellow-600' 
-                              : 'text-green-600'
-                        }`}>
-                          {!webhook.enabled 
-                            ? 'Disabled' 
-                            : webhook.failure_count > 0 
-                              ? `${webhook.failure_count} failures` 
-                              : 'Active'
-                          }
-                        </span>
+                      <div className="flex flex-col space-y-1">
+                        <div className="flex items-center">
+                          {getStatusIcon(webhook)}
+                          <span className={`ml-2 text-sm font-medium ${
+                            !webhook.enabled 
+                              ? 'text-gray-500' 
+                              : webhook.failure_count > 0 
+                                ? 'text-yellow-600' 
+                                : 'text-green-600'
+                          }`}>
+                            {!webhook.enabled 
+                              ? 'Disabled' 
+                              : webhook.failure_count > 0 
+                                ? `${webhook.failure_count} failures` 
+                                : 'Healthy'
+                            }
+                          </span>
+                        </div>
+                        {webhook.enabled && (
+                          <div className="text-xs text-gray-500">
+                            {webhook.last_success_at 
+                              ? `Last success: ${formatDate(webhook.last_success_at).split(',')[0]}`
+                              : 'Never delivered'
+                            }
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -328,6 +621,14 @@ export default function Webhooks() {
             setSelectedWebhook(null);
             setDeliveries([]);
           }}
+        />
+      )}
+
+      {/* Webhook Health Modal */}
+      {showHealthModal && (
+        <WebhookHealthModal
+          webhooks={webhooks}
+          onClose={() => setShowHealthModal(false)}
         />
       )}
     </div>
@@ -708,6 +1009,203 @@ function WebhookDeliveriesModal({ webhook, deliveries, onClose }: WebhookDeliver
           <button
             onClick={onClose}
             className="btn btn-secondary"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface WebhookHealthModalProps {
+  webhooks: Webhook[];
+  onClose: () => void;
+}
+
+function WebhookHealthModal({ webhooks, onClose }: WebhookHealthModalProps) {
+  const healthStats = {
+    total: webhooks.length,
+    healthy: webhooks.filter(w => w.enabled && w.failure_count === 0).length,
+    failing: webhooks.filter(w => w.enabled && w.failure_count > 0).length,
+    disabled: webhooks.filter(w => !w.enabled).length,
+    totalFailures: webhooks.reduce((sum, w) => sum + w.failure_count, 0),
+    recentActivity: webhooks.filter(w => w.last_success_at || w.last_failure_at).length
+  };
+
+  const criticalWebhooks = webhooks.filter(w => w.enabled && w.failure_count > 5);
+  const staleWebhooks = webhooks.filter(w => {
+    if (!w.last_success_at && !w.last_failure_at) return true;
+    const lastActivity = new Date(Math.max(
+      new Date(w.last_success_at || 0).getTime(),
+      new Date(w.last_failure_at || 0).getTime()
+    ));
+    const daysSinceActivity = (Date.now() - lastActivity.getTime()) / (1000 * 60 * 60 * 24);
+    return daysSinceActivity > 7;
+  });
+
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div className="relative top-10 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <Activity className="h-5 w-5 mr-2 text-green-600" />
+              Webhook Health Dashboard
+            </h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Overview of webhook performance and health status
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <XCircle className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Health Overview Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <Globe className="h-8 w-8 text-blue-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-blue-600">Total Webhooks</p>
+                <p className="text-2xl font-bold text-blue-900">{healthStats.total}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <CheckCircle className="h-8 w-8 text-green-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-green-600">Healthy</p>
+                <p className="text-2xl font-bold text-green-900">{healthStats.healthy}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <AlertTriangle className="h-8 w-8 text-yellow-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-yellow-600">Failing</p>
+                <p className="text-2xl font-bold text-yellow-900">{healthStats.failing}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <XCircle className="h-8 w-8 text-gray-600" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Disabled</p>
+                <p className="text-2xl font-bold text-gray-900">{healthStats.disabled}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Critical Issues */}
+          <div className="bg-white border border-gray-200 rounded-lg">
+            <div className="p-4 border-b border-gray-200">
+              <h4 className="text-lg font-semibold text-gray-900 flex items-center">
+                <AlertTriangle className="h-4 w-4 mr-2 text-red-500" />
+                Critical Issues
+              </h4>
+            </div>
+            <div className="p-4">
+              {criticalWebhooks.length === 0 ? (
+                <div className="text-center py-4">
+                  <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
+                  <p className="text-sm text-gray-600">No critical issues found</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {criticalWebhooks.map(webhook => (
+                    <div key={webhook.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{webhook.url}</p>
+                        <p className="text-xs text-red-600">{webhook.failure_count} consecutive failures</p>
+                      </div>
+                      <AlertTriangle className="h-4 w-4 text-red-500" />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Stale Webhooks */}
+          <div className="bg-white border border-gray-200 rounded-lg">
+            <div className="p-4 border-b border-gray-200">
+              <h4 className="text-lg font-semibold text-gray-900 flex items-center">
+                <Clock className="h-4 w-4 mr-2 text-yellow-500" />
+                Stale Webhooks
+              </h4>
+            </div>
+            <div className="p-4">
+              {staleWebhooks.length === 0 ? (
+                <div className="text-center py-4">
+                  <Activity className="h-8 w-8 text-green-500 mx-auto mb-2" />
+                  <p className="text-sm text-gray-600">All webhooks have recent activity</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {staleWebhooks.slice(0, 5).map(webhook => (
+                    <div key={webhook.id} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{webhook.url}</p>
+                        <p className="text-xs text-yellow-600">
+                          {!webhook.last_success_at && !webhook.last_failure_at 
+                            ? 'Never received events' 
+                            : 'No activity in 7+ days'
+                          }
+                        </p>
+                      </div>
+                      <Clock className="h-4 w-4 text-yellow-500" />
+                    </div>
+                  ))}
+                  {staleWebhooks.length > 5 && (
+                    <p className="text-xs text-gray-500 text-center">
+                      +{staleWebhooks.length - 5} more stale webhooks
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Health Recommendations */}
+        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h4 className="text-sm font-semibold text-blue-900 mb-2 flex items-center">
+            <Shield className="h-4 w-4 mr-2" />
+            Health Recommendations
+          </h4>
+          <ul className="text-sm text-blue-800 space-y-1">
+            {criticalWebhooks.length > 0 && (
+              <li>• Review and fix {criticalWebhooks.length} webhook(s) with high failure rates</li>
+            )}
+            {staleWebhooks.length > 0 && (
+              <li>• Consider removing or updating {staleWebhooks.length} inactive webhook(s)</li>
+            )}
+            {healthStats.disabled > 0 && (
+              <li>• Review {healthStats.disabled} disabled webhook(s) - enable if still needed</li>
+            )}
+            {criticalWebhooks.length === 0 && staleWebhooks.length === 0 && healthStats.disabled === 0 && (
+              <li>• All webhooks are healthy and active! 🎉</li>
+            )}
+          </ul>
+        </div>
+
+        <div className="flex justify-end mt-6">
+          <button
+            onClick={onClose}
+            className="btn btn-primary"
           >
             Close
           </button>

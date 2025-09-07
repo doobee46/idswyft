@@ -9,6 +9,8 @@ import Organization from './pages/Organization';
 import Verifications from './pages/Verifications';
 import Users from './pages/Users';
 import Webhooks from './pages/Webhooks';
+import Settings from './pages/Settings';
+import Analytics from './pages/Analytics';
 import DebugInfo from './components/debug/DebugInfo';
 
 // Development route for debugging
@@ -19,9 +21,7 @@ const DevInfo = () => (
   </div>
 );
 
-// Placeholder components for other routes
-const Analytics = () => <div className="p-6"><h1 className="text-2xl font-bold">Analytics</h1><p>Coming soon...</p></div>;
-const Settings = () => <div className="p-6"><h1 className="text-2xl font-bold">Settings</h1><p>Coming soon...</p></div>;
+// No placeholder components needed - all routes are implemented
 
 function App() {
   return (
