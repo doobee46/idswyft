@@ -52,46 +52,95 @@ const StartVerification: React.FC = () => {
     setError('');
 
     try {
-      // Step 1: Create the user
-      console.log('Creating user with data:', formData);
-      const newUser = await apiClient.createEndUser({
-        email: formData.email,
-        phone: formData.phone || undefined,
-        first_name: formData.first_name || undefined,
-        last_name: formData.last_name || undefined,
-        external_id: formData.external_id || undefined,
-        tags: [],
-        metadata: {}
-      });
+      console.log('Attempting to start verification with data:', formData);
+      
+      // Option 1: Try using the startVerification API directly (may include user creation)
+      try {
+        console.log('Trying startVerification API...');
+        const verificationResponse = await apiClient.startVerification({
+          end_user: {
+            email: formData.email,
+            phone: formData.phone || undefined,
+            first_name: formData.first_name || undefined,
+            last_name: formData.last_name || undefined,
+            external_id: formData.external_id || undefined,
+            metadata: {}
+          },
+          settings: {
+            require_liveness: true,
+            require_back_of_id: true,
+            callback_url: undefined,
+            success_redirect_url: undefined,
+            failure_redirect_url: undefined
+          }
+        });
 
-      console.log('User created successfully:', newUser);
-      setCreatedUser(newUser);
+        console.log('StartVerification API succeeded:', verificationResponse);
+        setVerificationUrl(verificationResponse.verification_url);
+        setCreatedUser(verificationResponse.end_user);
+        setStep('success');
+        return;
 
-      // Step 2: Send verification invitation
-      console.log('Sending verification invitation to user:', newUser.id);
-      const updatedUser = await apiClient.sendVerificationInvitation(newUser.id, {
-        custom_message: formData.custom_message || undefined,
-        expiration_days: 7
-      });
+      } catch (startVerificationError: any) {
+        console.log('StartVerification API failed, trying manual approach:', startVerificationError);
+        
+        // Option 2: Manual approach - create user then send invitation
+        console.log('Creating user with createEndUser...');
+        const newUser = await apiClient.createEndUser({
+          email: formData.email,
+          phone: formData.phone || undefined,
+          first_name: formData.first_name || undefined,
+          last_name: formData.last_name || undefined,
+          external_id: formData.external_id || undefined,
+          tags: [],
+          metadata: {}
+        });
 
-      console.log('Invitation sent successfully:', updatedUser);
+        console.log('User created successfully:', newUser);
+        setCreatedUser(newUser);
 
-      // Extract verification URL from the updated user data
-      if (updatedUser.verification_url) {
-        setVerificationUrl(updatedUser.verification_url);
+        // Step 2: Send verification invitation
+        console.log('Sending verification invitation to user:', newUser.id);
+        const updatedUser = await apiClient.sendVerificationInvitation(newUser.id, {
+          custom_message: formData.custom_message || undefined,
+          expiration_days: 7
+        });
+
+        console.log('Invitation sent successfully:', updatedUser);
+
+        // Extract verification URL from the updated user data
+        if (updatedUser.verification_url) {
+          setVerificationUrl(updatedUser.verification_url);
+        }
+
+        setStep('success');
       }
-
-      setStep('success');
     } catch (error: any) {
       console.error('Failed to start verification:', error);
+      console.error('Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url,
+        method: error.config?.method,
+        baseURL: error.config?.baseURL
+      });
       
       let errorMessage = 'Failed to start verification. ';
-      if (error.response?.data?.error?.message) {
+      if (error.response?.status === 404) {
+        errorMessage += `API endpoint not found: ${error.config?.method?.toUpperCase()} ${error.config?.baseURL}${error.config?.url}. The backend server may not have this endpoint implemented yet.`;
+      } else if (error.response?.data?.error?.message) {
         errorMessage += error.response.data.error.message;
       } else if (error.response?.status === 400) {
         errorMessage += 'Invalid user data provided. Please check the form fields.';
       } else if (error.response?.status === 409) {
         errorMessage += 'A user with this email already exists.';
+      } else if (error.response?.status === 401) {
+        errorMessage += 'Authentication failed. Please log in again.';
+      } else if (error.response?.status === 403) {
+        errorMessage += 'Permission denied. You may not have rights to create users.';
+      } else if (error.response?.status === 500) {
+        errorMessage += 'Server error occurred. Please contact support.';
       } else if (error.message) {
         errorMessage += error.message;
       } else {
