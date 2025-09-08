@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import { body, param, validationResult } from 'express-validator';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth.js';
 import { VaasApiResponse } from '../types/index.js';
@@ -23,7 +23,7 @@ const generateMainAPIKey = (): { key: string; hash: string; prefix: string } => 
 };
 
 // Get organization's main API keys
-router.get('/main-api-keys', requireAuth, async (req: AuthenticatedRequest, res) => {
+router.get('/main-api-keys', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const organizationId = req.admin!.organization_id;
 
@@ -80,7 +80,7 @@ router.post('/main-api-keys',
       .withMessage('is_sandbox must be a boolean value')
   ],
   requireAuth, 
-  async (req: AuthenticatedRequest, res) => {
+  async (req: AuthenticatedRequest, res: Response) => {
   try {
     // Validate input
     const errors = validationResult(req);
@@ -238,7 +238,7 @@ router.delete('/main-api-keys/:keyId',
       .withMessage('Invalid API key ID format')
   ],
   requireAuth, 
-  async (req: AuthenticatedRequest, res) => {
+  async (req: AuthenticatedRequest, res: Response) => {
   try {
     // Validate input
     const errors = validationResult(req);
