@@ -50,6 +50,16 @@ app.use(cors({
       return callback(null, true);
     }
     
+    // Allow Railway-generated domains for customer portals
+    if (origin.match(/^https:\/\/.*\.up\.railway\.app$/)) {
+      // Only allow customer portal related Railway domains
+      if (origin.match(/customer|portal|vaas/i)) {
+        console.log(`✅ CORS: Allowing Railway customer portal origin: ${origin}`);
+        return callback(null, true);
+      }
+    }
+    
+    console.log(`❌ CORS: Rejecting origin: ${origin}`);
     return callback(new Error('Not allowed by CORS'), false);
   },
   credentials: true,

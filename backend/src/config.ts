@@ -17,7 +17,8 @@ try {
       const [key, ...valueParts] = line.split('=');
       if (key && valueParts.length > 0) {
         const value = valueParts.join('=').trim();
-        process.env[key.trim()] = value;
+        const envKey = key.trim();
+        process.env[envKey] = value;
       }
     });
     
@@ -29,7 +30,7 @@ try {
 export const config = {
   port: parseInt(process.env.PORT || '3001'),
   nodeEnv: process.env.NODE_ENV || 'development',
-  corsOrigins: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176', 'https://idswyft.app', 'https://www.idswyft.app'],
+  corsOrigins: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176', 'https://idswyft.app', 'https://www.idswyft.app', 'https://customer.idswyft.app'],
   
   // Supabase configuration
   supabase: {
