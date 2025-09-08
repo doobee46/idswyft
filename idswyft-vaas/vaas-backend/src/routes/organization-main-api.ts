@@ -57,7 +57,7 @@ router.post('/main-api-keys/test', async (req, res) => {
         }
       });
       
-    } catch (regError) {
+    } catch (regError: any) {
       console.error('❌ Main API registration failed:', regError);
       res.json({
         success: false,
