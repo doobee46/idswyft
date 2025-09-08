@@ -257,7 +257,7 @@ function MainAPIKeysManagement({ organizationId, canManageKeys }: MainAPIKeysMan
     try {
       setIsLoading(true);
       setError(null);
-      const response = await apiClient.get('/api/organizations/main-api-keys');
+      const response = await apiClient.get('/organizations/main-api-keys');
       
       if (response.data.success) {
         setApiKeys(response.data.data.api_keys || []);
@@ -280,7 +280,7 @@ function MainAPIKeysManagement({ organizationId, canManageKeys }: MainAPIKeysMan
     setError(null);
 
     try {
-      const response = await apiClient.post('/api/organizations/main-api-keys', {
+      const response = await apiClient.post('/organizations/main-api-keys', {
         key_name: newKeyName.trim(),
         is_sandbox: isSandbox
       });
@@ -308,7 +308,7 @@ function MainAPIKeysManagement({ organizationId, canManageKeys }: MainAPIKeysMan
 
     try {
       setError(null);
-      const response = await apiClient.delete(`/api/organizations/main-api-keys/${keyId}`);
+      const response = await apiClient.delete(`/organizations/main-api-keys/${keyId}`);
       
       if (response.data.success) {
         await fetchAPIKeys(); // Refresh the list
