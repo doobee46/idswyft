@@ -12,6 +12,8 @@ import { connectVaasDB } from './config/database.js';
 console.log('📦 Importing route modules...');
 import organizationRoutes from './routes/organizations.js';
 import organizationMainApiRoutes from './routes/organization-main-api.js';
+import apiKeysRoutes from './routes/api-keys.js';
+import auditLogsRoutes from './routes/audit-logs.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import verificationRoutes from './routes/verifications.js';
@@ -171,6 +173,21 @@ app.get('/api/docs', (req, res) => {
         'POST /api/organizations/main-api-keys': 'Create main API key for verification',
         'DELETE /api/organizations/main-api-keys/:keyId': 'Revoke main API key'
       },
+      'vaas-api-keys': {
+        'GET /api/api-keys': 'List VaaS API keys for organization',
+        'POST /api/api-keys': 'Create new VaaS API key',
+        'GET /api/api-keys/:keyId': 'Get specific VaaS API key',
+        'PUT /api/api-keys/:keyId': 'Update VaaS API key',
+        'DELETE /api/api-keys/:keyId': 'Delete VaaS API key',
+        'POST /api/api-keys/:keyId/rotate': 'Rotate VaaS API key',
+        'GET /api/api-keys/:keyId/usage': 'Get API key usage statistics'
+      },
+      'audit-logs': {
+        'GET /api/organizations/:orgId/audit-logs': 'List audit logs for organization',
+        'GET /api/organizations/:orgId/audit-logs/stats': 'Get audit log statistics',
+        'POST /api/organizations/:orgId/audit-logs': 'Create new audit log entry',
+        'GET /api/organizations/:orgId/audit-logs/export': 'Export audit logs (CSV/JSON)'
+      },
       admins: {
         'POST /api/auth/login': 'Admin login',
         'POST /api/auth/logout': 'Admin logout', 
@@ -237,6 +254,8 @@ app.get('/api/docs', (req, res) => {
 console.log('🔗 Mounting API routes...');
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/organizations', organizationMainApiRoutes);
+app.use('/api/api-keys', apiKeysRoutes);
+app.use('/api', auditLogsRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/verifications', verificationRoutes);
