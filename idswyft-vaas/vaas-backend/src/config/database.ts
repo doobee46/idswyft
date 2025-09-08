@@ -33,6 +33,13 @@ export const mainApiSupabase = mainApiUrl && mainApiKey
     })
   : null;
 
+console.log('🔗 Main API Database Connection Status:');
+console.log('URL configured:', !!mainApiUrl);
+console.log('Key configured:', !!mainApiKey);
+console.log('Client created:', !!mainApiSupabase);
+if (mainApiUrl) console.log('Main API URL:', mainApiUrl);
+if (mainApiKey) console.log('Main API Key (first 10 chars):', mainApiKey.substring(0, 10));
+
 // Database connection helper
 export const connectVaasDB = async () => {
   try {

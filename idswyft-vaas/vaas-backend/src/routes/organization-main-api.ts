@@ -24,6 +24,62 @@ router.get('/main-api-keys/health', async (req, res) => {
   });
 });
 
+// Test endpoint to debug API key creation (bypasses auth for testing)
+router.post('/main-api-keys/test', async (req, res) => {
+  try {
+    console.log('🧪 Testing API key generation and registration...');
+    
+    // Generate test API key
+    const { key, hash, prefix } = generateMainAPIKey();
+    console.log('✅ Generated key:', { key: key.substring(0, 20) + '...', hash: hash.substring(0, 16), prefix });
+    
+    // Test main API registration
+    try {
+      const result = await registerWithMainAPI({
+        key,
+        hash,
+        prefix,
+        name: 'Test Key',
+        organizationId: 'test-org-123',
+        isSandbox: true
+      });
+      
+      console.log('✅ Main API registration result:', result);
+      
+      res.json({
+        success: true,
+        message: 'Test completed successfully',
+        data: {
+          key: key.substring(0, 20) + '...',
+          hash: hash.substring(0, 16) + '...',
+          prefix,
+          mainApiRegistration: !!result
+        }
+      });
+      
+    } catch (regError) {
+      console.error('❌ Main API registration failed:', regError);
+      res.json({
+        success: false,
+        message: 'Registration failed',
+        error: regError.message,
+        data: {
+          key: key.substring(0, 20) + '...',
+          hash: hash.substring(0, 16) + '...',
+          prefix
+        }
+      });
+    }
+    
+  } catch (error: any) {
+    console.error('❌ Test failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Generate API key in the same format as main API
 const generateMainAPIKey = (): { key: string; hash: string; prefix: string } => {
   const key = `ik_${crypto.randomBytes(32).toString('hex')}`;
@@ -33,7 +89,6 @@ const generateMainAPIKey = (): { key: string; hash: string; prefix: string } => 
     throw new Error('API_KEY_SECRET environment variable is required for main API key generation');
   }
   
-  console.log('🔑 Using API key secret for hashing (first 8 chars):', apiKeySecret.substring(0, 8));
   
   const hash = crypto
     .createHmac('sha256', apiKeySecret)
