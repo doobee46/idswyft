@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { VerificationSession } from '../types';
 import customerPortalAPI from '../services/api';
+import verificationAPI from '../services/verificationApi';
 import { useOrganization } from '../contexts/OrganizationContext';
 import BrandedHeader from './BrandedHeader';
 
@@ -42,6 +43,7 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
   const [backOfIdUploaded, setBackOfIdUploaded] = useState(false);
   const [showLiveCapture, setShowLiveCapture] = useState(false);
   const [finalStatus, setFinalStatus] = useState<'verified' | 'manual_review' | 'pending' | null>(null);
+  const [verificationId, setVerificationId] = useState<string | null>(null);
 
   // Organization context for branding
   const { setBranding, setOrganizationName } = useOrganization();
@@ -95,33 +97,47 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
     try {
       setUploadProgress(0);
       
-      await customerPortalAPI.uploadDocument(
-        sessionToken,
+      // Start verification session if not already started
+      let currentVerificationId = verificationId;
+      if (!currentVerificationId) {
+        console.log('Starting new verification session...');
+        currentVerificationId = await verificationAPI.startVerification(session);
+        setVerificationId(currentVerificationId);
+        console.log('Started verification session:', currentVerificationId);
+      }
+
+      // Upload document to real verification API
+      console.log('Uploading document to verification API...');
+      await verificationAPI.uploadDocument(
+        session,
+        currentVerificationId,
         file,
-        'front',
+        documentType,
         (progress) => setUploadProgress(progress)
       );
 
       setDocuments(prev => ({ ...prev, front: file }));
       setCurrentStep('document-processing');
       
-      // Start polling for OCR results
-      pollForOCRResults();
+      // Start polling for OCR results from real API
+      pollForOCRResults(currentVerificationId);
       
       setUploadProgress(0);
     } catch (error: any) {
       console.error('Failed to upload document:', error);
-      setError('Failed to upload document. Please try again.');
+      setError(error.message || 'Failed to upload document. Please try again.');
       setUploadProgress(0);
     }
   };
 
   const handleBackOfIdUpload = async (file: File) => {
+    if (!session || !verificationId) return;
+
     try {
-      await customerPortalAPI.uploadDocument(
-        sessionToken,
+      await verificationAPI.uploadBackOfId(
+        session,
+        verificationId,
         file,
-        'back',
         (progress) => setUploadProgress(progress)
       );
 
@@ -130,17 +146,19 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
       setUploadProgress(0);
     } catch (error: any) {
       console.error('Failed to upload back of ID:', error);
-      setError('Failed to upload back of ID. Please try again.');
+      setError(error.message || 'Failed to upload back of ID. Please try again.');
       setUploadProgress(0);
     }
   };
 
   const handleSelfieCapture = async (file: File) => {
+    if (!session || !verificationId) return;
+
     try {
-      await customerPortalAPI.uploadDocument(
-        sessionToken,
+      await verificationAPI.captureSelfie(
+        session,
+        verificationId,
         file,
-        'selfie',
         (progress) => setUploadProgress(progress)
       );
 
@@ -149,60 +167,79 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
       setUploadProgress(0);
     } catch (error: any) {
       console.error('Failed to upload selfie:', error);
-      setError('Failed to capture selfie. Please try again.');
+      setError(error.message || 'Failed to capture selfie. Please try again.');
       setUploadProgress(0);
     }
   };
 
-  const pollForOCRResults = () => {
+  const pollForOCRResults = (verificationId: string) => {
     const pollInterval = setInterval(async () => {
       try {
-        const statusResponse = await customerPortalAPI.getVerificationStatus(sessionToken);
+        const results = await verificationAPI.getResults(session!, verificationId);
         
-        // Check if OCR processing is complete (mock OCR data for now)
-        if (statusResponse.documents_uploaded > 0) {
+        // Check if OCR processing is complete
+        if (results.ocr_data && Object.keys(results.ocr_data).length > 0) {
           clearInterval(pollInterval);
-          // Set mock OCR data - in production this would come from the API
+          setOcrData(results.ocr_data);
+          setCurrentStep('identity-verification');
+        } else if (results.status === 'completed' || results.status === 'failed') {
+          // If verification completed but no OCR data, still proceed
+          clearInterval(pollInterval);
           setOcrData({
-            document_number: 'Processing complete',
-            full_name: 'Document processed successfully'
+            full_name: 'Document processed',
+            document_number: 'Ready for identity verification'
           });
           setCurrentStep('identity-verification');
         }
       } catch (error) {
         console.error('OCR polling error:', error);
       }
-    }, 2000);
+    }, 3000); // Poll every 3 seconds
 
-    // Clear interval after 30 seconds
-    setTimeout(() => clearInterval(pollInterval), 30000);
+    // Clear interval after 60 seconds
+    setTimeout(() => clearInterval(pollInterval), 60000);
   };
 
   const submitVerification = async () => {
+    if (!verificationId) {
+      setError('No verification session found. Please try again.');
+      setCurrentStep('error');
+      return;
+    }
+
     try {
       setCurrentStep('document-processing');
-      await customerPortalAPI.submitVerification(sessionToken);
       
-      // Poll for completion
-      pollVerificationStatus();
+      // The verification is automatically processed after all uploads
+      // Start polling for final results
+      pollVerificationStatus(verificationId);
     } catch (error: any) {
       console.error('Failed to submit verification:', error);
-      setError('Failed to submit verification. Please try again.');
+      setError('Failed to process verification. Please try again.');
       setCurrentStep('error');
     }
   };
 
-  const pollVerificationStatus = async () => {
-    const maxAttempts = 30; // 5 minutes max
+  const pollVerificationStatus = async (verificationId: string) => {
+    const maxAttempts = 20; // ~3 minutes max with 10s intervals
     let attempts = 0;
     
     const poll = async () => {
       try {
-        const statusResponse = await customerPortalAPI.getVerificationStatus(sessionToken);
-        const status = statusResponse.status;
+        const results = await verificationAPI.getResults(session!, verificationId);
+        const status = results.status;
         
-        if (status === 'completed' || status === 'verified') {
-          setFinalStatus('verified');
+        console.log('Polling verification status:', status, 'attempt:', attempts + 1);
+        
+        if (status === 'completed') {
+          // Determine final status based on results
+          if (results.confidence_score && results.confidence_score >= 0.8) {
+            setFinalStatus('verified');
+          } else if (results.confidence_score && results.confidence_score >= 0.6) {
+            setFinalStatus('manual_review');
+          } else {
+            setFinalStatus('pending');
+          }
           setCurrentStep('complete');
         } else if (status === 'failed') {
           setFinalStatus('pending');
@@ -210,15 +247,16 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
         } else if (status === 'manual_review') {
           setFinalStatus('manual_review');
           setCurrentStep('complete');
-        } else if (attempts < maxAttempts) {
+        } else if (attempts < maxAttempts && (status === 'processing' || status === 'pending')) {
           attempts++;
           setTimeout(poll, 10000); // Poll every 10 seconds
         } else {
+          // Timeout - treat as pending for manual review
           setFinalStatus('pending');
           setCurrentStep('complete');
         }
       } catch (error) {
-        console.error('Failed to check status:', error);
+        console.error('Failed to check verification status:', error);
         if (attempts < maxAttempts) {
           attempts++;
           setTimeout(poll, 10000);
@@ -229,6 +267,7 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
       }
     };
     
+    // Start polling immediately
     poll();
   };
 
