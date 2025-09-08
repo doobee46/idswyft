@@ -709,7 +709,7 @@ router.post('/:id/send-verification-invitation', requireAuth, requirePermission(
     }
     
     // Build verification URL
-    const baseUrl = process.env.CUSTOMER_PORTAL_URL || 'https://customer.idswyft.app';
+    const baseUrl = process.env.VAAS_CUSTOMER_PORTAL_URL || 'https://customer.idswyft.app';
     const verificationUrl = `${baseUrl}/verify/${sessionToken}`;
     
     // Update user with invitation details (keep status as 'pending' since invitation hasn't been completed yet)
