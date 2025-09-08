@@ -27,8 +27,16 @@ router.get('/main-api-keys/health', async (req, res) => {
 // Generate API key in the same format as main API
 const generateMainAPIKey = (): { key: string; hash: string; prefix: string } => {
   const key = `ik_${crypto.randomBytes(32).toString('hex')}`;
+  const apiKeySecret = process.env.API_KEY_SECRET;
+  
+  if (!apiKeySecret) {
+    throw new Error('API_KEY_SECRET environment variable is required for main API key generation');
+  }
+  
+  console.log('🔑 Using API key secret for hashing (first 8 chars):', apiKeySecret.substring(0, 8));
+  
   const hash = crypto
-    .createHmac('sha256', process.env.API_KEY_SECRET || 'fallback-secret')
+    .createHmac('sha256', apiKeySecret)
     .update(key)
     .digest('hex');
   const prefix = key.substring(0, 8);

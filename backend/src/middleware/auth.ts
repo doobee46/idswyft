@@ -58,6 +58,9 @@ export const authenticateAPIKey = catchAsync(async (req: Request, res: Response,
   
   // Extract key prefix and hash the full key
   const keyPrefix = apiKey.substring(0, 8);
+  console.log('🔐 Main API: Authenticating API key with prefix:', keyPrefix);
+  console.log('🔐 Main API: Using API key secret (first 8 chars):', config.apiKeySecret.substring(0, 8));
+  
   const keyHash = crypto
     .createHmac('sha256', config.apiKeySecret)
     .update(apiKey)
