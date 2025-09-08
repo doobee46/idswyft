@@ -98,7 +98,7 @@ const registerWithMainAPI = async (keyData: {
     console.log('✅ API key registered with main API:', apiKey.id);
     return apiKey.id;
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Failed to register API key with main API:', error);
     throw new Error(`Main API registration failed: ${error.message}`);
   }
