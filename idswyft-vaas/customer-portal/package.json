@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@tailwindcss/forms": "^0.5.10",
-    "@tailwindcss/postcss": "^4.1.12",
+    "@tailwindcss/postcss": "^4.1.13",
     "@tailwindcss/vite": "^4.1.12",
     "axios": "^1.11.0",
     "lucide-react": "^0.542.0",

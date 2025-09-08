@@ -16,7 +16,7 @@ export interface VerificationSettings {
 
 export interface VerificationSession {
   id: string;
-  status: 'pending' | 'document_uploaded' | 'processing' | 'completed' | 'failed' | 'expired';
+  status: 'pending' | 'document_uploaded' | 'processing' | 'completed' | 'verified' | 'failed' | 'expired' | 'manual_review';
   expires_at: string;
   organization: {
     name: string;
@@ -54,7 +54,7 @@ export interface DocumentUploadResponse {
 }
 
 export interface VerificationStatusResponse {
-  status: 'pending' | 'document_uploaded' | 'processing' | 'completed' | 'verified' | 'failed' | 'expired';
+  status: 'pending' | 'document_uploaded' | 'processing' | 'completed' | 'verified' | 'failed' | 'expired' | 'manual_review';
   confidence_score?: number;
   results?: {
     face_match_score?: number;
@@ -62,4 +62,8 @@ export interface VerificationStatusResponse {
     document_validity?: boolean;
     failure_reasons?: string[];
   };
+  documents_uploaded: number;
+  submitted_at?: string;
+  completed_at?: string;
+  expires_at?: string;
 }

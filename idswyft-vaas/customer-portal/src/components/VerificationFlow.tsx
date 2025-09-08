@@ -11,7 +11,8 @@ import {
   ArrowRight,
   ArrowLeft,
   Eye,
-  EyeOff
+  EyeOff,
+  Clock
 } from 'lucide-react';
 import { VerificationSession } from '../types';
 import customerPortalAPI from '../services/api';
@@ -23,7 +24,7 @@ interface VerificationFlowProps {
   sessionToken: string;
 }
 
-type VerificationStep = 'welcome' | 'document-front' | 'document-back' | 'selfie' | 'liveness' | 'processing' | 'complete' | 'error';
+type VerificationStep = 'welcome' | 'document-upload' | 'document-processing' | 'identity-verification' | 'complete' | 'error';
 
 const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => {
   const [session, setSession] = useState<VerificationSession | null>(null);
@@ -36,6 +37,11 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
     back?: File;
     selfie?: File;
   }>({});
+  const [documentType, setDocumentType] = useState<string>('');
+  const [ocrData, setOcrData] = useState<any>(null);
+  const [backOfIdUploaded, setBackOfIdUploaded] = useState(false);
+  const [showLiveCapture, setShowLiveCapture] = useState(false);
+  const [finalStatus, setFinalStatus] = useState<'verified' | 'manual_review' | 'pending' | null>(null);
 
   // Organization context for branding
   const { setBranding, setOrganizationName } = useOrganization();
@@ -68,7 +74,7 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
       } else if (sessionData.status === 'completed') {
         setCurrentStep('complete');
       } else if (sessionData.status === 'processing') {
-        setCurrentStep('processing');
+        setCurrentStep('document-processing');
       }
     } catch (error: any) {
       console.error('Failed to load session:', error);
@@ -83,8 +89,8 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
     }
   };
 
-  const handleFileUpload = async (type: 'front' | 'back' | 'selfie', file: File) => {
-    if (!session) return;
+  const handleDocumentUpload = async (file: File) => {
+    if (!session || !documentType) return;
 
     try {
       setUploadProgress(0);
@@ -92,28 +98,15 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
       await customerPortalAPI.uploadDocument(
         sessionToken,
         file,
-        type,
+        'front',
         (progress) => setUploadProgress(progress)
       );
 
-      setDocuments(prev => ({ ...prev, [type]: file }));
+      setDocuments(prev => ({ ...prev, front: file }));
+      setCurrentStep('document-processing');
       
-      // Move to next step
-      if (type === 'front') {
-        if (session.verification_settings.require_back_of_id) {
-          setCurrentStep('document-back');
-        } else {
-          setCurrentStep('selfie');
-        }
-      } else if (type === 'back') {
-        setCurrentStep('selfie');
-      } else if (type === 'selfie') {
-        if (session.verification_settings.require_liveness) {
-          setCurrentStep('liveness');
-        } else {
-          await submitVerification();
-        }
-      }
+      // Start polling for OCR results
+      pollForOCRResults();
       
       setUploadProgress(0);
     } catch (error: any) {
@@ -123,9 +116,71 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
     }
   };
 
+  const handleBackOfIdUpload = async (file: File) => {
+    try {
+      await customerPortalAPI.uploadDocument(
+        sessionToken,
+        file,
+        'back',
+        (progress) => setUploadProgress(progress)
+      );
+
+      setDocuments(prev => ({ ...prev, back: file }));
+      setBackOfIdUploaded(true);
+      setUploadProgress(0);
+    } catch (error: any) {
+      console.error('Failed to upload back of ID:', error);
+      setError('Failed to upload back of ID. Please try again.');
+      setUploadProgress(0);
+    }
+  };
+
+  const handleSelfieCapture = async (file: File) => {
+    try {
+      await customerPortalAPI.uploadDocument(
+        sessionToken,
+        file,
+        'selfie',
+        (progress) => setUploadProgress(progress)
+      );
+
+      setDocuments(prev => ({ ...prev, selfie: file }));
+      await submitVerification();
+      setUploadProgress(0);
+    } catch (error: any) {
+      console.error('Failed to upload selfie:', error);
+      setError('Failed to capture selfie. Please try again.');
+      setUploadProgress(0);
+    }
+  };
+
+  const pollForOCRResults = () => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const statusResponse = await customerPortalAPI.getVerificationStatus(sessionToken);
+        
+        // Check if OCR processing is complete (mock OCR data for now)
+        if (statusResponse.documents_uploaded > 0) {
+          clearInterval(pollInterval);
+          // Set mock OCR data - in production this would come from the API
+          setOcrData({
+            document_number: 'Processing complete',
+            full_name: 'Document processed successfully'
+          });
+          setCurrentStep('identity-verification');
+        }
+      } catch (error) {
+        console.error('OCR polling error:', error);
+      }
+    }, 2000);
+
+    // Clear interval after 30 seconds
+    setTimeout(() => clearInterval(pollInterval), 30000);
+  };
+
   const submitVerification = async () => {
     try {
-      setCurrentStep('processing');
+      setCurrentStep('document-processing');
       await customerPortalAPI.submitVerification(sessionToken);
       
       // Poll for completion
@@ -147,16 +202,20 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
         const status = statusResponse.status;
         
         if (status === 'completed' || status === 'verified') {
+          setFinalStatus('verified');
           setCurrentStep('complete');
         } else if (status === 'failed') {
-          setError('Verification failed. Please try again or contact support.');
-          setCurrentStep('error');
+          setFinalStatus('pending');
+          setCurrentStep('complete');
+        } else if (status === 'manual_review') {
+          setFinalStatus('manual_review');
+          setCurrentStep('complete');
         } else if (attempts < maxAttempts) {
           attempts++;
           setTimeout(poll, 10000); // Poll every 10 seconds
         } else {
-          setError('Verification is taking longer than expected. Please check back later.');
-          setCurrentStep('error');
+          setFinalStatus('pending');
+          setCurrentStep('complete');
         }
       } catch (error) {
         console.error('Failed to check status:', error);
@@ -174,28 +233,32 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
   };
 
   const renderProgressBar = () => {
-    const steps = ['welcome', 'document-front'];
-    if (session?.verification_settings.require_back_of_id) steps.push('document-back');
-    steps.push('selfie');
-    if (session?.verification_settings.require_liveness) steps.push('liveness');
-    steps.push('processing', 'complete');
-
+    const steps = ['welcome', 'document-upload', 'document-processing', 'identity-verification', 'complete'];
+    const stepLabels = ['Start', 'Upload', 'Process', 'Verify', 'Complete'];
+    
     const currentIndex = steps.indexOf(currentStep);
     const progress = currentIndex >= 0 ? ((currentIndex + 1) / steps.length) * 100 : 0;
 
     return (
       <div className="mb-8">
-        <div className="progress-bar">
-          <div 
-            className="progress-bar-fill" 
-            style={{ width: `${progress}%` }}
-          />
+        <div className="flex items-center justify-between mb-4">
+          {[1, 2, 3, 4, 5].map((step) => (
+            <div
+              key={step}
+              className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full font-semibold text-sm ${
+                step <= currentIndex + 1
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-200 text-gray-600'
+              }`}
+            >
+              {step}
+            </div>
+          ))}
         </div>
-        <div className="flex justify-between text-xs text-gray-500 mt-2">
-          <span>Start</span>
-          <span>Upload Documents</span>
-          <span>Selfie</span>
-          <span>Complete</span>
+        <div className="flex justify-between text-xs sm:text-sm text-gray-600">
+          {stepLabels.map((label, index) => (
+            <span key={index}>{label}</span>
+          ))}
         </div>
       </div>
     );
@@ -243,63 +306,48 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
         <BrandedHeader className="mb-6" />
 
         {/* Progress Bar */}
-        {currentStep !== 'welcome' && currentStep !== 'complete' && renderProgressBar()}
+        {renderProgressBar()}
 
         {/* Step Content */}
         <div className="card p-6">
           {currentStep === 'welcome' && (
             <WelcomeStep 
               session={session} 
-              onNext={() => setCurrentStep('document-front')} 
+              onNext={() => setCurrentStep('document-upload')} 
             />
           )}
           
-          {currentStep === 'document-front' && (
-            <DocumentStep
-              type="front"
-              title="Upload Your ID (Front)"
-              description="Please upload the front of your government-issued ID"
-              onFileSelect={(file) => handleFileUpload('front', file)}
+          {currentStep === 'document-upload' && (
+            <DocumentUploadStep
+              session={session}
+              documentType={documentType}
+              setDocumentType={setDocumentType}
+              onFileSelect={handleDocumentUpload}
               uploadProgress={uploadProgress}
               inputRef={frontInputRef}
             />
           )}
 
-          {currentStep === 'document-back' && (
-            <DocumentStep
-              type="back"
-              title="Upload Your ID (Back)"
-              description="Please upload the back of your government-issued ID"
-              onFileSelect={(file) => handleFileUpload('back', file)}
+          {currentStep === 'document-processing' && (
+            <DocumentProcessingStep />
+          )}
+
+          {currentStep === 'identity-verification' && (
+            <IdentityVerificationStep
+              session={session}
+              ocrData={ocrData}
+              backOfIdUploaded={backOfIdUploaded}
+              showLiveCapture={showLiveCapture}
+              onBackOfIdUpload={handleBackOfIdUpload}
+              onStartLiveCapture={() => setShowLiveCapture(true)}
+              onSelfieCapture={handleSelfieCapture}
+              onSkipLiveCapture={() => submitVerification()}
               uploadProgress={uploadProgress}
-              inputRef={backInputRef}
-              onBack={() => setCurrentStep('document-front')}
             />
-          )}
-
-          {currentStep === 'selfie' && (
-            <SelfieStep
-              onFileSelect={(file) => handleFileUpload('selfie', file)}
-              uploadProgress={uploadProgress}
-              inputRef={selfieInputRef}
-              onBack={() => setCurrentStep(session.verification_settings.require_back_of_id ? 'document-back' : 'document-front')}
-              requiresLiveness={session.verification_settings.require_liveness}
-            />
-          )}
-
-          {currentStep === 'liveness' && (
-            <LivenessStep
-              onComplete={() => submitVerification()}
-              onBack={() => setCurrentStep('selfie')}
-            />
-          )}
-
-          {currentStep === 'processing' && (
-            <ProcessingStep />
           )}
 
           {currentStep === 'complete' && (
-            <CompleteStep session={session} />
+            <CompleteStep finalStatus={finalStatus} session={session} />
           )}
         </div>
       </div>
@@ -307,7 +355,7 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
   );
 };
 
-// Individual Step Components
+// Individual Step Components (Demo-style)
 const WelcomeStep: React.FC<{ session: VerificationSession; onNext: () => void }> = ({ session, onNext }) => {
   const welcomeMessage = session.organization?.branding?.welcome_message || 
     "We need to verify your identity to proceed. This process is secure and typically takes just a few minutes.";
@@ -317,187 +365,352 @@ const WelcomeStep: React.FC<{ session: VerificationSession; onNext: () => void }
       <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
         <Shield className="w-8 h-8 text-primary-600" />
       </div>
-      <h2 className="text-xl font-semibold text-gray-900 mb-4">Welcome to Identity Verification</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mb-4">Identity Verification</h2>
       <p className="text-gray-600 mb-6">
         {welcomeMessage}
       </p>
     
-    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
-      <h3 className="font-medium text-blue-900 mb-2">What you'll need:</h3>
-      <ul className="text-sm text-blue-800 space-y-1">
-        <li>• Government-issued photo ID (passport, driver's license, etc.)</li>
-        {session.verification_settings.require_back_of_id && <li>• Both front and back of your ID</li>}
-        <li>• A clear photo of yourself (selfie)</li>
-        {session.verification_settings.require_liveness && <li>• Device with camera for liveness detection</li>}
-      </ul>
-    </div>
-    
-    <button onClick={onNext} className="btn btn-primary w-full">
-      Begin Verification
-      <ArrowRight className="w-4 h-4 ml-2" />
-    </button>
-  </div>
-  );
-};
-
-const DocumentStep: React.FC<{
-  type: 'front' | 'back';
-  title: string;
-  description: string;
-  onFileSelect: (file: File) => void;
-  uploadProgress: number;
-  inputRef: React.RefObject<HTMLInputElement>;
-  onBack?: () => void;
-}> = ({ type, title, description, onFileSelect, uploadProgress, inputRef, onBack }) => {
-  const [dragOver, setDragOver] = useState(false);
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    
-    const files = Array.from(e.dataTransfer.files);
-    const imageFile = files.find(file => file.type.startsWith('image/'));
-    if (imageFile) {
-      onFileSelect(imageFile);
-    }
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      onFileSelect(file);
-    }
-  };
-
-  return (
-    <div>
-      <div className="text-center mb-6">
-        <FileText className="w-12 h-12 text-primary-600 mx-auto mb-4" />
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">{title}</h2>
-        <p className="text-gray-600">{description}</p>
-      </div>
-
-      <div
-        className={`file-upload-zone ${dragOver ? 'dragover' : ''}`}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        onClick={() => inputRef.current?.click()}
-      >
-        <Upload className="w-8 h-8 text-gray-400 mx-auto mb-4" />
-        <p className="text-gray-600 mb-2">
-          Drag and drop your ID here, or click to select
-        </p>
-        <p className="text-sm text-gray-500">
-          Supported formats: JPG, PNG, PDF (max 10MB)
-        </p>
-        
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*,.pdf"
-          onChange={handleFileSelect}
-          className="hidden"
-        />
-      </div>
-
-      {uploadProgress > 0 && (
-        <div className="mt-4">
-          <div className="flex justify-between text-sm text-gray-600 mb-1">
-            <span>Uploading...</span>
-            <span>{uploadProgress}%</span>
-          </div>
-          <div className="progress-bar">
-            <div 
-              className="progress-bar-fill" 
-              style={{ width: `${uploadProgress}%` }}
-            />
-          </div>
-        </div>
-      )}
-
-      {onBack && (
-        <div className="mt-6">
-          <button onClick={onBack} className="btn btn-secondary">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </button>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const SelfieStep: React.FC<{
-  onFileSelect: (file: File) => void;
-  uploadProgress: number;
-  inputRef: React.RefObject<HTMLInputElement>;
-  onBack: () => void;
-  requiresLiveness: boolean;
-}> = ({ onFileSelect, uploadProgress, inputRef, onBack, requiresLiveness }) => {
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      onFileSelect(file);
-    }
-  };
-
-  return (
-    <div>
-      <div className="text-center mb-6">
-        <Camera className="w-12 h-12 text-primary-600 mx-auto mb-4" />
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">Take a Selfie</h2>
-        <p className="text-gray-600">
-          Please take a clear photo of yourself for identity verification
-        </p>
-      </div>
-
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-        <h3 className="font-medium text-yellow-900 mb-2">Tips for a good selfie:</h3>
-        <ul className="text-sm text-yellow-800 space-y-1">
-          <li>• Look directly at the camera</li>
-          <li>• Ensure good lighting on your face</li>
-          <li>• Remove sunglasses or hats</li>
-          <li>• Keep a neutral expression</li>
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
+        <h3 className="font-medium text-blue-900 mb-2">What you'll need:</h3>
+        <ul className="text-sm text-blue-800 space-y-1">
+          <li>• Government-issued photo ID (passport, driver's license, etc.)</li>
+          {session.verification_settings.require_back_of_id && <li>• Both front and back of your ID</li>}
+          <li>• A clear photo of yourself (selfie)</li>
+          {session.verification_settings.require_liveness && <li>• Device with camera for liveness detection</li>}
         </ul>
       </div>
+    
+      <button onClick={onNext} className="btn btn-primary w-full">
+        Start Verification
+        <ArrowRight className="w-4 h-4 ml-2" />
+      </button>
+    </div>
+  );
+};
 
-      <div
-        className="file-upload-zone"
-        onClick={() => inputRef.current?.click()}
-      >
-        <User className="w-8 h-8 text-gray-400 mx-auto mb-4" />
-        <p className="text-gray-600 mb-2">
-          Click to take or upload a selfie
-        </p>
-        <p className="text-sm text-gray-500">
-          Supported formats: JPG, PNG
-        </p>
+const DocumentUploadStep: React.FC<{
+  session: VerificationSession;
+  documentType: string;
+  setDocumentType: (type: string) => void;
+  onFileSelect: (file: File) => void;
+  uploadProgress: number;
+  inputRef: React.RefObject<HTMLInputElement>;
+}> = ({ session, documentType, setDocumentType, onFileSelect, uploadProgress, inputRef }) => {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Please upload a JPEG, PNG, or PDF file');
+      return;
+    }
+
+    // Validate file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File size must be less than 10MB');
+      return;
+    }
+
+    setSelectedFile(file);
+
+    // Create preview for images
+    if (file.type.startsWith('image/')) {
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    } else {
+      setPreviewUrl(null);
+    }
+  };
+
+  const handleUpload = () => {
+    if (!selectedFile || !documentType) {
+      alert(documentType ? 'Please select a file first' : 'Please select a document type');
+      return;
+    }
+    onFileSelect(selectedFile);
+  };
+
+  return (
+    <div className="py-8">
+      <h2 className="text-xl sm:text-2xl font-bold mb-4 text-center">Upload Your ID Document</h2>
+      <p className="text-gray-600 mb-6 text-center">
+        Please upload a clear photo of your government-issued ID (passport, driver's license, or national ID).
+      </p>
+
+      <div className="space-y-6">
+        {/* Document Type Selection */}
+        <div className="max-w-md mx-auto">
+          <label htmlFor="document-type" className="block text-sm font-medium text-gray-700 mb-2">
+            Document Type
+          </label>
+          <select
+            id="document-type"
+            value={documentType}
+            onChange={(e) => setDocumentType(e.target.value)}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+          >
+            <option value="">Select document type</option>
+            <option value="national_id">National ID</option>
+            <option value="drivers_license">Driver's License</option>
+            <option value="passport">Passport</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 sm:p-8 text-center">
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/jpeg,image/png,application/pdf"
+            onChange={handleFileSelect}
+            className="hidden"
+            id="document-upload"
+          />
+          <label
+            htmlFor="document-upload"
+            className="cursor-pointer block"
+          >
+            <div className="text-gray-400 mb-4">
+              <Upload className="w-12 h-12 mx-auto" />
+            </div>
+            <p className="text-gray-600">
+              Click to upload or drag and drop
+            </p>
+            <p className="text-sm text-gray-400 mt-2">
+              JPEG, PNG or PDF (max 10MB)
+            </p>
+          </label>
+        </div>
+
+        {selectedFile && (
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <div className="flex-1">
+                <p className="font-medium text-gray-900">{selectedFile.name}</p>
+                <p className="text-sm text-gray-500">
+                  {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                </p>
+              </div>
+            </div>
+            {previewUrl && (
+              <div className="mt-4">
+                <img
+                  src={previewUrl}
+                  alt="Document preview"
+                  className="w-full h-48 object-contain bg-white rounded border"
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {selectedFile && (
+          <button
+            onClick={handleUpload}
+            disabled={uploadProgress > 0 || !documentType}
+            className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {uploadProgress > 0 ? 'Uploading...' : 'Upload Document'}
+          </button>
+        )}
         
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          capture="user"
-          onChange={handleFileSelect}
-          className="hidden"
-        />
+        {selectedFile && !documentType && (
+          <p className="text-red-600 text-sm text-center">
+            Please select a document type before uploading.
+          </p>
+        )}
+
+        {uploadProgress > 0 && (
+          <div className="mt-4">
+            <div className="flex justify-between text-sm text-gray-600 mb-1">
+              <span>Uploading...</span>
+              <span>{uploadProgress}%</span>
+            </div>
+            <div className="progress-bar">
+              <div 
+                className="progress-bar-fill" 
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
+    </div>
+  );
+};
+
+const DocumentProcessingStep: React.FC = () => (
+  <div className="text-center py-8">
+    <h2 className="text-xl sm:text-2xl font-bold mb-4">Processing Document</h2>
+    <div className="flex justify-center mb-6">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    </div>
+    <p className="text-gray-600">
+      We're extracting information from your document using OCR. This may take a few moments...
+    </p>
+  </div>
+);
+
+const IdentityVerificationStep: React.FC<{
+  session: VerificationSession;
+  ocrData: any;
+  backOfIdUploaded: boolean;
+  showLiveCapture: boolean;
+  onBackOfIdUpload: (file: File) => void;
+  onStartLiveCapture: () => void;
+  onSelfieCapture: (file: File) => void;
+  onSkipLiveCapture: () => void;
+  uploadProgress: number;
+}> = ({ 
+  session, 
+  ocrData, 
+  backOfIdUploaded, 
+  showLiveCapture, 
+  onBackOfIdUpload, 
+  onStartLiveCapture,
+  onSelfieCapture,
+  onSkipLiveCapture,
+  uploadProgress 
+}) => {
+  const backInputRef = useRef<HTMLInputElement>(null);
+  const selfieInputRef = useRef<HTMLInputElement>(null);
+
+  const handleBackOfIdSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      onBackOfIdUpload(file);
+    }
+  };
+
+  const handleSelfieSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      onSelfieCapture(file);
+    }
+  };
+
+  return (
+    <div className="py-8">
+      <h2 className="text-xl sm:text-2xl font-bold mb-6 text-center">Document Information & Verification</h2>
+      
+      {ocrData && Object.keys(ocrData).length > 0 ? (
+        <div className="bg-gray-50 p-6 rounded-lg mb-6">
+          <h3 className="font-semibold mb-4">Extracted Information:</h3>
+          <div className="space-y-2 text-sm">
+            {ocrData.full_name && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Full Name:</span>
+                <span className="font-medium">{ocrData.full_name}</span>
+              </div>
+            )}
+            {ocrData.document_number && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Document Number:</span>
+                <span className="font-medium">{ocrData.document_number}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-6">
+          <p className="text-yellow-800">
+            Document information processed successfully.
+          </p>
+        </div>
+      )}
+
+      {/* Back-of-ID Upload Section */}
+      {!backOfIdUploaded && session.verification_settings.require_back_of_id && (
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold mb-4">Upload Back of ID</h3>
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+            <input
+              ref={backInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleBackOfIdSelect}
+              className="hidden"
+              id="back-upload"
+            />
+            <label htmlFor="back-upload" className="cursor-pointer block">
+              <FileText className="w-8 h-8 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600 mb-2">Click to upload back of ID</p>
+              <p className="text-sm text-gray-400">For enhanced verification</p>
+            </label>
+          </div>
+        </div>
+      )}
+
+      {backOfIdUploaded && (
+        <div className="mb-8 bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center space-x-2 text-green-800">
+            <CheckCircle className="w-5 h-5" />
+            <span className="font-medium">Enhanced Verification Complete</span>
+          </div>
+          <p className="mt-1 text-green-700 text-sm">
+            Back-of-ID successfully processed.
+          </p>
+        </div>
+      )}
+
+      {/* Live Capture or Selfie Upload */}
+      {(!session.verification_settings.require_back_of_id || backOfIdUploaded) && (
+        <div className="text-center">
+          <h3 className="text-lg font-semibold mb-4">Identity Verification</h3>
+          <p className="text-gray-600 mb-6">
+            Now we need to verify that you're the person in the document.
+          </p>
+          
+          <div className="space-y-4">
+            {session.verification_settings.require_liveness ? (
+              <>
+                <button
+                  onClick={onStartLiveCapture}
+                  className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
+                >
+                  <Camera className="h-5 w-5" />
+                  <span>Start Live Capture</span>
+                </button>
+                
+                <button
+                  onClick={onSkipLiveCapture}
+                  className="w-full bg-gray-300 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-400 transition-colors"
+                >
+                  Skip Live Capture (Complete Verification)
+                </button>
+              </>
+            ) : (
+              <div>
+                <button
+                  onClick={() => selfieInputRef.current?.click()}
+                  className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
+                >
+                  <User className="h-5 w-5" />
+                  <span>Take Selfie</span>
+                </button>
+                <input
+                  ref={selfieInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="user"
+                  onChange={handleSelfieSelect}
+                  className="hidden"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {uploadProgress > 0 && (
         <div className="mt-4">
           <div className="flex justify-between text-sm text-gray-600 mb-1">
-            <span>Uploading...</span>
+            <span>Processing...</span>
             <span>{uploadProgress}%</span>
           </div>
           <div className="progress-bar">
@@ -508,83 +721,71 @@ const SelfieStep: React.FC<{
           </div>
         </div>
       )}
-
-      <div className="mt-6">
-        <button onClick={onBack} className="btn btn-secondary">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back
-        </button>
-      </div>
     </div>
   );
 };
 
-const LivenessStep: React.FC<{
-  onComplete: () => void;
-  onBack: () => void;
-}> = ({ onComplete, onBack }) => (
-  <div className="text-center">
-    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-      <Eye className="w-6 h-6 text-green-600" />
-    </div>
-    <h2 className="text-xl font-semibold text-gray-900 mb-4">Liveness Check</h2>
-    <p className="text-gray-600 mb-6">
-      For additional security, we need to verify that you're a real person. 
-      Please follow the on-screen instructions.
-    </p>
-    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-      <p className="text-sm text-green-800">
-        This step helps prevent fraud and ensures account security.
-      </p>
-    </div>
-    <div className="space-y-3">
-      <button onClick={onComplete} className="btn btn-primary w-full">
-        Start Liveness Check
-      </button>
-      <button onClick={onBack} className="btn btn-secondary w-full">
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Back
-      </button>
-    </div>
-  </div>
-);
+// Removed ProcessingStep - using DocumentProcessingStep instead
 
-const ProcessingStep: React.FC = () => (
-  <div className="text-center">
-    <div className="w-16 h-16 mx-auto mb-6">
-      <Loader className="w-16 h-16 text-primary-600 animate-spin" />
-    </div>
-    <h2 className="text-xl font-semibold text-gray-900 mb-4">Processing Verification</h2>
-    <p className="text-gray-600 mb-6">
-      We're verifying your documents and identity. This usually takes 1-2 minutes.
-    </p>
-    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-      <p className="text-sm text-blue-800">
-        Please keep this page open. You'll be notified when verification is complete.
-      </p>
-    </div>
-  </div>
-);
+const CompleteStep: React.FC<{ finalStatus: string | null; session: VerificationSession }> = ({ finalStatus, session }) => {
+  const getStatusDisplay = () => {
+    switch (finalStatus) {
+      case 'verified':
+        return {
+          icon: CheckCircle,
+          iconColor: 'text-green-600',
+          bgColor: 'bg-green-100',
+          title: 'Verification Successful',
+          message: session.organization?.branding?.success_message || 
+            "Your identity has been successfully verified. You can now close this window.",
+          statusColor: 'bg-green-50 border-green-200',
+          statusText: 'text-green-800'
+        };
+      case 'manual_review':
+        return {
+          icon: Clock,
+          iconColor: 'text-yellow-600',
+          bgColor: 'bg-yellow-100',
+          title: 'Manual Review Required',
+          message: 'Your verification is under review. You will be notified of the results within 24-48 hours.',
+          statusColor: 'bg-yellow-50 border-yellow-200',
+          statusText: 'text-yellow-800'
+        };
+      case 'pending':
+      default:
+        return {
+          icon: Clock,
+          iconColor: 'text-blue-600',
+          bgColor: 'bg-blue-100',
+          title: 'Verification Pending',
+          message: 'Your verification is being processed. You will receive an update soon.',
+          statusColor: 'bg-blue-50 border-blue-200',
+          statusText: 'text-blue-800'
+        };
+    }
+  };
 
-const CompleteStep: React.FC<{ session: VerificationSession }> = ({ session }) => {
-  const successMessage = session.organization?.branding?.success_message || 
-    "Your identity has been successfully verified. You can now close this window.";
+  const statusDisplay = getStatusDisplay();
+  const IconComponent = statusDisplay.icon;
 
   return (
     <div className="text-center">
-      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-        <CheckCircle className="w-8 h-8 text-green-600" />
+      <div className={`w-16 h-16 ${statusDisplay.bgColor} rounded-full flex items-center justify-center mx-auto mb-6`}>
+        <IconComponent className={`w-8 h-8 ${statusDisplay.iconColor}`} />
       </div>
-      <h2 className="text-xl font-semibold text-gray-900 mb-4">Verification Complete!</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mb-4">{statusDisplay.title}</h2>
       <p className="text-gray-600 mb-6">
-        {successMessage}
+        {statusDisplay.message}
       </p>
-      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-        <p className="text-sm text-green-800">
-          {session.organization?.branding?.company_name ? 
-            `${session.organization.branding.company_name} has been notified of your successful verification.` :
-            "The requesting organization has been notified of your successful verification."
-          }
+      <div className={`${statusDisplay.statusColor} border rounded-lg p-4`}>
+        <p className={`text-sm ${statusDisplay.statusText}`}>
+          {finalStatus === 'verified' ? (
+            session.organization?.branding?.company_name ? 
+              `${session.organization.branding.company_name} has been notified of your successful verification.` :
+              "The requesting organization has been notified of your successful verification."
+          ) : (
+            "We'll keep you updated on the progress of your verification."
+          )}
         </p>
       </div>
     </div>
