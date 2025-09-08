@@ -38,14 +38,25 @@ interface VerificationResults {
 class VerificationAPI {
   private getApiKey(session: VerificationSession): string {
     // Get API key from organization settings
-    // This would be the organization's main Idswyft API key
-    const apiKey = session.organization?.settings?.idswyft_api_key || 
-                  session.organization?.settings?.api_key ||
-                  import.meta.env.VITE_IDSWYFT_API_KEY ||
-                  '';
+    // Priority: sandbox key for testing, then production key, then fallback to env
+    const isTestMode = import.meta.env.VITE_SANDBOX_MODE === 'true';
+    
+    const sandboxKey = session.organization?.settings?.default_sandbox_main_api_key;
+    const productionKey = session.organization?.settings?.default_main_api_key;
+    
+    const apiKey = (isTestMode && sandboxKey) ? sandboxKey : 
+                   productionKey || 
+                   sandboxKey || // fallback to sandbox if production not available
+                   session.organization?.settings?.idswyft_api_key || 
+                   session.organization?.settings?.api_key ||
+                   import.meta.env.VITE_IDSWYFT_API_KEY ||
+                   '';
     
     if (!apiKey) {
-      console.warn('No Idswyft API key found in session or environment');
+      console.warn('No Idswyft API key found in organization settings or environment');
+      console.log('Organization settings:', session.organization?.settings);
+    } else {
+      console.log('Using API key:', apiKey.substring(0, 8) + '...');
     }
     
     return apiKey;
@@ -67,7 +78,9 @@ class VerificationAPI {
     const userId = this.getUserId(session);
     
     if (!apiKey) {
-      throw new Error('Organization API key not configured');
+      throw new Error(
+        'No API key configured. Please contact your organization administrator to set up main API keys in the VaaS admin panel.'
+      );
     }
 
     const useSandbox = this.shouldUseSandbox();
@@ -76,22 +89,44 @@ class VerificationAPI {
       ...(useSandbox && { sandbox: true })
     };
 
-    const response = await fetch(`${API_BASE_URL}/api/verify/start`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': apiKey,
-      },
-      body: JSON.stringify(requestBody),
-    });
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/verify/start`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': apiKey,
+        },
+        body: JSON.stringify(requestBody),
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || errorData.message || 'Failed to start verification');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        const errorMessage = errorData?.error?.message || errorData?.error || errorData?.message || response.statusText;
+        
+        if (response.status === 401) {
+          throw new Error('Invalid API key. Please contact your organization administrator to check the main API key configuration.');
+        } else if (response.status === 429) {
+          throw new Error('Too many requests. Please wait a moment and try again.');
+        } else if (response.status >= 500) {
+          throw new Error('Verification service is temporarily unavailable. Please try again later.');
+        }
+        
+        throw new Error(`Failed to start verification: ${errorMessage}`);
+      }
+
+      const data: StartVerificationResponse = await response.json();
+      
+      if (!data.verification_id) {
+        throw new Error('Invalid response from verification service. Please try again.');
+      }
+      
+      return data.verification_id;
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Network error occurred while starting verification. Please check your connection and try again.');
     }
-
-    const data: StartVerificationResponse = await response.json();
-    return data.verification_id;
   }
 
   async uploadDocument(

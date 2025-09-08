@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/api';
 import { Organization as OrgType, OrganizationSettings, OrganizationBranding } from '../types.js';
-import { Building2, Settings, CreditCard, Palette, Users, Save, AlertCircle, UserCog } from 'lucide-react';
+import { Building2, Settings, CreditCard, Palette, Users, Save, AlertCircle, UserCog, Key } from 'lucide-react';
 import AdminManagement from '../components/organization/AdminManagement';
 import UsageDashboard from '../components/organization/UsageDashboard';
 
@@ -12,7 +12,7 @@ export default function Organization() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'general' | 'billing' | 'branding' | 'settings' | 'admins'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'billing' | 'branding' | 'settings' | 'api-keys' | 'admins'>('general');
 
   useEffect(() => {
     if (organization) {
@@ -154,6 +154,18 @@ export default function Organization() {
           </button>
 
           <button
+            onClick={() => setActiveTab('api-keys')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'api-keys'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Key className="h-4 w-4 inline mr-2" />
+            Main API Keys
+          </button>
+
+          <button
             onClick={() => setActiveTab('admins')}
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'admins'
@@ -205,12 +217,317 @@ export default function Organization() {
         />
       )}
 
+      {activeTab === 'api-keys' && (
+        <MainAPIKeysManagement
+          organizationId={orgData.id}
+          canManageKeys={admin?.permissions.manage_organization || false}
+        />
+      )}
+
       {activeTab === 'admins' && (
         <AdminManagement
           organizationId={orgData.id}
           canManageAdmins={admin?.permissions.manage_admins || false}
         />
       )}
+    </div>
+  );
+}
+
+interface MainAPIKeysManagementProps {
+  organizationId: string;
+  canManageKeys: boolean;
+}
+
+function MainAPIKeysManagement({ organizationId, canManageKeys }: MainAPIKeysManagementProps) {
+  const [apiKeys, setApiKeys] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newKeyName, setNewKeyName] = useState('');
+  const [isSandbox, setIsSandbox] = useState(true);
+  const [createdKey, setCreatedKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchAPIKeys();
+  }, []);
+
+  const fetchAPIKeys = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await apiClient.get('/api/organizations/main-api-keys');
+      
+      if (response.success) {
+        setApiKeys(response.data.api_keys || []);
+      } else {
+        throw new Error(response.error?.message || 'Failed to fetch API keys');
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch API keys:', err);
+      setError(err.message || 'Failed to fetch API keys');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canManageKeys || !newKeyName.trim()) return;
+
+    setIsCreating(true);
+    setError(null);
+
+    try {
+      const response = await apiClient.post('/api/organizations/main-api-keys', {
+        key_name: newKeyName.trim(),
+        is_sandbox: isSandbox
+      });
+
+      if (response.success) {
+        setCreatedKey(response.data.api_key);
+        setNewKeyName('');
+        setShowCreateForm(false);
+        await fetchAPIKeys(); // Refresh the list
+      } else {
+        throw new Error(response.error?.message || 'Failed to create API key');
+      }
+    } catch (err: any) {
+      console.error('Failed to create API key:', err);
+      setError(err.message || 'Failed to create API key');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleRevokeKey = async (keyId: string, keyName: string) => {
+    if (!canManageKeys || !confirm(`Are you sure you want to revoke the API key "${keyName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setError(null);
+      const response = await apiClient.delete(`/api/organizations/main-api-keys/${keyId}`);
+      
+      if (response.success) {
+        await fetchAPIKeys(); // Refresh the list
+      } else {
+        throw new Error(response.error?.message || 'Failed to revoke API key');
+      }
+    } catch (err: any) {
+      console.error('Failed to revoke API key:', err);
+      setError(err.message || 'Failed to revoke API key');
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      // Could add a toast notification here
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Success Message for Created Key */}
+      {createdKey && (
+        <div className="bg-green-50 border border-green-200 rounded-md p-4">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <Key className="h-5 w-5 text-green-400" />
+            </div>
+            <div className="ml-3 flex-1">
+              <h3 className="text-sm font-medium text-green-800">
+                API Key Created Successfully
+              </h3>
+              <div className="mt-2 text-sm text-green-700">
+                <p className="font-medium">Store this key securely - it will not be shown again:</p>
+                <div className="mt-2 flex items-center space-x-2">
+                  <code className="flex-1 px-3 py-2 bg-green-100 border border-green-300 rounded-md font-mono text-xs break-all">
+                    {createdKey}
+                  </code>
+                  <button
+                    onClick={() => copyToClipboard(createdKey)}
+                    className="px-3 py-2 text-xs font-medium text-green-700 bg-green-100 border border-green-300 rounded-md hover:bg-green-200"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+              <div className="mt-4">
+                <button
+                  onClick={() => setCreatedKey(null)}
+                  className="text-green-600 hover:text-green-500 text-sm font-medium"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-4 flex items-center space-x-2">
+          <AlertCircle className="h-5 w-5 text-red-400" />
+          <span className="text-red-700">{error}</span>
+        </div>
+      )}
+
+      <div className="bg-white shadow rounded-lg">
+        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+          <div>
+            <h3 className="text-lg font-medium text-gray-900">Main API Keys</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              API keys for accessing the main Idswyft verification API from your customer portal
+            </p>
+          </div>
+          {canManageKeys && (
+            <button
+              onClick={() => setShowCreateForm(!showCreateForm)}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <Key className="h-4 w-4 mr-2" />
+              Create API Key
+            </button>
+          )}
+        </div>
+
+        {/* Create Form */}
+        {showCreateForm && canManageKeys && (
+          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <form onSubmit={handleCreateKey} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Key Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newKeyName}
+                    onChange={(e) => setNewKeyName(e.target.value)}
+                    placeholder="e.g., Customer Portal Production"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    required
+                    maxLength={100}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Environment
+                  </label>
+                  <select
+                    value={isSandbox ? 'sandbox' : 'production'}
+                    onChange={(e) => setIsSandbox(e.target.value === 'sandbox')}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="sandbox">Sandbox (Testing)</option>
+                    <option value="production">Production (Live)</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-gray-500">
+                  {isSandbox ? 'Up to 5 sandbox keys allowed' : 'Up to 2 production keys allowed'}
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateForm(false)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isCreating || !newKeyName.trim()}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {isCreating ? 'Creating...' : 'Create Key'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        )}
+
+        <div className="p-6">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : apiKeys.length === 0 ? (
+            <div className="text-center py-8">
+              <Key className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No API keys</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Create your first main API key to enable verification in your customer portal.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {apiKeys.map((key) => (
+                <div
+                  key={key.id}
+                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3">
+                      <h4 className="text-sm font-medium text-gray-900">{key.key_name}</h4>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        key.is_sandbox ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
+                      }`}>
+                        {key.is_sandbox ? 'Sandbox' : 'Production'}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500 space-y-1">
+                      <p>Key: <code className="bg-gray-100 px-2 py-1 rounded">{key.key_prefix}...</code></p>
+                      <p>Created: {new Date(key.created_at).toLocaleDateString()}</p>
+                      {key.last_used_at && (
+                        <p>Last used: {new Date(key.last_used_at).toLocaleDateString()}</p>
+                      )}
+                    </div>
+                  </div>
+                  {canManageKeys && (
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => handleRevokeKey(key.id, key.key_name)}
+                        className="text-red-600 hover:text-red-500 text-sm font-medium"
+                      >
+                        Revoke
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Information Card */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex">
+          <div className="flex-shrink-0">
+            <AlertCircle className="h-5 w-5 text-blue-400" />
+          </div>
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-blue-800">
+              About Main API Keys
+            </h3>
+            <div className="mt-2 text-sm text-blue-700">
+              <ul className="list-disc list-inside space-y-1">
+                <li>Main API keys allow your customer portal to perform real identity verification</li>
+                <li>Sandbox keys are for testing and don't process real verifications</li>
+                <li>Production keys process real verifications and incur charges</li>
+                <li>Keys use the format: <code>ik_[64-character hex string]</code></li>
+                <li>Store keys securely in environment variables, never in code</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

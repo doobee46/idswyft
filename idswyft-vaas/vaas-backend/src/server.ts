@@ -11,6 +11,7 @@ import { connectVaasDB } from './config/database.js';
 // Import routes
 console.log('📦 Importing route modules...');
 import organizationRoutes from './routes/organizations.js';
+import organizationMainApiRoutes from './routes/organization-main-api.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import verificationRoutes from './routes/verifications.js';
@@ -165,7 +166,10 @@ app.get('/api/docs', (req, res) => {
         'POST /api/organizations': 'Create new organization',
         'GET /api/organizations/:id': 'Get organization details',
         'PUT /api/organizations/:id': 'Update organization',
-        'DELETE /api/organizations/:id': 'Delete organization'
+        'DELETE /api/organizations/:id': 'Delete organization',
+        'GET /api/organizations/main-api-keys': 'List organization main API keys',
+        'POST /api/organizations/main-api-keys': 'Create main API key for verification',
+        'DELETE /api/organizations/main-api-keys/:keyId': 'Revoke main API key'
       },
       admins: {
         'POST /api/auth/login': 'Admin login',
@@ -232,6 +236,7 @@ app.get('/api/docs', (req, res) => {
 // Mount API routes with debug logging
 console.log('🔗 Mounting API routes...');
 app.use('/api/organizations', organizationRoutes);
+app.use('/api/organizations', organizationMainApiRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/verifications', verificationRoutes);

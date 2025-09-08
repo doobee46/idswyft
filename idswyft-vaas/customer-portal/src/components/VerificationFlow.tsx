@@ -80,11 +80,19 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
       }
     } catch (error: any) {
       console.error('Failed to load session:', error);
+      let userMessage = 'Failed to load verification session. Please try again.';
+      
       if (error.response?.status === 404) {
-        setError('Verification session not found. Please check your link or request a new one.');
-      } else {
-        setError('Failed to load verification session. Please try again.');
+        userMessage = 'Verification session not found. Please check your link or request a new one.';
+      } else if (error.message.includes('No API key configured')) {
+        userMessage = 'Verification service is not properly configured. Please contact support.';
+      } else if (error.message.includes('Invalid API key')) {
+        userMessage = 'Verification service configuration error. Please contact support.';
+      } else if (error.message.includes('network') || error.message.includes('Network')) {
+        userMessage = 'Network connection issue. Please check your internet and try again.';
       }
+      
+      setError(userMessage);
       setCurrentStep('error');
     } finally {
       setLoading(false);
@@ -125,7 +133,19 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
       setUploadProgress(0);
     } catch (error: any) {
       console.error('Failed to upload document:', error);
-      setError(error.message || 'Failed to upload document. Please try again.');
+      let userMessage = 'Failed to upload document. Please try again.';
+      
+      if (error.message.includes('No API key configured')) {
+        userMessage = error.message;
+      } else if (error.message.includes('Invalid API key')) {
+        userMessage = error.message;
+      } else if (error.message.includes('too large')) {
+        userMessage = 'The document file is too large. Please use a smaller image (max 10MB).';
+      } else if (error.message.includes('network') || error.message.includes('Network')) {
+        userMessage = 'Network connection issue. Please check your internet and try again.';
+      }
+      
+      setError(userMessage);
       setUploadProgress(0);
     }
   };
