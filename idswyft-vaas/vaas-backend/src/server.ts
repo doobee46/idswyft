@@ -252,8 +252,9 @@ app.get('/api/docs', (req, res) => {
 
 // Mount API routes with debug logging
 console.log('🔗 Mounting API routes...');
-app.use('/api/organizations', organizationRoutes);
+// Mount specific routes before parameterized routes to avoid conflicts
 app.use('/api/organizations', organizationMainApiRoutes);
+app.use('/api/organizations', organizationRoutes);
 app.use('/api/api-keys', apiKeysRoutes);
 app.use('/api', auditLogsRoutes);
 app.use('/api/auth', authRoutes);
