@@ -27,6 +27,26 @@ function VerificationPage() {
   return <VerificationFlow sessionToken={sessionToken} />;
 }
 
+function VerificationPageWithToken() {
+  const { token } = useParams<{ token: string }>();
+  
+  if (!token) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Invalid Verification Link</h1>
+          <p className="text-gray-600">
+            The verification link appears to be invalid or expired.
+            Please request a new verification link from the organization.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return <VerificationFlow sessionToken={token} />;
+}
+
 function StatusPage() {
   const [searchParams] = useSearchParams();
   const sessionToken = searchParams.get('session');
@@ -55,8 +75,9 @@ function App() {
         <Router>
           <div className="App">
             <Routes>
-              {/* Main verification flow */}
+              {/* Main verification flow - supports both query params and path params */}
               <Route path="/verify" element={<VerificationPage />} />
+              <Route path="/verify/:token" element={<VerificationPageWithToken />} />
               
               {/* Verification status page */}
               <Route path="/status" element={<StatusPage />} />
