@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { body, param, validationResult } from 'express-validator';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth.js';
 import { VaasApiResponse } from '../types/index.js';
-import { vaasSupabase } from '../config/database.js';
+import { vaasSupabase, mainApiSupabase } from '../config/database.js';
 import crypto from 'crypto';
 import axios from 'axios';
 
@@ -34,6 +34,74 @@ const generateMainAPIKey = (): { key: string; hash: string; prefix: string } => 
   const prefix = key.substring(0, 8);
   
   return { key, hash, prefix };
+};
+
+// Helper function to register API key with main API database
+const registerWithMainAPI = async (keyData: {
+  key: string;
+  hash: string;
+  prefix: string;
+  name: string;
+  organizationId: string;
+  isSandbox: boolean;
+}) => {
+  if (!mainApiSupabase) {
+    console.log('⚠️ Main API integration not configured - API key only stored in VaaS');
+    return null;
+  }
+
+  try {
+    // First, ensure there's a VaaS service developer account
+    const { data: vaasServiceDev, error: devError } = await mainApiSupabase
+      .from('developers')
+      .select('id')
+      .eq('email', 'vaas-service@idswyft.app')
+      .single();
+
+    let developerId;
+    if (devError || !vaasServiceDev) {
+      // Create VaaS service developer account
+      const { data: newDev, error: createError } = await mainApiSupabase
+        .from('developers')
+        .insert([{
+          email: 'vaas-service@idswyft.app',
+          name: 'VaaS Service Integration',
+          company: 'Idswyft VaaS',
+          is_verified: true
+        }])
+        .select('id')
+        .single();
+
+      if (createError) throw createError;
+      developerId = newDev.id;
+      console.log('✅ Created VaaS service developer account:', developerId);
+    } else {
+      developerId = vaasServiceDev.id;
+    }
+
+    // Register the API key in main API database
+    const { data: apiKey, error: keyError } = await mainApiSupabase
+      .from('api_keys')
+      .insert([{
+        developer_id: developerId,
+        key_hash: keyData.hash,
+        key_prefix: keyData.prefix,
+        name: `${keyData.name} (Organization: ${keyData.organizationId})`,
+        is_sandbox: keyData.isSandbox,
+        is_active: true
+      }])
+      .select('id')
+      .single();
+
+    if (keyError) throw keyError;
+    
+    console.log('✅ API key registered with main API:', apiKey.id);
+    return apiKey.id;
+    
+  } catch (error) {
+    console.error('❌ Failed to register API key with main API:', error);
+    throw new Error(`Main API registration failed: ${error.message}`);
+  }
 };
 
 // Get organization's main API keys
@@ -184,6 +252,21 @@ router.post('/main-api-keys',
       throw new Error(`Failed to save API key: ${saveError.message}`);
     }
 
+    // Register the API key with the main API database for authentication
+    try {
+      await registerWithMainAPI({
+        key,
+        hash,
+        prefix,
+        name: key_name.trim(),
+        organizationId,
+        isSandbox: is_sandbox
+      });
+    } catch (mainApiError) {
+      console.error('⚠️ Failed to register with main API:', mainApiError);
+      // Don't fail the entire operation - the key is still usable via VaaS
+    }
+
     // Update organization settings to set default API key if this is the first one
     const defaultKeyField = is_sandbox ? 'default_sandbox_main_api_key' : 'default_main_api_key';
     
@@ -307,6 +390,21 @@ router.delete('/main-api-keys/:keyId',
 
     if (updateError) {
       throw new Error(`Failed to revoke API key: ${updateError.message}`);
+    }
+
+    // Also revoke the API key from main API database
+    if (mainApiSupabase) {
+      try {
+        await mainApiSupabase
+          .from('api_keys')
+          .update({ is_active: false })
+          .eq('key_prefix', apiKey.key_prefix);
+        
+        console.log('✅ API key also revoked from main API');
+      } catch (mainApiError) {
+        console.warn('⚠️ Failed to revoke API key from main API:', mainApiError);
+        // Don't fail the operation if main API cleanup fails
+      }
     }
 
     console.log('✅ Main API key revoked successfully:', { 

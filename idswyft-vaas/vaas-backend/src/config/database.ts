@@ -19,6 +19,20 @@ export const vaasSupabase = createClient(supabaseUrl, supabaseKey, {
   }
 });
 
+// Main API Database connection (for registering organization API keys)
+const mainApiUrl = process.env.MAIN_API_SUPABASE_URL;
+const mainApiKey = process.env.MAIN_API_SUPABASE_SERVICE_ROLE_KEY;
+
+// Main API Supabase client (optional - only if integration is needed)
+export const mainApiSupabase = mainApiUrl && mainApiKey 
+  ? createClient(mainApiUrl, mainApiKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  : null;
+
 // Database connection helper
 export const connectVaasDB = async () => {
   try {
