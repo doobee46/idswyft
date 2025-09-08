@@ -10,6 +10,20 @@ const router = Router();
 
 const MAIN_API_BASE_URL = process.env.MAIN_API_BASE_URL || 'https://api.idswyft.app';
 
+// Health check endpoint to verify routes are loaded
+router.get('/main-api-keys/health', async (req, res) => {
+  res.json({
+    success: true,
+    message: 'Organization main API keys routes are loaded',
+    timestamp: new Date().toISOString(),
+    routes_available: [
+      'GET /main-api-keys',
+      'POST /main-api-keys', 
+      'DELETE /main-api-keys/:keyId'
+    ]
+  });
+});
+
 // Generate API key in the same format as main API
 const generateMainAPIKey = (): { key: string; hash: string; prefix: string } => {
   const key = `ik_${crypto.randomBytes(32).toString('hex')}`;
