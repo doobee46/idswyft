@@ -17,10 +17,18 @@ export interface VerificationSettings {
 export interface VerificationSession {
   id: string;
   status: 'pending' | 'document_uploaded' | 'processing' | 'completed' | 'failed' | 'expired';
-  organization_name: string;
-  organization_branding?: OrganizationBranding;
-  settings: VerificationSettings;
   expires_at: string;
+  organization: {
+    name: string;
+    branding?: OrganizationBranding;
+    settings?: any;
+  };
+  user: {
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+  };
+  verification_settings: VerificationSettings;
 }
 
 export interface ApiResponse<T = any> {

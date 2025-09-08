@@ -56,10 +56,10 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
       setSession(sessionData);
       
       // Apply organization branding
-      if (sessionData.organization_branding) {
-        setBranding(sessionData.organization_branding);
+      if (sessionData.organization?.branding) {
+        setBranding(sessionData.organization.branding);
       }
-      setOrganizationName(sessionData.organization_name);
+      setOrganizationName(sessionData.organization?.name || 'Unknown Organization');
       
       // Determine starting step based on session status
       if (sessionData.status === 'expired') {
@@ -100,7 +100,7 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
       
       // Move to next step
       if (type === 'front') {
-        if (session.settings.require_back_of_id) {
+        if (session.verification_settings.require_back_of_id) {
           setCurrentStep('document-back');
         } else {
           setCurrentStep('selfie');
@@ -108,7 +108,7 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
       } else if (type === 'back') {
         setCurrentStep('selfie');
       } else if (type === 'selfie') {
-        if (session.settings.require_liveness) {
+        if (session.verification_settings.require_liveness) {
           setCurrentStep('liveness');
         } else {
           await submitVerification();
@@ -175,9 +175,9 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
 
   const renderProgressBar = () => {
     const steps = ['welcome', 'document-front'];
-    if (session?.settings.require_back_of_id) steps.push('document-back');
+    if (session?.verification_settings.require_back_of_id) steps.push('document-back');
     steps.push('selfie');
-    if (session?.settings.require_liveness) steps.push('liveness');
+    if (session?.verification_settings.require_liveness) steps.push('liveness');
     steps.push('processing', 'complete');
 
     const currentIndex = steps.indexOf(currentStep);
@@ -282,8 +282,8 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
               onFileSelect={(file) => handleFileUpload('selfie', file)}
               uploadProgress={uploadProgress}
               inputRef={selfieInputRef}
-              onBack={() => setCurrentStep(session.settings.require_back_of_id ? 'document-back' : 'document-front')}
-              requiresLiveness={session.settings.require_liveness}
+              onBack={() => setCurrentStep(session.verification_settings.require_back_of_id ? 'document-back' : 'document-front')}
+              requiresLiveness={session.verification_settings.require_liveness}
             />
           )}
 
@@ -309,7 +309,7 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
 
 // Individual Step Components
 const WelcomeStep: React.FC<{ session: VerificationSession; onNext: () => void }> = ({ session, onNext }) => {
-  const welcomeMessage = session.organization_branding?.welcome_message || 
+  const welcomeMessage = session.organization?.branding?.welcome_message || 
     "We need to verify your identity to proceed. This process is secure and typically takes just a few minutes.";
 
   return (
@@ -326,9 +326,9 @@ const WelcomeStep: React.FC<{ session: VerificationSession; onNext: () => void }
       <h3 className="font-medium text-blue-900 mb-2">What you'll need:</h3>
       <ul className="text-sm text-blue-800 space-y-1">
         <li>• Government-issued photo ID (passport, driver's license, etc.)</li>
-        {session.settings.require_back_of_id && <li>• Both front and back of your ID</li>}
+        {session.verification_settings.require_back_of_id && <li>• Both front and back of your ID</li>}
         <li>• A clear photo of yourself (selfie)</li>
-        {session.settings.require_liveness && <li>• Device with camera for liveness detection</li>}
+        {session.verification_settings.require_liveness && <li>• Device with camera for liveness detection</li>}
       </ul>
     </div>
     
@@ -567,7 +567,7 @@ const ProcessingStep: React.FC = () => (
 );
 
 const CompleteStep: React.FC<{ session: VerificationSession }> = ({ session }) => {
-  const successMessage = session.organization_branding?.success_message || 
+  const successMessage = session.organization?.branding?.success_message || 
     "Your identity has been successfully verified. You can now close this window.";
 
   return (
@@ -581,8 +581,8 @@ const CompleteStep: React.FC<{ session: VerificationSession }> = ({ session }) =
       </p>
       <div className="bg-green-50 border border-green-200 rounded-lg p-4">
         <p className="text-sm text-green-800">
-          {session.organization_branding?.company_name ? 
-            `${session.organization_branding.company_name} has been notified of your successful verification.` :
+          {session.organization?.branding?.company_name ? 
+            `${session.organization.branding.company_name} has been notified of your successful verification.` :
             "The requesting organization has been notified of your successful verification."
           }
         </p>
