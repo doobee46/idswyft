@@ -16,6 +16,7 @@ import userRoutes from './routes/users.js';
 import verificationRoutes from './routes/verifications.js';
 import webhookRoutes from './routes/webhooks.js';
 import adminSecretRoutes from './routes/admin-secrets.js';
+import publicRoutes from './routes/public.js';
 
 console.log('📧 Importing email routes...');
 import emailUtilRoutes from './routes/email-utils.js';
@@ -236,6 +237,11 @@ app.use('/api/users', userRoutes);
 app.use('/api/verifications', verificationRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/admin', adminSecretRoutes);
+
+// Mount public routes for customer portal (no authentication required)
+console.log('🌐 Mounting public routes...');
+app.use('/api/public', publicRoutes);
+console.log('✅ Public routes mounted successfully');
 
 console.log('📧 Mounting email routes...');
 try {

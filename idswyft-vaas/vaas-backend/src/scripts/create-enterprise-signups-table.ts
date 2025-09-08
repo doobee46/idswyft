@@ -1,3 +1,4 @@
+import '../config/index.js'; // Load environment variables
 import { vaasSupabase } from '../config/database.js';
 
 async function createEnterpriseSignupsTable() {
