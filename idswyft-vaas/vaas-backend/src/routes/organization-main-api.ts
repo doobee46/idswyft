@@ -83,11 +83,7 @@ router.post('/main-api-keys/test', async (req, res) => {
 // Generate API key in the same format as main API
 const generateMainAPIKey = (): { key: string; hash: string; prefix: string } => {
   const key = `ik_${crypto.randomBytes(32).toString('hex')}`;
-  const apiKeySecret = process.env.API_KEY_SECRET;
-  
-  if (!apiKeySecret) {
-    throw new Error('API_KEY_SECRET environment variable is required for main API key generation');
-  }
+  const apiKeySecret = process.env.API_KEY_SECRET || 'your-api-key-encryption-secret';
   
   
   const hash = crypto
