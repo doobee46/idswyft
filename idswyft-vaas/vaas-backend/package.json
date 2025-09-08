@@ -14,10 +14,7 @@
     "railway:build": "npm run build",
     "railway:start": "npm run start",
     "migrate:create-signups": "tsx src/scripts/create-enterprise-signups-table.ts",
-    "migrate:run": "tsx src/scripts/run-migration.ts",
-    "migrate:apply": "tsx src/scripts/apply-migrations.ts",
-    "migrate:direct": "tsx src/scripts/direct-migration.ts",
-    "migrate:verification-tables": "tsx src/scripts/create-verification-tables.ts"
+    "migrate:run": "tsx src/scripts/run-migration.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
