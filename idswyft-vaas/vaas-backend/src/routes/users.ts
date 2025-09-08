@@ -3,6 +3,7 @@ import { requireAuth, requireApiKey, requirePermission, AuthenticatedRequest } f
 import { validatePagination } from '../middleware/validation.js';
 import { VaasApiResponse, VaasEndUser } from '../types/index.js';
 import { vaasSupabase } from '../config/database.js';
+import { emailService } from '../services/emailService.js';
 import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
@@ -727,14 +728,31 @@ router.post('/:id/send-verification-invitation', requireAuth, requirePermission(
       throw new Error(`Failed to update user: ${updateError.message}`);
     }
     
-    // TODO: Send verification invitation email
-    // For now, just log the verification URL
-    console.log(`[UserRoutes] Verification invitation for ${user.email}:`);
-    console.log(`Organization: ${organization.name} (${organization.slug})`);
-    console.log(`Verification URL: ${verificationUrl}`);
-    console.log(`Expires: ${expiresAt.toISOString()}`);
-    if (custom_message) {
-      console.log(`Custom message: ${custom_message}`);
+    // Send verification invitation email
+    console.log(`[UserRoutes] Sending verification invitation to ${user.email}...`);
+    
+    const userName = user.first_name ? 
+      (user.last_name ? `${user.first_name} ${user.last_name}` : user.first_name) : '';
+    
+    const emailSent = await emailService.sendVerificationInvitation({
+      userEmail: user.email,
+      userName,
+      organizationName: organization.name,
+      verificationUrl,
+      expiresAt: expiresAt.toISOString(),
+      customMessage: custom_message,
+      organizationBranding: {
+        primary_color: organization.branding?.primary_color,
+        logo_url: organization.branding?.logo_url,
+        company_name: organization.branding?.company_name || organization.name,
+        welcome_message: organization.branding?.welcome_message
+      }
+    });
+    
+    if (emailSent) {
+      console.log(`✅ Verification invitation email sent to ${user.email}`);
+    } else {
+      console.log(`⚠️ Failed to send verification invitation email to ${user.email}`);
     }
     
     const response: VaasApiResponse = {
@@ -744,8 +762,9 @@ router.post('/:id/send-verification-invitation', requireAuth, requirePermission(
         verification_url: verificationUrl,
         session_token: sessionToken,
         expires_at: expiresAt.toISOString(),
-        invitation_sent: true,
-        invitation_sent_at: new Date().toISOString()
+        invitation_sent: emailSent,
+        invitation_sent_at: emailSent ? new Date().toISOString() : undefined,
+        email_status: emailSent ? 'sent' : 'failed'
       }
     };
     

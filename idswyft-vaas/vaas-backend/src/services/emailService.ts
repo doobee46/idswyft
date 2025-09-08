@@ -27,6 +27,21 @@ interface VerificationEmailData {
   dashboardUrl: string;
 }
 
+interface VerificationInvitationData {
+  userEmail: string;
+  userName: string;
+  organizationName: string;
+  verificationUrl: string;
+  expiresAt: string;
+  customMessage?: string;
+  organizationBranding?: {
+    primary_color?: string;
+    logo_url?: string;
+    company_name?: string;
+    welcome_message?: string;
+  };
+}
+
 interface SendEmailOptions {
   to: string;
   subject: string;
@@ -331,6 +346,134 @@ If you didn't create this account, please ignore this email.`;
 
     return this.sendEmail({
       to: data.adminEmail,
+      subject,
+      html: htmlContent,
+      text: textContent
+    });
+  }
+
+  async sendVerificationInvitation(data: VerificationInvitationData): Promise<boolean> {
+    const subject = `${data.organizationBranding?.company_name || data.organizationName} - Verify Your Identity`;
+    const primaryColor = data.organizationBranding?.primary_color || '#1e40af';
+    const logoUrl = data.organizationBranding?.logo_url;
+    const welcomeMessage = data.organizationBranding?.welcome_message || 
+      `Please complete your identity verification for ${data.organizationName}.`;
+    
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 0; background: #f8fafc; }
+    .container { background: white; border-radius: 12px; overflow: hidden; margin: 20px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07); }
+    .header { background: ${primaryColor}; color: white; padding: 40px 30px; text-align: center; }
+    .header h1 { margin: 0; font-size: 28px; font-weight: 600; }
+    .header p { margin: 10px 0 0; opacity: 0.9; font-size: 16px; }
+    .content { padding: 40px 30px; }
+    .greeting { font-size: 18px; color: #1a202c; margin-bottom: 20px; }
+    .message { font-size: 16px; color: #4a5568; margin-bottom: 30px; line-height: 1.7; }
+    .button { display: inline-block; background: linear-gradient(135deg, ${primaryColor}, ${primaryColor}dd); color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 20px 0 30px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); transition: transform 0.2s; }
+    .button:hover { transform: translateY(-1px); }
+    .steps { background: #f7fafc; padding: 25px; border-radius: 8px; margin: 25px 0; }
+    .steps h3 { margin: 0 0 15px; color: #2d3748; font-size: 18px; }
+    .steps ul { margin: 0; padding-left: 20px; }
+    .steps li { margin: 8px 0; color: #4a5568; }
+    .expiry-notice { background: #fef5e7; border: 1px solid #f6d55c; padding: 15px; border-radius: 6px; margin: 25px 0; }
+    .expiry-notice strong { color: #92400e; }
+    .custom-message { background: #e6fffa; padding: 20px; border-radius: 8px; border-left: 4px solid #38b2ac; margin: 25px 0; }
+    .footer { text-align: center; padding: 25px; color: #718096; font-size: 14px; border-top: 1px solid #e2e8f0; }
+    .logo { max-width: 120px; height: auto; margin-bottom: 15px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      ${logoUrl ? `<img src="${logoUrl}" alt="${data.organizationName}" class="logo">` : ''}
+      <h1>🛡️ Identity Verification</h1>
+      <p>${data.organizationBranding?.company_name || data.organizationName}</p>
+    </div>
+    
+    <div class="content">
+      <div class="greeting">Hello${data.userName ? ` ${data.userName}` : ''}!</div>
+      
+      <div class="message">
+        ${welcomeMessage}
+      </div>
+      
+      ${data.customMessage ? `
+      <div class="custom-message">
+        <strong>Message from ${data.organizationName}:</strong><br>
+        ${data.customMessage}
+      </div>
+      ` : ''}
+      
+      <div style="text-align: center;">
+        <a href="${data.verificationUrl}" class="button">
+          Start Verification
+        </a>
+      </div>
+      
+      <div class="steps">
+        <h3>🚀 What to expect:</h3>
+        <ul>
+          <li><strong>Document Upload:</strong> Take photos of your government-issued ID</li>
+          <li><strong>Selfie Verification:</strong> Quick photo for identity matching</li>
+          <li><strong>Liveness Check:</strong> Simple verification to confirm you're present</li>
+          <li><strong>Instant Results:</strong> Get verified in under 2 minutes</li>
+        </ul>
+      </div>
+      
+      <div class="expiry-notice">
+        <strong>⏰ Important:</strong> This verification link expires on ${new Date(data.expiresAt).toLocaleDateString('en-US', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        })} at ${new Date(data.expiresAt).toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        })}.
+      </div>
+      
+      <p style="color: #718096; font-size: 14px; margin-top: 30px;">
+        If you're having trouble with the button above, you can copy and paste this link into your browser:<br>
+        <a href="${data.verificationUrl}" style="color: ${primaryColor}; word-break: break-all;">${data.verificationUrl}</a>
+      </p>
+    </div>
+    
+    <div class="footer">
+      <p>This verification is requested by <strong>${data.organizationName}</strong></p>
+      <p>Powered by <strong>Idswyft VaaS</strong> - Secure Identity Verification</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    const textContent = `Identity Verification Required - ${data.organizationName}
+
+Hello${data.userName ? ` ${data.userName}` : ''}!
+
+${welcomeMessage}
+
+${data.customMessage ? `Message from ${data.organizationName}: ${data.customMessage}\n\n` : ''}
+
+Complete your verification: ${data.verificationUrl}
+
+What to expect:
+• Document Upload: Take photos of your government-issued ID
+• Selfie Verification: Quick photo for identity matching  
+• Liveness Check: Simple verification to confirm you're present
+• Instant Results: Get verified in under 2 minutes
+
+⏰ IMPORTANT: This verification link expires on ${new Date(data.expiresAt).toLocaleDateString()} at ${new Date(data.expiresAt).toLocaleTimeString()}.
+
+This verification is requested by ${data.organizationName}
+Powered by Idswyft VaaS - Secure Identity Verification`;
+
+    return this.sendEmail({
+      to: data.userEmail,
       subject,
       html: htmlContent,
       text: textContent
