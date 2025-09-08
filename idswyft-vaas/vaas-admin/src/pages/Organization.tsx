@@ -259,10 +259,10 @@ function MainAPIKeysManagement({ organizationId, canManageKeys }: MainAPIKeysMan
       setError(null);
       const response = await apiClient.get('/api/organizations/main-api-keys');
       
-      if (response.success) {
-        setApiKeys(response.data.api_keys || []);
+      if (response.data.success) {
+        setApiKeys(response.data.data.api_keys || []);
       } else {
-        throw new Error(response.error?.message || 'Failed to fetch API keys');
+        throw new Error(response.data.error?.message || 'Failed to fetch API keys');
       }
     } catch (err: any) {
       console.error('Failed to fetch API keys:', err);
@@ -285,13 +285,13 @@ function MainAPIKeysManagement({ organizationId, canManageKeys }: MainAPIKeysMan
         is_sandbox: isSandbox
       });
 
-      if (response.success) {
-        setCreatedKey(response.data.api_key);
+      if (response.data.success) {
+        setCreatedKey(response.data.data.api_key);
         setNewKeyName('');
         setShowCreateForm(false);
         await fetchAPIKeys(); // Refresh the list
       } else {
-        throw new Error(response.error?.message || 'Failed to create API key');
+        throw new Error(response.data.error?.message || 'Failed to create API key');
       }
     } catch (err: any) {
       console.error('Failed to create API key:', err);
@@ -310,10 +310,10 @@ function MainAPIKeysManagement({ organizationId, canManageKeys }: MainAPIKeysMan
       setError(null);
       const response = await apiClient.delete(`/api/organizations/main-api-keys/${keyId}`);
       
-      if (response.success) {
+      if (response.data.success) {
         await fetchAPIKeys(); // Refresh the list
       } else {
-        throw new Error(response.error?.message || 'Failed to revoke API key');
+        throw new Error(response.data.error?.message || 'Failed to revoke API key');
       }
     } catch (err: any) {
       console.error('Failed to revoke API key:', err);
