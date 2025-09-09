@@ -274,37 +274,18 @@ const LiveCaptureComponent: React.FC<LiveCaptureComponentProps> = ({
         // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // Draw circular guide overlay
+        // Draw circular guide overlay (matching demo implementation)
         const centerX = canvas.width / 2;
         const centerY = canvas.height / 2;
         const radius = Math.min(canvas.width, canvas.height) * 0.3;
         
-        // Debug: Log canvas dimensions and drawing
-        if (Math.random() < 0.01) { // Log occasionally to avoid spam
-          console.log(`🎨 Drawing circle: canvas=${canvas.width}x${canvas.height}, center=(${centerX}, ${centerY}), radius=${radius}`);
-        }
-        
-        // Test: Draw a visible border to confirm canvas is working
-        ctx.strokeStyle = '#ff0000';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
-        
-        // Draw solid blue circle outline
-        ctx.strokeStyle = '#3b82f6'; // Bright blue color
-        ctx.lineWidth = 4;
-        ctx.setLineDash([20, 10]); // Larger dashes for better visibility
-        ctx.lineDashOffset = 0;
+        ctx.strokeStyle = '#0066ff';
+        ctx.lineWidth = 6;
+        ctx.setLineDash([15, 10]);
         ctx.beginPath();
         ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
         ctx.stroke();
-        
-        // Add a solid inner circle for better visibility
-        ctx.setLineDash([]); // Remove dashes
-        ctx.strokeStyle = '#3b82f6';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius - 5, 0, 2 * Math.PI);
-        ctx.stroke();
+        ctx.setLineDash([]);
         
         // Add instruction text background
         ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
@@ -355,8 +336,82 @@ const LiveCaptureComponent: React.FC<LiveCaptureComponentProps> = ({
             console.warn('OpenCV face detection error:', cvError);
           }
         } else {
-          // Fallback face detection
-          faceCount = Math.random() > 0.3 ? 1 : 0; // Simplified for now
+          // Improved fallback: basic brightness-based face detection (from demo)
+          try {
+            // Create a temporary canvas to get image data from video
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            if (!tempCtx) throw new Error('Could not get temp canvas context');
+            
+            // Set temp canvas size to match video
+            tempCanvas.width = video.videoWidth;
+            tempCanvas.height = video.videoHeight;
+            
+            // Draw current video frame to temp canvas
+            tempCtx.drawImage(video, 0, 0);
+            
+            // Get image data from center region where face should be
+            const faceRegionSize = Math.min(video.videoWidth, video.videoHeight) * 0.4;
+            const startX = (video.videoWidth - faceRegionSize) / 2;
+            const startY = (video.videoHeight - faceRegionSize) / 2;
+            
+            const imageData = tempCtx.getImageData(startX, startY, faceRegionSize, faceRegionSize);
+            const pixels = imageData.data;
+            
+            // Calculate average brightness and detect skin tone patterns
+            let totalBrightness = 0;
+            let skinTonePixels = 0;
+            const pixelCount = pixels.length / 4;
+            
+            for (let i = 0; i < pixels.length; i += 4) {
+              const r = pixels[i];
+              const g = pixels[i + 1];
+              const b = pixels[i + 2];
+              
+              // Calculate brightness
+              const brightness = (r + g + b) / 3;
+              totalBrightness += brightness;
+              
+              // More flexible skin tone detection
+              const isLightSkin = r > 95 && g > 40 && b > 20 && r > g && r > b && Math.abs(r - g) > 15;
+              const isMediumSkin = r > 80 && g > 50 && b > 30 && r >= g && brightness > 60;
+              const isDarkSkin = r > 60 && g > 40 && b > 25 && Math.abs(r - g) < 30 && brightness > 40;
+              
+              if ((isLightSkin || isMediumSkin || isDarkSkin) && brightness > 30 && brightness < 250) {
+                skinTonePixels++;
+              }
+            }
+            
+            const avgBrightness = totalBrightness / pixelCount;
+            const skinToneRatio = skinTonePixels / pixelCount;
+            
+            // Detect face based on skin tone presence and brightness variation
+            const hasFaceFeatures = skinToneRatio > 0.02 && avgBrightness > 30 && avgBrightness < 240;
+            faceCount = hasFaceFeatures ? 1 : 0;
+            
+            if (Math.random() < 0.05) { // Log occasionally
+              console.log('🔍 FALLBACK Face detection:', { 
+                faceCount, 
+                skinToneRatio: skinToneRatio.toFixed(3), 
+                avgBrightness: avgBrightness.toFixed(1),
+                hasFaceFeatures
+              });
+            }
+            
+            if (faceCount > 0) {
+              // Draw simple detection indicator in center area
+              const detectionSize = radius * 0.8;
+              ctx.strokeStyle = '#00ff00';
+              ctx.lineWidth = 4;
+              ctx.strokeRect(centerX - detectionSize/2, centerY - detectionSize/2, detectionSize, detectionSize);
+              ctx.fillStyle = '#00ff00';
+              ctx.font = 'bold 16px Arial';
+              ctx.fillText('FACE DETECTED', centerX - detectionSize/2, centerY - detectionSize/2 - 15);
+            }
+          } catch (fallbackError) {
+            console.warn('Fallback face detection error:', fallbackError);
+            faceCount = 0;
+          }
         }
         
         // Add current detection to buffer for stability
