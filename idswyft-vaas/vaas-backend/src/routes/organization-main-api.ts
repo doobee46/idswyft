@@ -24,6 +24,55 @@ router.get('/main-api-keys/health', async (req, res) => {
   });
 });
 
+// Diagnostic endpoint to check environment and database connectivity
+router.get('/main-api-keys/diagnostic', async (req, res) => {
+  try {
+    const diagnostics = {
+      timestamp: new Date().toISOString(),
+      environment: {
+        NODE_ENV: process.env.NODE_ENV,
+        API_KEY_SECRET_SET: !!process.env.API_KEY_SECRET,
+        API_KEY_SECRET_PREFIX: process.env.API_KEY_SECRET?.substring(0, 8) || 'fallback',
+        MAIN_API_SUPABASE_URL_SET: !!process.env.MAIN_API_SUPABASE_URL,
+        MAIN_API_SERVICE_KEY_SET: !!process.env.MAIN_API_SUPABASE_SERVICE_ROLE_KEY
+      },
+      database_connections: {
+        vaas_database: false,
+        main_api_database: false
+      }
+    };
+
+    // Test VaaS database connection
+    try {
+      const { data } = await vaasSupabase.from('vaas_organizations').select('id').limit(1);
+      diagnostics.database_connections.vaas_database = true;
+    } catch (error) {
+      diagnostics.database_connections.vaas_database = false;
+    }
+
+    // Test main API database connection
+    try {
+      if (mainApiSupabase) {
+        const { data } = await mainApiSupabase.from('developers').select('id').limit(1);
+        diagnostics.database_connections.main_api_database = true;
+      }
+    } catch (error) {
+      diagnostics.database_connections.main_api_database = false;
+    }
+
+    res.json({
+      success: true,
+      diagnostics
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      diagnostics: 'Failed to run diagnostics'
+    });
+  }
+});
+
 // Test endpoint to debug API key creation (bypasses auth for testing)
 router.post('/main-api-keys/test', async (req, res) => {
   try {
