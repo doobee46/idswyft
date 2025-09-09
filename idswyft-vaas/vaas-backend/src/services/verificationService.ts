@@ -195,7 +195,7 @@ export class VerificationService {
             failure_reasons: idswyftVerification.failure_reasons
           },
           confidence_score: idswyftVerification.confidence_score,
-          completed_at: idswyftVerification.completed_at || (newStatus === 'completed' ? new Date().toISOString() : null)
+          completed_at: idswyftVerification.completed_at || (newStatus === 'completed' || newStatus === 'verified' ? new Date().toISOString() : null)
         })
         .eq('id', session.id)
         .select()
@@ -212,11 +212,17 @@ export class VerificationService {
         case 'completed':
           endUserStatus = idswyftVerification.confidence_score && idswyftVerification.confidence_score >= 0.8 ? 'verified' : 'manual_review';
           break;
+        case 'verified':
+          endUserStatus = 'verified'; // Direct mapping for verified status
+          break;
         case 'failed':
           endUserStatus = 'failed';
           break;
         case 'expired':
           endUserStatus = 'expired';
+          break;
+        case 'manual_review':
+          endUserStatus = 'manual_review';
           break;
         default:
           endUserStatus = 'in_progress';
@@ -226,12 +232,12 @@ export class VerificationService {
         .from('vaas_end_users')
         .update({ 
           verification_status: endUserStatus,
-          verification_completed_at: newStatus === 'completed' ? new Date().toISOString() : null
+          verification_completed_at: (newStatus === 'completed' || newStatus === 'verified') ? new Date().toISOString() : null
         })
         .eq('id', session.end_user_id);
       
       // Send webhook notifications
-      if (newStatus === 'completed') {
+      if (newStatus === 'completed' || newStatus === 'verified') {
         await webhookService.sendWebhook(session.organization_id, 'verification.completed', {
           verification_session: updatedSession,
           verification_results: updatedSession.results

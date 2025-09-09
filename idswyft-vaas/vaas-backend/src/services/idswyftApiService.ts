@@ -287,11 +287,15 @@ export class IdswyftApiService {
       case 'processing':
         return 'processing';
       case 'completed':
-        return 'completed';
+        return 'completed'; // Legacy support
+      case 'verified':
+        return 'verified'; // Map verified status correctly for admin dashboard
       case 'failed':
         return 'failed';
       case 'expired':
         return 'expired';
+      case 'manual_review':
+        return 'manual_review';
       default:
         return 'pending';
     }
