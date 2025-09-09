@@ -102,6 +102,11 @@ class CustomerPortalAPI {
   async performLivenessCheck(sessionToken: string, livenessData: any): Promise<void> {
     await this.client.post(`/api/public/sessions/${sessionToken}/liveness`, livenessData);
   }
+
+  // Terminate verification session (make link inactive)
+  async terminateVerificationSession(sessionToken: string): Promise<void> {
+    await this.client.post(`/api/verifications/session/${sessionToken}/terminate`);
+  }
 }
 
 // Create and export a singleton instance

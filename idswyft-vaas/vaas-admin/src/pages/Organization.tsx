@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/api';
 import { Organization as OrgType, OrganizationSettings, OrganizationBranding } from '../types.js';
-import { Building2, Settings, CreditCard, Palette, Users, Save, AlertCircle, UserCog, Key } from 'lucide-react';
+import { Building2, Settings, CreditCard, Palette, Users, Save, AlertCircle, UserCog, Key, Database } from 'lucide-react';
 import AdminManagement from '../components/organization/AdminManagement';
 import UsageDashboard from '../components/organization/UsageDashboard';
 
@@ -12,7 +12,7 @@ export default function Organization() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'general' | 'billing' | 'branding' | 'settings' | 'api-keys' | 'admins'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'billing' | 'branding' | 'settings' | 'storage' | 'api-keys' | 'admins'>('general');
 
   useEffect(() => {
     if (organization) {
@@ -154,6 +154,18 @@ export default function Organization() {
           </button>
 
           <button
+            onClick={() => setActiveTab('storage')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'storage'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Database className="h-4 w-4 inline mr-2" />
+            Storage & Data
+          </button>
+
+          <button
             onClick={() => setActiveTab('api-keys')}
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'api-keys'
@@ -214,6 +226,13 @@ export default function Organization() {
           onSave={handleSaveSettings}
           isLoading={isLoading}
           canEdit={admin?.permissions.manage_settings || false}
+        />
+      )}
+
+      {activeTab === 'storage' && (
+        <StorageSettings
+          organizationId={orgData.id}
+          canManageStorage={admin?.permissions.manage_organization || false}
         />
       )}
 
@@ -1055,6 +1074,249 @@ function VerificationSettings({ settings, onSave, isLoading, canEdit }: Verifica
           </div>
         )}
       </form>
+    </div>
+  );
+}
+
+interface StorageSettingsProps {
+  organizationId: string;
+  canManageStorage: boolean;
+}
+
+function StorageSettings({ organizationId, canManageStorage }: StorageSettingsProps) {
+  const [storageConfig, setStorageConfig] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // Storage configuration state
+  const [storageType, setStorageType] = useState<'default' | 'supabase' | 's3' | 'gcs'>('default');
+  const [config, setConfig] = useState({
+    // Supabase Storage
+    supabase_url: '',
+    supabase_service_key: '',
+    supabase_bucket: '',
+    
+    // AWS S3
+    s3_region: '',
+    s3_bucket: '',
+    s3_access_key: '',
+    s3_secret_key: '',
+    
+    // Google Cloud Storage
+    gcs_bucket: '',
+    gcs_project_id: '',
+    gcs_key_file: '',
+    
+    // Data retention settings
+    retention_days: 365,
+    auto_delete_completed: false,
+    encryption_enabled: true
+  });
+
+  useEffect(() => {
+    fetchStorageConfig();
+  }, [organizationId]);
+
+  const fetchStorageConfig = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await apiClient.get(`/organizations/${organizationId}/storage-config`);
+      
+      if (response.data.success) {
+        const data = response.data.data;
+        setStorageConfig(data);
+        setStorageType(data.storage_type || 'default');
+        setConfig({ ...config, ...data.config });
+      }
+    } catch (err: any) {
+      // If no config exists yet, that's okay - use defaults
+      if (err.response?.status !== 404) {
+        console.error('Failed to fetch storage config:', err);
+        setError(err.message || 'Failed to fetch storage configuration');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canManageStorage) return;
+
+    setIsUpdating(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const payload = {
+        storage_type: storageType,
+        config: storageType === 'default' ? {} : config
+      };
+
+      const response = await apiClient.post(`/organizations/${organizationId}/storage-config`, payload);
+      
+      if (response.data.success) {
+        setSuccess('Storage configuration updated successfully');
+        await fetchStorageConfig();
+      } else {
+        throw new Error(response.data.error?.message || 'Failed to update storage configuration');
+      }
+    } catch (err: any) {
+      console.error('Failed to update storage config:', err);
+      setError(err.message || 'Failed to update storage configuration');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Success/Error Messages */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-4 flex items-center space-x-2">
+          <AlertCircle className="h-5 w-5 text-red-400" />
+          <span className="text-red-700">{error}</span>
+        </div>
+      )}
+
+      {success && (
+        <div className="bg-green-50 border border-green-200 rounded-md p-4">
+          <span className="text-green-700">{success}</span>
+        </div>
+      )}
+
+      {/* Storage Configuration Card */}
+      <div className="bg-white shadow rounded-lg">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h3 className="text-lg font-medium text-gray-900">Document Storage Configuration</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            Configure where identity documents are stored for data sovereignty and compliance
+          </p>
+        </div>
+        
+        <form onSubmit={handleSaveConfig} className="p-6 space-y-6">
+          {/* Storage Provider Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Storage Provider
+            </label>
+            <select
+              value={storageType}
+              onChange={(e) => setStorageType(e.target.value as any)}
+              disabled={!canManageStorage}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
+            >
+              <option value="default">Default (Idswyft Storage)</option>
+              <option value="supabase">Supabase Storage</option>
+              <option value="s3">Amazon S3</option>
+              <option value="gcs">Google Cloud Storage</option>
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Custom storage providers will be configured in the next phase
+            </p>
+          </div>
+
+          {/* Data Retention Settings */}
+          <div className="border-t border-gray-200 pt-6">
+            <h4 className="text-sm font-medium text-gray-900 mb-4">Data Retention & Security</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Retention Period (Days)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="2555" // ~7 years
+                  value={config.retention_days}
+                  onChange={(e) => setConfig({ ...config, retention_days: Number(e.target.value) })}
+                  disabled={!canManageStorage}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
+                />
+                <p className="text-xs text-gray-500 mt-1">Documents will be automatically deleted after this period</p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center">
+                  <input
+                    id="auto_delete_completed"
+                    type="checkbox"
+                    checked={config.auto_delete_completed}
+                    onChange={(e) => setConfig({ ...config, auto_delete_completed: e.target.checked })}
+                    disabled={!canManageStorage}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
+                  />
+                  <label htmlFor="auto_delete_completed" className="ml-2 block text-sm text-gray-900">
+                    Auto-delete completed verifications
+                  </label>
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    id="encryption_enabled"
+                    type="checkbox"
+                    checked={config.encryption_enabled}
+                    onChange={(e) => setConfig({ ...config, encryption_enabled: e.target.checked })}
+                    disabled={!canManageStorage}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
+                  />
+                  <label htmlFor="encryption_enabled" className="ml-2 block text-sm text-gray-900">
+                    Enable encryption at rest
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          {canManageStorage && (
+            <div className="flex justify-end pt-6 border-t border-gray-200">
+              <button
+                type="submit"
+                disabled={isUpdating}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {isUpdating ? 'Saving...' : 'Save Configuration'}
+              </button>
+            </div>
+          )}
+        </form>
+      </div>
+
+      {/* Information Card */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex">
+          <div className="flex-shrink-0">
+            <AlertCircle className="h-5 w-5 text-blue-400" />
+          </div>
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-blue-800">
+              About Custom Storage
+            </h3>
+            <div className="mt-2 text-sm text-blue-700">
+              <ul className="list-disc list-inside space-y-1">
+                <li>Custom storage allows you to store identity documents in your own cloud storage</li>
+                <li>This ensures data sovereignty and compliance with your organization's data policies</li>
+                <li>All documents are encrypted in transit and at rest (when enabled)</li>
+                <li>Storage credentials are encrypted and stored securely</li>
+                <li>Coming soon: Full configuration for Supabase, AWS S3, and Google Cloud Storage</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -289,6 +289,49 @@ class VerificationAPI {
 
     return await response.json();
   }
+
+  async captureLiveSelfie(
+    session: VerificationSession,
+    verificationId: string,
+    imageData: string,
+    onProgress?: (progress: number) => void
+  ): Promise<void> {
+    const apiKey = this.getApiKey(session);
+    
+    if (!apiKey) {
+      throw new Error('Organization API key not configured');
+    }
+
+    const useSandbox = this.shouldUseSandbox();
+    const url = new URL(`${API_BASE_URL}/api/verify/live-capture`);
+    if (useSandbox) {
+      url.searchParams.append('sandbox', 'true');
+    }
+
+    const requestBody = {
+      verification_id: verificationId,
+      live_image_data: imageData,
+      challenge_response: 'blink',
+      user_id: this.getUserId(session)
+    };
+
+    const response = await fetch(url.toString(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || errorData.message || 'Live capture failed');
+    }
+
+    // Simulate progress for now
+    onProgress?.(100);
+  }
 }
 
 export default new VerificationAPI();

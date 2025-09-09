@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 
 import config from './config/index.js';
 import { connectVaasDB } from './config/database.js';
+import { sessionExpirationService } from './services/sessionExpirationService.js';
 
 // Import routes
 console.log('📦 Importing route modules...');
@@ -342,6 +343,12 @@ const startVaasServer = async () => {
   try {
     // Test VaaS database connection
     await connectVaasDB();
+    
+    // Start session expiration background jobs
+    console.log('⏰ Starting session expiration service...');
+    sessionExpirationService.startExpirationJob(5); // Check every 5 minutes
+    sessionExpirationService.startCleanupJob(24, 30); // Clean up daily, 30-day retention
+    console.log('✅ Session expiration service started');
     
     // Start HTTP server
     const server = app.listen(config.port, () => {

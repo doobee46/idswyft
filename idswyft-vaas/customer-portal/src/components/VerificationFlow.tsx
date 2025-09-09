@@ -19,6 +19,7 @@ import customerPortalAPI from '../services/api';
 import verificationAPI from '../services/verificationApi';
 import { useOrganization } from '../contexts/OrganizationContext';
 import BrandedHeader from './BrandedHeader';
+import LiveCaptureComponent from './LiveCaptureComponent';
 
 
 interface VerificationFlowProps {
@@ -43,6 +44,7 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
   const [backOfIdUploaded, setBackOfIdUploaded] = useState(false);
   const [showLiveCapture, setShowLiveCapture] = useState(false);
   const [finalStatus, setFinalStatus] = useState<'verified' | 'manual_review' | 'pending' | null>(null);
+  const [sessionTerminated, setSessionTerminated] = useState(false);
   const [verificationId, setVerificationId] = useState<string | null>(null);
 
   // Organization context for branding
@@ -57,6 +59,15 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
     loadSession();
   }, [sessionToken]);
 
+  // Auto-terminate session when verification completes
+  useEffect(() => {
+    if (currentStep === 'complete' && finalStatus && !sessionTerminated) {
+      setTimeout(() => {
+        terminateSession();
+      }, 5000); // Wait 5 seconds before terminating to show results
+    }
+  }, [currentStep, finalStatus, sessionTerminated]);
+
   const loadSession = async () => {
     try {
       setLoading(true);
@@ -70,9 +81,12 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
       setOrganizationName(sessionData.organization?.name || 'Unknown Organization');
       
       // Determine starting step based on session status
-      if (sessionData.status === 'expired') {
+      if (sessionData.status === 'expired' || sessionData.status === 'terminated') {
         setCurrentStep('error');
-        setError('This verification session has expired. Please request a new verification link.');
+        setError(sessionData.status === 'terminated' 
+          ? 'This verification session has been completed and is no longer active.'
+          : 'This verification session has expired. Please request a new verification link.');
+        setSessionTerminated(true);
       } else if (sessionData.status === 'completed') {
         setCurrentStep('complete');
       } else if (sessionData.status === 'processing') {
@@ -84,6 +98,17 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
       
       if (error.response?.status === 404) {
         userMessage = 'Verification session not found. Please check your link or request a new one.';
+      } else if (error.response?.status === 410) {
+        // Check for specific expiration/termination codes
+        const errorCode = error.response?.data?.error?.code;
+        if (errorCode === 'SESSION_EXPIRED') {
+          userMessage = 'This verification session has expired. Please request a new verification link.';
+        } else if (errorCode === 'SESSION_TERMINATED') {
+          userMessage = error.response.data.error.message || 'This verification has been completed successfully. The session link is now inactive for security.';
+          setSessionTerminated(true);
+        } else {
+          userMessage = 'This verification session has expired. Please request a new verification link.';
+        }
       } else if (error.message.includes('No API key configured')) {
         userMessage = 'Verification service is not properly configured. Please contact support.';
       } else if (error.message.includes('Invalid API key')) {
@@ -172,24 +197,27 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
     }
   };
 
-  const handleSelfieCapture = async (file: File) => {
+  const handleSelfieCapture = async (imageData: string) => {
     if (!session || !verificationId) return;
 
     try {
-      await verificationAPI.captureSelfie(
+      setUploadProgress(0);
+      await verificationAPI.captureLiveSelfie(
         session,
         verificationId,
-        file,
+        imageData,
         (progress) => setUploadProgress(progress)
       );
 
-      setDocuments(prev => ({ ...prev, selfie: file }));
+      // Hide live capture interface
+      setShowLiveCapture(false);
       await submitVerification();
       setUploadProgress(0);
     } catch (error: any) {
       console.error('Failed to upload selfie:', error);
       setError(error.message || 'Failed to capture selfie. Please try again.');
       setUploadProgress(0);
+      setShowLiveCapture(false);
     }
   };
 
@@ -290,6 +318,22 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
     
     // Start polling immediately
     poll();
+  };
+
+  const terminateSession = async () => {
+    try {
+      console.log('Terminating session:', sessionToken);
+      await customerPortalAPI.terminateVerificationSession(sessionToken);
+      setSessionTerminated(true);
+      
+      // Show termination message and disable all interactions
+      setCurrentStep('error');
+      setError('This verification has been completed successfully. The session link is now inactive for security.');
+    } catch (error) {
+      console.error('Failed to terminate session:', error);
+      // Even if termination fails on the server, mark as terminated locally
+      setSessionTerminated(true);
+    }
   };
 
   const renderProgressBar = () => {
@@ -393,17 +437,28 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
           )}
 
           {currentStep === 'identity-verification' && (
-            <IdentityVerificationStep
-              session={session}
-              ocrData={ocrData}
-              backOfIdUploaded={backOfIdUploaded}
-              showLiveCapture={showLiveCapture}
-              onBackOfIdUpload={handleBackOfIdUpload}
-              onStartLiveCapture={() => setShowLiveCapture(true)}
-              onSelfieCapture={handleSelfieCapture}
-              onSkipLiveCapture={() => submitVerification()}
-              uploadProgress={uploadProgress}
-            />
+            <>
+              {!showLiveCapture && (
+                <IdentityVerificationStep
+                  session={session}
+                  ocrData={ocrData}
+                  backOfIdUploaded={backOfIdUploaded}
+                  showLiveCapture={showLiveCapture}
+                  onBackOfIdUpload={handleBackOfIdUpload}
+                  onStartLiveCapture={() => setShowLiveCapture(true)}
+                  onSelfieCapture={handleSelfieCapture}
+                  uploadProgress={uploadProgress}
+                />
+              )}
+              
+              {showLiveCapture && (
+                <LiveCaptureComponent
+                  onCapture={handleSelfieCapture}
+                  onCancel={() => setShowLiveCapture(false)}
+                  isLoading={uploadProgress > 0}
+                />
+              )}
+            </>
           )}
 
           {currentStep === 'complete' && (
@@ -611,7 +666,7 @@ const DocumentProcessingStep: React.FC = () => (
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
     </div>
     <p className="text-gray-600">
-      We're extracting information from your document using OCR. This may take a few moments...
+      We're extracting information from your document using OCR and PDF417 barcode scanning. This may take a few moments...
     </p>
   </div>
 );
@@ -624,7 +679,6 @@ const IdentityVerificationStep: React.FC<{
   onBackOfIdUpload: (file: File) => void;
   onStartLiveCapture: () => void;
   onSelfieCapture: (file: File) => void;
-  onSkipLiveCapture: () => void;
   uploadProgress: number;
 }> = ({ 
   session, 
@@ -634,7 +688,6 @@ const IdentityVerificationStep: React.FC<{
   onBackOfIdUpload, 
   onStartLiveCapture,
   onSelfieCapture,
-  onSkipLiveCapture,
   uploadProgress 
 }) => {
   const backInputRef = useRef<HTMLInputElement>(null);
@@ -709,60 +762,43 @@ const IdentityVerificationStep: React.FC<{
       {backOfIdUploaded && (
         <div className="mb-8 bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-center space-x-2 text-green-800">
-            <CheckCircle className="w-5 h-5" />
+            <CheckCircle className="w-5 w-5" />
             <span className="font-medium">Enhanced Verification Complete</span>
           </div>
           <p className="mt-1 text-green-700 text-sm">
-            Back-of-ID successfully processed.
+            Back-of-ID successfully processed with PDF417 barcode scanning, QR code detection, and cross-validation against front-of-ID data.
           </p>
         </div>
       )}
 
-      {/* Live Capture or Selfie Upload */}
-      {(!session.verification_settings.require_back_of_id || backOfIdUploaded) && (
+      {/* Live Capture or Selfie Upload - Only show after back-of-ID is uploaded */}
+      {backOfIdUploaded && (
         <div className="text-center">
           <h3 className="text-lg font-semibold mb-4">Identity Verification</h3>
           <p className="text-gray-600 mb-6">
-            Now we need to verify that you're the person in the document.
+            Now we need to verify that you're the person in the document using live capture with liveness detection.
           </p>
           
           <div className="space-y-4">
-            {session.verification_settings.require_liveness ? (
-              <>
-                <button
-                  onClick={onStartLiveCapture}
-                  className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
-                >
-                  <Camera className="h-5 w-5" />
-                  <span>Start Live Capture</span>
-                </button>
-                
-                <button
-                  onClick={onSkipLiveCapture}
-                  className="w-full bg-gray-300 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-400 transition-colors"
-                >
-                  Skip Live Capture (Complete Verification)
-                </button>
-              </>
-            ) : (
-              <div>
-                <button
-                  onClick={() => selfieInputRef.current?.click()}
-                  className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
-                >
-                  <User className="h-5 w-5" />
-                  <span>Take Selfie</span>
-                </button>
-                <input
-                  ref={selfieInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="user"
-                  onChange={handleSelfieSelect}
-                  className="hidden"
-                />
+            <button
+              onClick={onStartLiveCapture}
+              className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
+            >
+              <Camera className="h-5 w-5" />
+              <span>Start Live Capture with Liveness Detection</span>
+            </button>
+            
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm">
+              <div className="flex items-center space-x-2 text-yellow-800">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L4.35 15.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <span className="font-medium">Liveness Detection Required</span>
               </div>
-            )}
+              <p className="mt-1 text-yellow-700">
+                Live capture with liveness detection is mandatory for enterprise verification security. This ensures you are a real person and not a photo or video.
+              </p>
+            </div>
           </div>
         </div>
       )}
@@ -779,6 +815,21 @@ const IdentityVerificationStep: React.FC<{
               style={{ width: `${uploadProgress}%` }}
             />
           </div>
+        </div>
+      )}
+
+      {/* Instructions when back-of-ID is not uploaded yet */}
+      {!backOfIdUploaded && (
+        <div className="text-center bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <div className="text-blue-600 mb-2">
+            <svg className="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold text-blue-900 mb-2">Next Step: Upload Back-of-ID</h3>
+          <p className="text-blue-700 text-sm">
+            Please upload the back of your ID above for enhanced verification with PDF417 barcode scanning before proceeding to live capture with liveness detection.
+          </p>
         </div>
       )}
     </div>
@@ -847,6 +898,11 @@ const CompleteStep: React.FC<{ finalStatus: string | null; session: Verification
             "We'll keep you updated on the progress of your verification."
           )}
         </p>
+        <div className="mt-3 pt-3 border-t border-gray-200">
+          <p className="text-xs text-gray-500">
+            <strong>Security Notice:</strong> This verification link will automatically become inactive after 5 seconds for security purposes. You may safely close this window.
+          </p>
+        </div>
       </div>
     </div>
   );

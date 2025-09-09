@@ -455,6 +455,19 @@ router.get('/session/:token', async (req, res) => {
       return res.status(410).json(response);
     }
     
+    // Check if session is terminated
+    if (session.status === 'terminated') {
+      const response: VaasApiResponse = {
+        success: false,
+        error: {
+          code: 'SESSION_TERMINATED',
+          message: 'This verification has been completed successfully. The session link is now inactive for security.'
+        }
+      };
+      
+      return res.status(410).json(response);
+    }
+    
     // Format response for customer portal
     const organization = (session.vaas_organizations as any);
     const endUser = (session.vaas_end_users as any);
@@ -493,6 +506,94 @@ router.get('/session/:token', async (req, res) => {
       error: {
         code: 'GET_SESSION_FAILED',
         message: 'Failed to retrieve verification session'
+      }
+    };
+    
+    res.status(500).json(response);
+  }
+});
+
+// Terminate verification session (public endpoint for customer portal)
+router.post('/session/:token/terminate', async (req, res) => {
+  try {
+    const { token } = req.params;
+    
+    if (!token) {
+      const response: VaasApiResponse = {
+        success: false,
+        error: {
+          code: 'INVALID_TOKEN',
+          message: 'Session token is required'
+        }
+      };
+      
+      return res.status(400).json(response);
+    }
+    
+    // Find and terminate the session
+    const { data: session, error: findError } = await vaasSupabase
+      .from('vaas_verification_sessions')
+      .select('id, status, organization_id')
+      .eq('session_token', token)
+      .single();
+      
+    if (findError || !session) {
+      const response: VaasApiResponse = {
+        success: false,
+        error: {
+          code: 'SESSION_NOT_FOUND',
+          message: 'Invalid verification session'
+        }
+      };
+      
+      return res.status(404).json(response);
+    }
+    
+    // Only allow termination of completed sessions
+    if (session.status !== 'completed' && session.status !== 'failed') {
+      const response: VaasApiResponse = {
+        success: false,
+        error: {
+          code: 'INVALID_SESSION_STATUS',
+          message: 'Only completed or failed sessions can be terminated'
+        }
+      };
+      
+      return res.status(400).json(response);
+    }
+    
+    // Update session to terminated status
+    const { error: updateError } = await vaasSupabase
+      .from('vaas_verification_sessions')
+      .update({
+        status: 'terminated',
+        terminated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', session.id);
+      
+    if (updateError) {
+      throw new Error('Failed to terminate session');
+    }
+    
+    console.log(`[VerificationRoutes] Session ${token} terminated successfully`);
+    
+    const response: VaasApiResponse = {
+      success: true,
+      data: {
+        message: 'Verification session terminated successfully'
+      }
+    };
+    
+    res.json(response);
+  } catch (error: any) {
+    console.error('[VerificationRoutes] Terminate session failed:', error);
+    
+    const response: VaasApiResponse = {
+      success: false,
+      error: {
+        code: 'TERMINATE_SESSION_FAILED',
+        message: 'Failed to terminate verification session'
       }
     };
     
