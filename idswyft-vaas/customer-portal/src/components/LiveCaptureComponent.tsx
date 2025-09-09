@@ -268,6 +268,7 @@ const LiveCaptureComponent: React.FC<LiveCaptureComponentProps> = ({
         if (canvas.width !== canvasWidth || canvas.height !== canvasHeight) {
           canvas.width = canvasWidth;
           canvas.height = canvasHeight;
+          console.log(`📐 Canvas resized to: ${canvasWidth}x${canvasHeight} (video client: ${displayWidth}x${displayHeight})`);
         }
         
         // Clear canvas
@@ -278,13 +279,32 @@ const LiveCaptureComponent: React.FC<LiveCaptureComponentProps> = ({
         const centerY = canvas.height / 2;
         const radius = Math.min(canvas.width, canvas.height) * 0.3;
         
-        ctx.strokeStyle = '#0066ff';
-        ctx.lineWidth = 6;
-        ctx.setLineDash([15, 10]);
+        // Debug: Log canvas dimensions and drawing
+        if (Math.random() < 0.01) { // Log occasionally to avoid spam
+          console.log(`🎨 Drawing circle: canvas=${canvas.width}x${canvas.height}, center=(${centerX}, ${centerY}), radius=${radius}`);
+        }
+        
+        // Test: Draw a visible border to confirm canvas is working
+        ctx.strokeStyle = '#ff0000';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
+        
+        // Draw solid blue circle outline
+        ctx.strokeStyle = '#3b82f6'; // Bright blue color
+        ctx.lineWidth = 4;
+        ctx.setLineDash([20, 10]); // Larger dashes for better visibility
+        ctx.lineDashOffset = 0;
         ctx.beginPath();
         ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
         ctx.stroke();
-        ctx.setLineDash([]);
+        
+        // Add a solid inner circle for better visibility
+        ctx.setLineDash([]); // Remove dashes
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius - 5, 0, 2 * Math.PI);
+        ctx.stroke();
         
         // Add instruction text background
         ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
