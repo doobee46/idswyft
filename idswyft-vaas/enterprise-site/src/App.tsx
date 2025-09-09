@@ -74,43 +74,50 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100/50">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
+      {/* Floating Pill Header */}
+      <nav className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-4xl px-6">
+        <div className="bg-white/90 backdrop-blur-xl rounded-full border border-white/20 shadow-2xl shadow-black/10 px-6 py-4">
+          <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25">
-                <Shield className="h-5 w-5 text-white" />
+              <div className="w-9 h-9 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
+                <Shield className="h-4 w-4 text-white" />
               </div>
-              <div>
-                <span className="text-gray-900 text-xl font-bold">Idswyft VaaS</span>
-                <div className="text-xs text-gray-500 font-medium">Identity Verification</div>
+              <div className="hidden sm:block">
+                <span className="text-gray-900 text-lg font-bold">Idswyft VaaS</span>
               </div>
             </div>
-            <div className="hidden lg:flex items-center space-x-10">
-              <a href="#features" className="text-gray-700 hover:text-gray-900 transition-colors font-medium text-sm">Features</a>
-              <a href="#pricing" className="text-gray-700 hover:text-gray-900 transition-colors font-medium text-sm">Pricing</a>
-              <a href="#api" className="text-gray-700 hover:text-gray-900 transition-colors font-medium text-sm">API</a>
-              <a href="https://docs.idswyft.com" target="_blank" className="text-gray-700 hover:text-gray-900 transition-colors font-medium text-sm">Documentation</a>
+            
+            <div className="hidden lg:flex items-center space-x-8">
+              <a href="#features" className="text-gray-600 hover:text-gray-900 transition-colors font-medium text-sm hover:scale-105 transform transition-transform">Features</a>
+              <a href="#pricing" className="text-gray-600 hover:text-gray-900 transition-colors font-medium text-sm hover:scale-105 transform transition-transform">Pricing</a>
+              <a href="#api" className="text-gray-600 hover:text-gray-900 transition-colors font-medium text-sm hover:scale-105 transform transition-transform">Solutions</a>
+              <a href="https://docs.idswyft.com" target="_blank" className="text-gray-600 hover:text-gray-900 transition-colors font-medium text-sm hover:scale-105 transform transition-transform">Docs</a>
+            </div>
+            
+            <div className="flex items-center space-x-3">
               <button
                 onClick={() => setShowSignupForm(true)}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-7 py-3 rounded-2xl font-semibold text-sm hover:shadow-xl hover:shadow-blue-500/25 hover:scale-105 transition-all duration-300 ease-out"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2.5 rounded-full font-semibold text-sm hover:shadow-lg hover:shadow-blue-500/25 hover:scale-105 transition-all duration-300 ease-out"
               >
-                Start Free Trial
+                <span className="hidden sm:inline">Start Free Trial</span>
+                <span className="sm:hidden">Trial</span>
+              </button>
+              
+              {/* Mobile menu button */}
+              <button className="lg:hidden w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors flex items-center justify-center">
+                <div className="w-4 h-4 flex flex-col justify-between">
+                  <div className="w-4 h-0.5 bg-gray-600 rounded"></div>
+                  <div className="w-4 h-0.5 bg-gray-600 rounded"></div>
+                  <div className="w-4 h-0.5 bg-gray-600 rounded"></div>
+                </div>
               </button>
             </div>
-            <button
-              onClick={() => setShowSignupForm(true)}
-              className="lg:hidden bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2.5 rounded-xl font-semibold text-sm"
-            >
-              Get Started
-            </button>
           </div>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="relative py-24 lg:py-32 overflow-hidden">
+      <section className="relative pt-32 pb-24 lg:pt-40 lg:pb-32 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50"></div>
         <div className="absolute top-10 left-10 w-72 h-72 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl"></div>
         <div className="absolute bottom-10 right-10 w-96 h-96 bg-gradient-to-br from-pink-400/20 to-orange-400/20 rounded-full blur-3xl"></div>
