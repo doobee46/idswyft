@@ -185,7 +185,7 @@ class VerificationAPI {
 
     const formData = new FormData();
     formData.append('verification_id', verificationId);
-    formData.append('back_document', file);
+    formData.append('back_of_id', file);
     formData.append('user_id', this.getUserId(session));
 
     const useSandbox = this.shouldUseSandbox();
