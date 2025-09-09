@@ -124,7 +124,7 @@ export interface VaasVerificationSession {
   end_user_id: string;
   idswyft_verification_id: string; // Links to main Idswyft API
   idswyft_user_id: string;
-  status: 'pending' | 'document_uploaded' | 'processing' | 'completed' | 'failed' | 'expired';
+  status: 'pending' | 'document_uploaded' | 'processing' | 'completed' | 'verified' | 'failed' | 'expired' | 'manual_review' | 'terminated';
   results: VaasVerificationResults;
   confidence_score?: number;
   ip_address?: string;
