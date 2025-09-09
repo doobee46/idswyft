@@ -446,7 +446,6 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
                   showLiveCapture={showLiveCapture}
                   onBackOfIdUpload={handleBackOfIdUpload}
                   onStartLiveCapture={() => setShowLiveCapture(true)}
-                  onSelfieCapture={handleSelfieCapture}
                   uploadProgress={uploadProgress}
                 />
               )}
@@ -678,7 +677,6 @@ const IdentityVerificationStep: React.FC<{
   showLiveCapture: boolean;
   onBackOfIdUpload: (file: File) => void;
   onStartLiveCapture: () => void;
-  onSelfieCapture: (file: File) => void;
   uploadProgress: number;
 }> = ({ 
   session, 
@@ -687,23 +685,14 @@ const IdentityVerificationStep: React.FC<{
   showLiveCapture, 
   onBackOfIdUpload, 
   onStartLiveCapture,
-  onSelfieCapture,
   uploadProgress 
 }) => {
   const backInputRef = useRef<HTMLInputElement>(null);
-  const selfieInputRef = useRef<HTMLInputElement>(null);
 
   const handleBackOfIdSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       onBackOfIdUpload(file);
-    }
-  };
-
-  const handleSelfieSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      onSelfieCapture(file);
     }
   };
 

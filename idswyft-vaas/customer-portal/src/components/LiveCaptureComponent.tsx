@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  CameraIcon,
-  ExclamationTriangleIcon,
-  XMarkIcon,
-  EyeIcon,
-} from '@heroicons/react/24/outline';
+  Camera,
+  AlertTriangle,
+  X,
+  Eye,
+  CheckCircle,
+  Loader2
+} from 'lucide-react';
 
 // OpenCV types
 declare global {
@@ -418,14 +420,14 @@ const LiveCaptureComponent: React.FC<LiveCaptureComponentProps> = ({
           }}
           className="text-gray-500 hover:text-gray-700"
         >
-          <XMarkIcon className="h-5 w-5" />
+          <X className="h-5 w-5" />
         </button>
       </div>
 
       <div className="space-y-4">
         {cameraState === 'prompt' && (
           <div className="text-center py-8">
-            <CameraIcon className="h-12 w-12 mx-auto text-blue-600 mb-4" />
+            <Camera className="h-12 w-12 mx-auto text-blue-600 mb-4" />
             <h4 className="text-lg font-semibold mb-2">Ready for Live Capture</h4>
             <p className="text-gray-600 mb-6">
               We'll use your camera to take a selfie for identity verification with liveness detection.
@@ -483,7 +485,7 @@ const LiveCaptureComponent: React.FC<LiveCaptureComponentProps> = ({
                     ? 'bg-green-500 text-white' 
                     : 'bg-red-500 text-white'
                 }`}>
-                  <EyeIcon className="h-4 w-4" />
+                  <Eye className="h-4 w-4" />
                   <span>{faceDetected ? 'Face Detected' : 'No Face'}</span>
                 </div>
               </div>
@@ -529,7 +531,7 @@ const LiveCaptureComponent: React.FC<LiveCaptureComponentProps> = ({
 
         {cameraState === 'error' && (
           <div className="text-center py-8">
-            <ExclamationTriangleIcon className="h-12 w-12 mx-auto text-red-600 mb-4" />
+            <AlertTriangle className="h-12 w-12 mx-auto text-red-600 mb-4" />
             <h4 className="text-lg font-semibold mb-2 text-red-600">Camera Error</h4>
             <p className="text-gray-600 mb-6">
               Unable to access your camera. Please check permissions and try again.
