@@ -254,12 +254,10 @@ const LiveCaptureComponent: React.FC<LiveCaptureComponentProps> = ({
         return;
       }
       
-      console.log('🔍 FACE DETECTION LOOP RUNNING:', {
-        cameraState,
-        hasVideo: !!videoElementRef.current,
-        hasCanvas: !!canvasRef.current,
-        videoReady: videoElementRef.current?.readyState >= 2
-      });
+      // Optional: Light logging for debugging
+      if (Math.random() < 0.01) {
+        console.log('🔍 Face detection active');
+      }
       
       try {
         const video = videoElementRef.current;
@@ -289,59 +287,42 @@ const LiveCaptureComponent: React.FC<LiveCaptureComponentProps> = ({
           console.log(`📐 Canvas resized to: ${canvasWidth}x${canvasHeight} (video client: ${displayWidth}x${displayHeight})`);
         }
         
-        // Clear canvas with debug background
+        // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Debug: Fill with semi-transparent background to confirm canvas is working
-        ctx.fillStyle = 'rgba(0, 255, 0, 0.1)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
         
         // Draw circular guide overlay (matching demo implementation)
         const centerX = canvas.width / 2;
         const centerY = canvas.height / 2;
         const radius = Math.min(canvas.width, canvas.height) * 0.3;
         
-        // Debug log canvas drawing - more frequent logging
-        if (Math.random() < 0.2) {
-          console.log('🎨 CANVAS DRAWING:', {
-            canvasSize: `${canvas.width}x${canvas.height}`,
-            center: `(${centerX}, ${centerY})`,
-            radius,
-            hasContext: !!ctx,
-            cameraState,
-            timestamp: Date.now()
-          });
-        }
+        // Ensure proper canvas drawing state
+        ctx.save();
         
-        // Draw a large, obvious test rectangle first
-        ctx.strokeStyle = '#ff0000';
-        ctx.lineWidth = 8;
-        ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
-        
-        // Draw the blue circle
+        // Draw the blue dashed circle (main guide)
         ctx.strokeStyle = '#0066ff';
         ctx.lineWidth = 6;
         ctx.setLineDash([15, 10]);
+        ctx.globalAlpha = 0.9;
         ctx.beginPath();
         ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
         ctx.stroke();
-        ctx.setLineDash([]);
         
-        // Draw a solid test circle to confirm drawing works
-        ctx.strokeStyle = '#00ff00';
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius - 20, 0, 2 * Math.PI);
-        ctx.stroke();
+        // Reset line dash and alpha
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1.0;
         
         // Add instruction text background
         ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        ctx.fillRect(10, 10, 320, 40);
+        ctx.fillRect(10, 10, Math.min(320, canvas.width - 20), 40);
         
         // Add instruction text
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 16px Arial';
-        ctx.fillText('Position your face in the blue circle', 20, 30);
+        ctx.textAlign = 'left';
+        ctx.fillText('Position your face in the blue circle', 20, 35);
+        
+        // Restore canvas state
+        ctx.restore();
         
         // Face detection logic (simplified from demo)
         let faceCount = 0;
@@ -436,14 +417,9 @@ const LiveCaptureComponent: React.FC<LiveCaptureComponentProps> = ({
             const hasFaceFeatures = skinToneRatio > 0.02 && avgBrightness > 30 && avgBrightness < 240;
             faceCount = hasFaceFeatures ? 1 : 0;
             
-            if (Math.random() < 0.1) { // More frequent logging
-              console.log('🔍 FACE DETECTION RESULT:', { 
-                faceCount, 
-                skinToneRatio: skinToneRatio.toFixed(3), 
-                avgBrightness: avgBrightness.toFixed(1),
-                hasFaceFeatures,
-                faceRegionSize: Math.round(faceRegionSize)
-              });
+            // Optional: Reduced logging for production
+            if (Math.random() < 0.02) {
+              console.log('🔍 Face detection:', { faceCount, hasFaceFeatures });
             }
             
             if (faceCount > 0) {
@@ -484,9 +460,6 @@ const LiveCaptureComponent: React.FC<LiveCaptureComponentProps> = ({
       }
       
       // Continue the animation loop
-      if (Math.random() < 0.05) {
-        console.log('🔄 Continuing face detection loop...');
-      }
       animationRef.current = requestAnimationFrame(detectFaces);
     };
     
@@ -598,10 +571,10 @@ const LiveCaptureComponent: React.FC<LiveCaptureComponentProps> = ({
                 className="absolute top-0 left-0 w-full h-full pointer-events-none"
                 style={{ 
                   display: 'block',
-                  backgroundColor: 'rgba(255, 255, 0, 0.1)', // Slight yellow tint to debug visibility
-                  zIndex: 20,
+                  backgroundColor: 'transparent',
+                  zIndex: 30,
                   position: 'absolute',
-                  border: '2px solid red' // Debug border to confirm canvas position
+                  mixBlendMode: 'normal'
                 }}
               />
               
