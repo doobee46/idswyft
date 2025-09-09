@@ -175,6 +175,7 @@ class VerificationAPI {
     session: VerificationSession,
     verificationId: string, 
     file: File,
+    documentType: string,
     onProgress?: (progress: number) => void
   ): Promise<void> {
     const apiKey = this.getApiKey(session);
@@ -186,6 +187,7 @@ class VerificationAPI {
     const formData = new FormData();
     formData.append('verification_id', verificationId);
     formData.append('back_of_id', file);
+    formData.append('document_type', documentType);
     formData.append('user_id', this.getUserId(session));
 
     const useSandbox = this.shouldUseSandbox();

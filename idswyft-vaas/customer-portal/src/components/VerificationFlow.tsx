@@ -158,6 +158,7 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
         session,
         verificationId,
         file,
+        documentType,
         (progress) => setUploadProgress(progress)
       );
 
