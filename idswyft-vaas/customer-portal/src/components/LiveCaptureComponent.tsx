@@ -226,10 +226,16 @@ const LiveCaptureComponent: React.FC<LiveCaptureComponentProps> = ({
 
   // Start face detection loop
   const startFaceDetection = () => {
-    console.log('🔍 Starting face detection...');
+    console.log('🔍 STARTING FACE DETECTION - DEBUG MODE');
+    console.log('🔍 Elements check:', {
+      hasVideo: !!videoElementRef.current,
+      hasCanvas: !!canvasRef.current,
+      cameraState,
+      videoSize: videoElementRef.current ? `${videoElementRef.current.videoWidth}x${videoElementRef.current.videoHeight}` : 'N/A'
+    });
 
     if (!videoElementRef.current || !canvasRef.current) {
-      console.warn('Missing video or canvas element for face detection, retrying...');
+      console.warn('🚨 Missing video or canvas element for face detection, retrying...');
       setTimeout(() => {
         if (cameraState === 'ready' && videoElementRef.current && canvasRef.current) {
           startFaceDetection();
@@ -271,14 +277,34 @@ const LiveCaptureComponent: React.FC<LiveCaptureComponentProps> = ({
           console.log(`📐 Canvas resized to: ${canvasWidth}x${canvasHeight} (video client: ${displayWidth}x${displayHeight})`);
         }
         
-        // Clear canvas
+        // Clear canvas with debug background
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Debug: Fill with semi-transparent background to confirm canvas is working
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.1)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         
         // Draw circular guide overlay (matching demo implementation)
         const centerX = canvas.width / 2;
         const centerY = canvas.height / 2;
         const radius = Math.min(canvas.width, canvas.height) * 0.3;
         
+        // Debug log canvas drawing
+        if (Math.random() < 0.05) {
+          console.log('🎨 CANVAS DEBUG:', {
+            canvasSize: `${canvas.width}x${canvas.height}`,
+            center: `(${centerX}, ${centerY})`,
+            radius,
+            hasContext: !!ctx
+          });
+        }
+        
+        // Draw a large, obvious test rectangle first
+        ctx.strokeStyle = '#ff0000';
+        ctx.lineWidth = 8;
+        ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+        
+        // Draw the blue circle
         ctx.strokeStyle = '#0066ff';
         ctx.lineWidth = 6;
         ctx.setLineDash([15, 10]);
@@ -286,6 +312,13 @@ const LiveCaptureComponent: React.FC<LiveCaptureComponentProps> = ({
         ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
         ctx.stroke();
         ctx.setLineDash([]);
+        
+        // Draw a solid test circle to confirm drawing works
+        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius - 20, 0, 2 * Math.PI);
+        ctx.stroke();
         
         // Add instruction text background
         ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
@@ -547,9 +580,10 @@ const LiveCaptureComponent: React.FC<LiveCaptureComponentProps> = ({
                 className="absolute top-0 left-0 w-full h-full pointer-events-none"
                 style={{ 
                   display: 'block',
-                  backgroundColor: 'transparent',
+                  backgroundColor: 'rgba(255, 255, 0, 0.1)', // Slight yellow tint to debug visibility
                   zIndex: 20,
-                  position: 'absolute'
+                  position: 'absolute',
+                  border: '2px solid red' // Debug border to confirm canvas position
                 }}
               />
               
