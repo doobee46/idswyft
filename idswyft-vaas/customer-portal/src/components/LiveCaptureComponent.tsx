@@ -290,19 +290,19 @@ const LiveCaptureComponent: React.FC<LiveCaptureComponentProps> = ({
         // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // Draw circular guide overlay (matching demo implementation)
+        // Draw circular guide overlay (smaller and more subtle)
         const centerX = canvas.width / 2;
         const centerY = canvas.height / 2;
-        const radius = Math.min(canvas.width, canvas.height) * 0.3;
+        const radius = Math.min(canvas.width, canvas.height) * 0.22; // Reduced from 0.3 to 0.22
         
         // Ensure proper canvas drawing state
         ctx.save();
         
-        // Draw the blue dashed circle (main guide)
+        // Draw the blue dashed circle (main guide) - smaller and more transparent
         ctx.strokeStyle = '#0066ff';
-        ctx.lineWidth = 6;
-        ctx.setLineDash([15, 10]);
-        ctx.globalAlpha = 0.9;
+        ctx.lineWidth = 3; // Reduced from 6 to 3
+        ctx.setLineDash([12, 8]); // Slightly smaller dashes
+        ctx.globalAlpha = 0.6; // More transparent (was 0.9, now 0.6)
         ctx.beginPath();
         ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
         ctx.stroke();
@@ -311,15 +311,16 @@ const LiveCaptureComponent: React.FC<LiveCaptureComponentProps> = ({
         ctx.setLineDash([]);
         ctx.globalAlpha = 1.0;
         
-        // Add instruction text background
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        ctx.fillRect(10, 10, Math.min(320, canvas.width - 20), 40);
+        // Add instruction text background (smaller and more transparent)
+        const textWidth = Math.min(280, canvas.width - 20);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; // More transparent background
+        ctx.fillRect(10, 10, textWidth, 32); // Smaller height
         
-        // Add instruction text
+        // Add instruction text (smaller font)
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 16px Arial';
+        ctx.font = 'bold 14px Arial'; // Reduced from 16px to 14px
         ctx.textAlign = 'left';
-        ctx.fillText('Position your face in the blue circle', 20, 35);
+        ctx.fillText('Position your face in the circle', 15, 30); // Shorter text
         
         // Restore canvas state
         ctx.restore();
@@ -423,14 +424,13 @@ const LiveCaptureComponent: React.FC<LiveCaptureComponentProps> = ({
             }
             
             if (faceCount > 0) {
-              // Draw simple detection indicator in center area
-              const detectionSize = radius * 0.8;
+              // Draw subtle detection indicator
+              const detectionSize = radius * 0.6; // Smaller detection area
               ctx.strokeStyle = '#00ff00';
-              ctx.lineWidth = 4;
+              ctx.lineWidth = 2; // Thinner line
+              ctx.globalAlpha = 0.5; // More transparent
               ctx.strokeRect(centerX - detectionSize/2, centerY - detectionSize/2, detectionSize, detectionSize);
-              ctx.fillStyle = '#00ff00';
-              ctx.font = 'bold 16px Arial';
-              ctx.fillText('FACE DETECTED', centerX - detectionSize/2, centerY - detectionSize/2 - 15);
+              ctx.globalAlpha = 1.0; // Reset alpha
             }
           } catch (fallbackError) {
             console.warn('Fallback face detection error:', fallbackError);
