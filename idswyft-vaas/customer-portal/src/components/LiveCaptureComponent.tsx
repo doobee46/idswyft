@@ -245,9 +245,21 @@ const LiveCaptureComponent: React.FC<LiveCaptureComponentProps> = ({
     }
 
     const detectFaces = () => {
-      if (!videoElementRef.current || !canvasRef.current || cameraState !== 'ready') {
+      // Only check for essential elements, not camera state
+      if (!videoElementRef.current || !canvasRef.current) {
+        console.warn('🚨 detectFaces: Missing elements, retrying...');
+        if (animationRef.current) {
+          animationRef.current = requestAnimationFrame(detectFaces);
+        }
         return;
       }
+      
+      console.log('🔍 FACE DETECTION LOOP RUNNING:', {
+        cameraState,
+        hasVideo: !!videoElementRef.current,
+        hasCanvas: !!canvasRef.current,
+        videoReady: videoElementRef.current?.readyState >= 2
+      });
       
       try {
         const video = videoElementRef.current;
@@ -289,13 +301,15 @@ const LiveCaptureComponent: React.FC<LiveCaptureComponentProps> = ({
         const centerY = canvas.height / 2;
         const radius = Math.min(canvas.width, canvas.height) * 0.3;
         
-        // Debug log canvas drawing
-        if (Math.random() < 0.05) {
-          console.log('🎨 CANVAS DEBUG:', {
+        // Debug log canvas drawing - more frequent logging
+        if (Math.random() < 0.2) {
+          console.log('🎨 CANVAS DRAWING:', {
             canvasSize: `${canvas.width}x${canvas.height}`,
             center: `(${centerX}, ${centerY})`,
             radius,
-            hasContext: !!ctx
+            hasContext: !!ctx,
+            cameraState,
+            timestamp: Date.now()
           });
         }
         
@@ -422,12 +436,13 @@ const LiveCaptureComponent: React.FC<LiveCaptureComponentProps> = ({
             const hasFaceFeatures = skinToneRatio > 0.02 && avgBrightness > 30 && avgBrightness < 240;
             faceCount = hasFaceFeatures ? 1 : 0;
             
-            if (Math.random() < 0.05) { // Log occasionally
-              console.log('🔍 FALLBACK Face detection:', { 
+            if (Math.random() < 0.1) { // More frequent logging
+              console.log('🔍 FACE DETECTION RESULT:', { 
                 faceCount, 
                 skinToneRatio: skinToneRatio.toFixed(3), 
                 avgBrightness: avgBrightness.toFixed(1),
-                hasFaceFeatures
+                hasFaceFeatures,
+                faceRegionSize: Math.round(faceRegionSize)
               });
             }
             
@@ -469,6 +484,9 @@ const LiveCaptureComponent: React.FC<LiveCaptureComponentProps> = ({
       }
       
       // Continue the animation loop
+      if (Math.random() < 0.05) {
+        console.log('🔄 Continuing face detection loop...');
+      }
       animationRef.current = requestAnimationFrame(detectFaces);
     };
     
