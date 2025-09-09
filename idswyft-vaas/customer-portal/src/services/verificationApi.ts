@@ -63,8 +63,8 @@ class VerificationAPI {
   }
 
   private getUserId(session: VerificationSession): string {
-    // Generate or get user ID - could be based on session ID or user email
-    return session.user?.email || session.id;
+    // Use session ID as user_id since the main API requires a valid UUID
+    return session.id;
   }
 
   private shouldUseSandbox(): boolean {
