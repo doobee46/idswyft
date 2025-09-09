@@ -9,7 +9,7 @@ interface StartVerificationResponse {
 
 interface VerificationResults {
   verification_id: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed' | 'manual_review';
+  status: 'pending' | 'processing' | 'completed' | 'verified' | 'failed' | 'manual_review';
   confidence_score?: number;
   ocr_data?: {
     full_name?: string;
