@@ -141,7 +141,7 @@ export interface VerificationSession {
   end_user_id: string;
   idswyft_verification_id: string;
   idswyft_user_id: string;
-  status: 'pending' | 'document_uploaded' | 'processing' | 'completed' | 'failed' | 'expired';
+  status: 'pending' | 'document_uploaded' | 'processing' | 'completed' | 'verified' | 'failed' | 'expired' | 'manual_review';
   session_token?: string;
   expires_at?: string;
   results: VerificationResults;

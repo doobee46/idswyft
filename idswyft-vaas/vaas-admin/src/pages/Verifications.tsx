@@ -472,6 +472,7 @@ function VerificationDetailsModal({ verification, onClose, onStatusUpdate }: Ver
   const [reason, setReason] = useState('');
   const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'overview' | 'scores' | 'analysis' | 'raw'>('overview');
 
   useEffect(() => {
     loadVerificationDetails();
@@ -494,127 +495,454 @@ function VerificationDetailsModal({ verification, onClose, onStatusUpdate }: Ver
     onClose();
   };
 
+  // Helper functions for score analysis
+  const getScoreColor = (score: number, threshold: number) => {
+    if (score >= threshold) return 'text-green-600';
+    if (score >= threshold - 0.1) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  const getScoreStatus = (score: number, threshold: number) => {
+    return score >= threshold ? '✅ PASS' : '❌ FAIL';
+  };
+
+  const results = verification.results || {};
+  
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
+      <div className="relative top-10 mx-auto p-5 border w-11/12 max-w-6xl shadow-lg rounded-md bg-white min-h-[80vh]">
+        {/* Header */}
         <div className="flex justify-between items-start mb-6">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Verification Details</h3>
+            <h3 className="text-xl font-semibold text-gray-900">Verification Analysis</h3>
             <p className="text-sm text-gray-500 mt-1">ID: {verification.id}</p>
+            <div className="flex items-center mt-2">
+              <span className={`inline-flex px-3 py-1 text-sm font-medium rounded-full ${
+                verification.status === 'verified' ? 'bg-green-100 text-green-800' :
+                verification.status === 'failed' ? 'bg-red-100 text-red-800' :
+                'bg-yellow-100 text-yellow-800'
+              }`}>
+                {verification.status.replace('_', ' ').toUpperCase()}
+              </span>
+              {verification.confidence_score && (
+                <span className="ml-3 text-sm text-gray-600">
+                  Confidence: {(verification.confidence_score * 100).toFixed(1)}%
+                </span>
+              )}
+            </div>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <XCircle className="w-6 h-6" />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Verification Info */}
-          <div className="space-y-4">
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-medium text-gray-900 mb-3">Verification Information</h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Status:</span>
-                  <span className={`font-medium ${verification.status === 'completed' ? 'text-green-600' : verification.status === 'failed' ? 'text-red-600' : 'text-yellow-600'}`}>
-                    {verification.status.replace('_', ' ')}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Type:</span>
-                  <span className="font-medium">Document Verification</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Customer:</span>
-                  <span className="font-medium">{verification.vaas_end_users?.email || 'Anonymous'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Created:</span>
-                  <span className="font-medium">{formatDate(verification.created_at)}</span>
-                </div>
-                {verification.updated_at !== verification.created_at && (
+        {/* Tab Navigation */}
+        <div className="border-b border-gray-200 mb-6">
+          <nav className="flex space-x-8">
+            {[
+              { id: 'overview', label: 'Overview', icon: User },
+              { id: 'scores', label: 'Score Analysis', icon: CheckCircle },
+              { id: 'analysis', label: 'Detailed Analysis', icon: AlertTriangle },
+              { id: 'raw', label: 'Raw Data', icon: FileText }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex items-center py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === tab.id
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <tab.icon className="w-4 h-4 mr-2" />
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {/* Tab Content */}
+        <div className="flex-1 overflow-y-auto max-h-[60vh]">
+          {activeTab === 'overview' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Basic Information */}
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <h4 className="font-semibold text-gray-900 mb-4">Verification Information</h4>
+                <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Updated:</span>
-                    <span className="font-medium">{formatDate(verification.updated_at)}</span>
+                    <span className="text-gray-500">Customer:</span>
+                    <span className="font-medium">{verification.vaas_end_users?.email || 'Anonymous'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Created:</span>
+                    <span className="font-medium">{formatDate(verification.created_at)}</span>
+                  </div>
+                  {verification.completed_at && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Completed:</span>
+                      <span className="font-medium">{formatDate(verification.completed_at)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Processing Time:</span>
+                    <span className="font-medium">
+                      {verification.completed_at ? 
+                        `${Math.round((new Date(verification.completed_at).getTime() - new Date(verification.created_at).getTime()) / 1000)}s` :
+                        'In progress'
+                      }
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Score Overview */}
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <h4 className="font-semibold text-gray-900 mb-4">Score Summary</h4>
+                <div className="space-y-3">
+                  {results.face_match_score !== undefined && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Face Match:</span>
+                      <div className="flex items-center">
+                        <span className={`font-medium ${getScoreColor(results.face_match_score, 0.85)}`}>
+                          {(results.face_match_score * 100).toFixed(1)}%
+                        </span>
+                        <span className="ml-2 text-xs">
+                          {getScoreStatus(results.face_match_score, 0.85)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {results.liveness_score !== undefined && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Liveness:</span>
+                      <div className="flex items-center">
+                        <span className={`font-medium ${getScoreColor(results.liveness_score, 0.75)}`}>
+                          {(results.liveness_score * 100).toFixed(1)}%
+                        </span>
+                        <span className="ml-2 text-xs">
+                          {getScoreStatus(results.liveness_score, 0.75)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {verification.confidence_score !== undefined && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Overall:</span>
+                      <div className="flex items-center">
+                        <span className={`font-medium ${getScoreColor(verification.confidence_score, 0.8)}`}>
+                          {(verification.confidence_score * 100).toFixed(1)}%
+                        </span>
+                        <span className="ml-2 text-xs">
+                          {getScoreStatus(verification.confidence_score, 0.8)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Documents */}
+              <div className="lg:col-span-2">
+                <h4 className="font-semibold text-gray-900 mb-4">Documents & Evidence</h4>
+                {loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="w-5 h-5 border-2 border-primary-600 border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Loading documents...
+                  </div>
+                ) : documents.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">No documents available</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {documents.map((doc, index) => (
+                      <div key={index} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center">
+                            <FileText className="w-5 h-5 text-gray-400 mr-2" />
+                            <span className="font-medium">{doc.type || 'Document'}</span>
+                          </div>
+                          <button
+                            onClick={() => window.open(doc.url, '_blank')}
+                            className="text-primary-600 hover:text-primary-800 text-sm"
+                          >
+                            View
+                          </button>
+                        </div>
+                        {doc.analysis && (
+                          <p className="text-sm text-gray-600">{doc.analysis}</p>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
             </div>
+          )}
 
-            {verification.status === 'processing' && (
-              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-                <h4 className="font-medium text-gray-900 mb-3">Review Actions</h4>
-                <div className="space-y-3">
-                  <div>
-                    <label className="form-label">Reason (Optional)</label>
-                    <textarea
-                      className="form-input"
-                      rows={3}
-                      placeholder="Enter reason for approval/rejection..."
-                      value={reason}
-                      onChange={(e) => setReason(e.target.value)}
-                    />
+          {activeTab === 'scores' && (
+            <div className="space-y-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-semibold text-blue-900 mb-2">Score Analysis</h4>
+                <p className="text-sm text-blue-800">
+                  Detailed breakdown of verification scores and thresholds used in the decision process.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Face Match Analysis */}
+                {results.face_match_score !== undefined && (
+                  <div className="bg-white border border-gray-200 rounded-lg p-6">
+                    <h5 className="font-semibold text-gray-900 mb-4">Face Match Analysis</h5>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Score:</span>
+                        <span className={`font-bold text-lg ${getScoreColor(results.face_match_score, 0.85)}`}>
+                          {(results.face_match_score * 100).toFixed(2)}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Threshold:</span>
+                        <span className="font-medium">85.00%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Result:</span>
+                        <span className={`font-medium ${results.face_match_score >= 0.85 ? 'text-green-600' : 'text-red-600'}`}>
+                          {getScoreStatus(results.face_match_score, 0.85)}
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full ${results.face_match_score >= 0.85 ? 'bg-green-500' : 'bg-red-500'}`}
+                          style={{ width: `${Math.min(results.face_match_score * 100, 100)}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        Gap from threshold: {results.face_match_score >= 0.85 ? '+' : ''}{((results.face_match_score - 0.85) * 100).toFixed(2)}%
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex space-x-3">
-                    <button
-                      onClick={() => handleStatusUpdate('completed')}
-                      className="btn btn-primary flex-1"
-                    >
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Complete
-                    </button>
-                    <button
-                      onClick={() => handleStatusUpdate('failed')}
-                      className="btn btn-danger flex-1"
-                    >
-                      <XCircle className="w-4 h-4 mr-2" />
-                      Reject
-                    </button>
+                )}
+
+                {/* Liveness Analysis */}
+                {results.liveness_score !== undefined && (
+                  <div className="bg-white border border-gray-200 rounded-lg p-6">
+                    <h5 className="font-semibold text-gray-900 mb-4">Liveness Detection</h5>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Score:</span>
+                        <span className={`font-bold text-lg ${getScoreColor(results.liveness_score, 0.75)}`}>
+                          {(results.liveness_score * 100).toFixed(2)}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Threshold:</span>
+                        <span className="font-medium">75.00%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Result:</span>
+                        <span className={`font-medium ${results.liveness_score >= 0.75 ? 'text-green-600' : 'text-red-600'}`}>
+                          {getScoreStatus(results.liveness_score, 0.75)}
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full ${results.liveness_score >= 0.75 ? 'bg-green-500' : 'bg-red-500'}`}
+                          style={{ width: `${Math.min(results.liveness_score * 100, 100)}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        Gap from threshold: {results.liveness_score >= 0.75 ? '+' : ''}{((results.liveness_score - 0.75) * 100).toFixed(2)}%
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Overall Confidence */}
+                {verification.confidence_score !== undefined && (
+                  <div className="bg-white border border-gray-200 rounded-lg p-6 lg:col-span-2">
+                    <h5 className="font-semibold text-gray-900 mb-4">Overall Confidence Score</h5>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Score:</span>
+                          <span className={`font-bold text-xl ${getScoreColor(verification.confidence_score, 0.8)}`}>
+                            {(verification.confidence_score * 100).toFixed(2)}%
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Threshold:</span>
+                          <span className="font-medium">80.00%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Final Result:</span>
+                          <span className={`font-bold ${verification.confidence_score >= 0.8 ? 'text-green-600' : 'text-red-600'}`}>
+                            {verification.status.toUpperCase()}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="md:col-span-2">
+                        <div className="w-full bg-gray-200 rounded-full h-4 mb-2">
+                          <div
+                            className={`h-4 rounded-full ${verification.confidence_score >= 0.8 ? 'bg-green-500' : 'bg-red-500'}`}
+                            style={{ width: `${Math.min(verification.confidence_score * 100, 100)}%` }}
+                          ></div>
+                        </div>
+                        <p className="text-sm text-gray-500">
+                          This verification {verification.confidence_score >= 0.8 ? 'exceeds' : 'falls below'} the minimum confidence threshold by {Math.abs((verification.confidence_score - 0.8) * 100).toFixed(2)} percentage points.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'analysis' && (
+            <div className="space-y-6">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <h4 className="font-semibold text-yellow-900 mb-2">Detailed Analysis</h4>
+                <p className="text-sm text-yellow-800">
+                  Comprehensive breakdown of verification checks and any failure reasons.
+                </p>
+              </div>
+
+              {/* Failure Reasons */}
+              {results.failure_reasons && results.failure_reasons.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <h5 className="font-semibold text-red-900 mb-3">Failure Reasons</h5>
+                  <ul className="space-y-2">
+                    {results.failure_reasons.map((reason: string, index: number) => (
+                      <li key={index} className="flex items-start">
+                        <XCircle className="w-4 h-4 text-red-500 mt-0.5 mr-2 flex-shrink-0" />
+                        <span className="text-sm text-red-800">{reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Document Analysis */}
+              {results.documents && (
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                  <h5 className="font-semibold text-gray-900 mb-4">Document Validation</h5>
+                  <div className="space-y-4">
+                    {results.documents.map((doc: any, index: number) => (
+                      <div key={index} className="border-l-4 border-blue-500 pl-4">
+                        <h6 className="font-medium text-gray-900">{doc.type || `Document ${index + 1}`}</h6>
+                        {doc.ocr_data && (
+                          <div className="mt-2 text-sm text-gray-600">
+                            <p><strong>Extracted Data:</strong></p>
+                            <ul className="ml-4 mt-1 space-y-1">
+                              {doc.ocr_data.full_name && <li>Name: {doc.ocr_data.full_name}</li>}
+                              {doc.ocr_data.document_number && <li>Document #: {doc.ocr_data.document_number}</li>}
+                              {doc.ocr_data.date_of_birth && <li>DOB: {doc.ocr_data.date_of_birth}</li>}
+                              {doc.ocr_data.expiry_date && <li>Expires: {doc.ocr_data.expiry_date}</li>}
+                            </ul>
+                          </div>
+                        )}
+                        {doc.quality_score && (
+                          <p className="mt-2 text-sm">
+                            <span className="text-gray-500">Quality Score:</span>
+                            <span className={`ml-2 font-medium ${doc.quality_score > 0.7 ? 'text-green-600' : 'text-red-600'}`}>
+                              {(doc.quality_score * 100).toFixed(1)}%
+                            </span>
+                          </p>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
 
-          {/* Documents */}
-          <div>
-            <h4 className="font-medium text-gray-900 mb-3">Documents & Files</h4>
-            {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="w-5 h-5 border-2 border-primary-600 border-t-transparent rounded-full animate-spin mr-2"></div>
-                Loading documents...
-              </div>
-            ) : documents.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">No documents available</p>
-            ) : (
-              <div className="space-y-3">
-                {documents.map((doc, index) => (
-                  <div key={index} className="border border-gray-200 rounded-lg p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <FileText className="w-5 h-5 text-gray-400 mr-2" />
-                        <span className="text-sm font-medium">{doc.type || 'Document'}</span>
+              {/* Liveness Analysis Details */}
+              {results.liveness_analysis && (
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                  <h5 className="font-semibold text-gray-900 mb-4">Liveness Check Details</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {Object.entries(results.liveness_analysis).map(([key, value]) => (
+                      <div key={key} className="flex justify-between">
+                        <span className="text-gray-600 capitalize">{key.replace('_', ' ')}:</span>
+                        <span className="font-medium">
+                          {typeof value === 'boolean' ? (value ? '✅ Yes' : '❌ No') : String(value)}
+                        </span>
                       </div>
-                      <button
-                        onClick={() => window.open(doc.url, '_blank')}
-                        className="text-primary-600 hover:text-primary-800 text-sm"
-                      >
-                        View
-                      </button>
-                    </div>
-                    {doc.analysis && (
-                      <div className="mt-2 text-xs text-gray-500">
-                        Analysis: {doc.analysis}
-                      </div>
-                    )}
+                    ))}
                   </div>
-                ))}
+                </div>
+              )}
+
+              {/* Face Analysis Details */}
+              {results.face_analysis && (
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                  <h5 className="font-semibold text-gray-900 mb-4">Face Analysis Details</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {Object.entries(results.face_analysis).map(([key, value]) => (
+                      <div key={key} className="flex justify-between">
+                        <span className="text-gray-600 capitalize">{key.replace('_', ' ')}:</span>
+                        <span className="font-medium">
+                          {typeof value === 'number' && value < 1 ? `${(value * 100).toFixed(2)}%` : String(value)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'raw' && (
+            <div className="space-y-4">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-900 mb-2">Raw API Response</h4>
+                <p className="text-sm text-gray-600">
+                  Complete verification data for debugging and audit purposes.
+                </p>
               </div>
-            )}
-          </div>
+              <div className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto max-h-96">
+                <pre className="text-sm whitespace-pre-wrap">
+                  {JSON.stringify(verification, null, 2)}
+                </pre>
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Action Buttons */}
+        {(verification.status === 'processing' || verification.status === 'manual_review') && (
+          <div className="mt-6 pt-4 border-t border-gray-200">
+            <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+              <h4 className="font-medium text-gray-900 mb-3">Manual Review Actions</h4>
+              <div className="space-y-3">
+                <div>
+                  <label className="form-label">Reason (Optional)</label>
+                  <textarea
+                    className="form-input"
+                    rows={2}
+                    placeholder="Enter reason for approval/rejection..."
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                  />
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => handleStatusUpdate('verified')}
+                    className="btn btn-primary flex-1"
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => handleStatusUpdate('failed')}
+                    className="btn btn-danger flex-1"
+                  >
+                    <XCircle className="w-4 h-4 mr-2" />
+                    Reject
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

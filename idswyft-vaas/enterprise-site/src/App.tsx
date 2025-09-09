@@ -153,16 +153,16 @@ function App() {
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-3xl mx-auto">
               <div className="text-center">
-                <div className="text-3xl font-bold text-gray-900 mb-2">99.5%</div>
-                <div className="text-gray-600 font-medium">Accuracy Rate</div>
+                <div className="text-3xl font-bold text-gray-900 mb-2">78%</div>
+                <div className="text-gray-600 font-medium">Reduction in Fraud</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold text-gray-900 mb-2">&lt;30s</div>
-                <div className="text-gray-600 font-medium">Average Processing</div>
+                <div className="text-3xl font-bold text-gray-900 mb-2">$2.4M</div>
+                <div className="text-gray-600 font-medium">Average Annual Savings</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold text-gray-900 mb-2">150+</div>
-                <div className="text-gray-600 font-medium">Document Types</div>
+                <div className="text-3xl font-bold text-gray-900 mb-2">24hr</div>
+                <div className="text-gray-600 font-medium">Implementation Time</div>
               </div>
             </div>
           </div>
@@ -236,27 +236,203 @@ function App() {
             
             <div className="group">
               <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-3xl p-8 hover:shadow-2xl hover:shadow-gray-900/5 transition-all duration-500 border border-gray-100/50 hover:border-gray-200/50">
-                <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-pink-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
                   <Zap className="h-8 w-8 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">Developer-First API</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Enterprise Operations</h3>
                 <p className="text-gray-600 mb-6 leading-relaxed">
-                  RESTful APIs, webhooks, and SDKs that integrate seamlessly into your existing infrastructure.
+                  Turnkey solution with dedicated support, SLA guarantees, and white-label options for your brand.
                 </p>
                 <ul className="space-y-3">
                   <li className="flex items-center text-gray-600">
                     <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
-                    &lt;30 minute integration
+                    24/7 enterprise support
                   </li>
                   <li className="flex items-center text-gray-600">
                     <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
-                    Real-time webhooks
+                    99.9% uptime SLA
                   </li>
                   <li className="flex items-center text-gray-600">
                     <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
-                    Comprehensive documentation
+                    White-label customization
                   </li>
                 </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Enterprise Use Cases Section */}
+      <section className="py-24 bg-gradient-to-br from-gray-50 to-white">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-20">
+            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
+              Built for Enterprise Operations
+            </h2>
+            <p className="text-xl text-gray-600 leading-relaxed">
+              Complete turnkey verification solutions for regulated industries
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            <div className="bg-white p-8 rounded-3xl shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300">
+              <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-6">
+                <Shield className="h-8 w-8 text-blue-600" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Financial Services</h3>
+              <p className="text-gray-600 mb-6 leading-relaxed">
+                Meet KYC/AML requirements with automated identity verification that scales with your business growth.
+              </p>
+              <ul className="space-y-3">
+                <li className="flex items-center text-gray-600">
+                  <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
+                  BSA/AML compliance automation
+                </li>
+                <li className="flex items-center text-gray-600">
+                  <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
+                  CIP requirements fulfilled
+                </li>
+                <li className="flex items-center text-gray-600">
+                  <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
+                  Audit trail & reporting
+                </li>
+              </ul>
+            </div>
+            
+            <div className="bg-white p-8 rounded-3xl shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300">
+              <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mb-6">
+                <Users className="h-8 w-8 text-purple-600" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Healthcare & Insurance</h3>
+              <p className="text-gray-600 mb-6 leading-relaxed">
+                HIPAA-compliant patient verification and claims processing with enterprise-grade security.
+              </p>
+              <ul className="space-y-3">
+                <li className="flex items-center text-gray-600">
+                  <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
+                  HIPAA compliance built-in
+                </li>
+                <li className="flex items-center text-gray-600">
+                  <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
+                  Claims fraud prevention
+                </li>
+                <li className="flex items-center text-gray-600">
+                  <CheckCircle className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
+                  Patient identity assurance
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Compliance & Security Section */}
+      <section className="py-24 bg-white border-t border-gray-100">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-900 mb-6">Enterprise-Grade Security & Compliance</h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+              Built to meet the strictest regulatory requirements with comprehensive audit trails
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="text-center p-6 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-all duration-300">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Shield className="h-8 w-8 text-blue-600" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">SOC 2 Type II</h4>
+              <p className="text-sm text-gray-600">Audited security controls and data protection</p>
+            </div>
+            
+            <div className="text-center p-6 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-all duration-300">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="h-8 w-8 text-green-600" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">GDPR Ready</h4>
+              <p className="text-sm text-gray-600">European data privacy compliance built-in</p>
+            </div>
+            
+            <div className="text-center p-6 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-all duration-300">
+              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Users className="h-8 w-8 text-purple-600" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">CCPA Compliant</h4>
+              <p className="text-sm text-gray-600">California consumer privacy protection</p>
+            </div>
+            
+            <div className="text-center p-6 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-all duration-300">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Shield className="h-8 w-8 text-red-600" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">PCI DSS</h4>
+              <p className="text-sm text-gray-600">Payment industry data security standards</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ROI Calculator Section */}
+      <section className="py-24 bg-gradient-to-br from-blue-50 to-purple-50">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-900 mb-6">Calculate Your ROI</h2>
+            <p className="text-xl text-gray-600">See how much you could save with automated verification</p>
+          </div>
+          
+          <div className="bg-white rounded-3xl p-8 shadow-xl max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-6">Without Idswyft</h3>
+                <div className="space-y-4">
+                  <div className="flex justify-between py-3 border-b border-gray-100">
+                    <span className="text-gray-600">Manual review costs</span>
+                    <span className="font-semibold text-red-600">$50,000/month</span>
+                  </div>
+                  <div className="flex justify-between py-3 border-b border-gray-100">
+                    <span className="text-gray-600">Fraud losses</span>
+                    <span className="font-semibold text-red-600">$25,000/month</span>
+                  </div>
+                  <div className="flex justify-between py-3 border-b border-gray-100">
+                    <span className="text-gray-600">Compliance overhead</span>
+                    <span className="font-semibold text-red-600">$15,000/month</span>
+                  </div>
+                  <div className="flex justify-between py-3 text-lg font-bold">
+                    <span>Total Monthly Cost</span>
+                    <span className="text-red-600">$90,000</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-6">With Idswyft VaaS</h3>
+                <div className="space-y-4">
+                  <div className="flex justify-between py-3 border-b border-gray-100">
+                    <span className="text-gray-600">Platform subscription</span>
+                    <span className="font-semibold text-blue-600">$2,499/month</span>
+                  </div>
+                  <div className="flex justify-between py-3 border-b border-gray-100">
+                    <span className="text-gray-600">Per-verification costs</span>
+                    <span className="font-semibold text-blue-600">$8,000/month</span>
+                  </div>
+                  <div className="flex justify-between py-3 border-b border-gray-100">
+                    <span className="text-gray-600">Reduced fraud losses</span>
+                    <span className="font-semibold text-green-600">$2,000/month</span>
+                  </div>
+                  <div className="flex justify-between py-3 text-lg font-bold">
+                    <span>Total Monthly Cost</span>
+                    <span className="text-green-600">$12,499</span>
+                  </div>
+                </div>
+                
+                <div className="mt-8 p-6 bg-green-50 rounded-2xl border border-green-200">
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-green-600 mb-2">$77,501</div>
+                    <div className="text-green-800 font-medium">Monthly Savings</div>
+                    <div className="text-sm text-green-600 mt-1">86% cost reduction</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
