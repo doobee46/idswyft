@@ -280,8 +280,12 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
         
         console.log('Polling verification status:', status, 'attempt:', attempts + 1);
         
-        if (status === 'completed') {
-          // Determine final status based on results
+        // Handle verification status directly from backend
+        if (status === 'verified') {
+          setFinalStatus('verified');
+          setCurrentStep('complete');
+        } else if (status === 'completed') {
+          // Legacy support: determine final status based on results if still using 'completed'
           if (results.confidence_score && results.confidence_score >= 0.8) {
             setFinalStatus('verified');
           } else if (results.confidence_score && results.confidence_score >= 0.6) {
