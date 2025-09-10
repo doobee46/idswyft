@@ -562,30 +562,101 @@ router.post('/back-of-id',
                 discrepancies: crossValidation.discrepancies.length
               });
 
-              // Update front document with cross-validation results
+              // 🔒 CRITICAL SECURITY CHECK: Compare photos between front and back documents
+              let photoConsistencyScore = 0;
+              let photoValidationPassed = false;
+              let photoValidationError = null;
+              
+              try {
+                console.log('🔒 Starting critical document photo cross-validation for security...');
+                photoConsistencyScore = await faceRecognitionService.compareDocumentPhotos(
+                  frontDocument.file_path,
+                  backOfIdDocument.file_path
+                );
+                
+                photoValidationPassed = photoConsistencyScore >= 0.75; // Threshold for same person
+                
+                console.log('🔒 Document photo cross-validation results:', {
+                  verificationId: verificationRequest.id,
+                  photoConsistencyScore: photoConsistencyScore.toFixed(3),
+                  threshold: 0.75,
+                  passed: photoValidationPassed ? '✅ PASS' : '❌ FAIL',
+                  frontDoc: frontDocument.file_path,
+                  backDoc: backOfIdDocument.file_path
+                });
+                
+                if (!photoValidationPassed) {
+                  console.log('🚨 SECURITY ALERT: Front and back document photos do not match the same person!');
+                  console.log(`   📊 Photo similarity score: ${photoConsistencyScore.toFixed(3)} (below 0.75 threshold)`);
+                  console.log('   🛡️ This indicates potential identity fraud - verification FAILED');
+                }
+                
+              } catch (error) {
+                console.error('🚨 Document photo cross-validation failed:', error);
+                photoValidationError = error instanceof Error ? error.message : 'Unknown error during photo validation';
+                photoValidationPassed = false; // Fail-safe: if we can't validate photos, fail the verification
+              }
+
+              // Update front document with cross-validation results including photo validation
               await verificationService.updateDocument(frontDocument.id, {
-                cross_validation_results: crossValidation
+                cross_validation_results: {
+                  ...crossValidation,
+                  photo_consistency_score: photoConsistencyScore,
+                  photo_validation_passed: photoValidationPassed,
+                  photo_validation_error: photoValidationError
+                }
               });
 
-              // Update verification request with cross-validation score
-              const finalStatus = crossValidation.validation_results.overall_consistency && 
-                                crossValidation.match_score >= 0.7 ? 'verified' : 'failed';
+              // Update verification request with comprehensive validation scores
+              // Both data AND photo consistency must pass for verification to succeed
+              const dataValidationPassed = crossValidation.validation_results.overall_consistency && 
+                                         crossValidation.match_score >= 0.7;
+              
+              const comprehensiveValidationPassed = dataValidationPassed && photoValidationPassed;
+              const finalStatus = comprehensiveValidationPassed ? 'verified' : 'failed';
+              
+              // Generate detailed failure reason if validation fails
+              let failureReasons = [];
+              if (!dataValidationPassed) {
+                failureReasons.push(`Data cross-validation failed (score: ${crossValidation.match_score}): ${crossValidation.discrepancies.join('; ')}`);
+              }
+              if (!photoValidationPassed) {
+                if (photoValidationError) {
+                  failureReasons.push(`Photo validation error: ${photoValidationError}`);
+                } else {
+                  failureReasons.push(`Photo consistency failed - front and back documents show different people (score: ${photoConsistencyScore.toFixed(3)})`);
+                }
+              }
 
               await verificationService.updateVerificationRequest(verificationRequest.id, {
                 cross_validation_score: crossValidation.match_score,
+                photo_consistency_score: photoConsistencyScore,
                 enhanced_verification_completed: true,
                 status: finalStatus,
                 manual_review_reason: finalStatus === 'failed' ? 
-                  `Back-of-ID cross-validation failed (score: ${crossValidation.match_score}): ${crossValidation.discrepancies.join('; ')}` : 
+                  failureReasons.join(' | ') : 
                   verificationRequest.manual_review_reason
               });
 
               logVerificationEvent('enhanced_verification_completed', verificationRequest.id, {
                 backDocumentId: backOfIdDocument.id,
                 crossValidationScore: crossValidation.match_score,
+                photoConsistencyScore,
+                dataValidationPassed,
+                photoValidationPassed,
+                comprehensiveValidationPassed,
                 finalStatus,
-                discrepancies: crossValidation.discrepancies
+                discrepancies: crossValidation.discrepancies,
+                failureReasons: failureReasons.length > 0 ? failureReasons : undefined
               });
+              
+              // If comprehensive validation failed, send immediate failure notification
+              if (!comprehensiveValidationPassed) {
+                console.log('🚨 VERIFICATION FAILED: Comprehensive validation did not pass');
+                console.log(`   📊 Data validation: ${dataValidationPassed ? 'PASS' : 'FAIL'}`);
+                console.log(`   🔒 Photo validation: ${photoValidationPassed ? 'PASS' : 'FAIL'}`);
+                console.log('   🛡️ Identity fraud protection activated');
+              }
             }
           })
           .catch((error) => {
@@ -903,13 +974,19 @@ function getFailureReason(verification: any, document: any, backOfIdDocument?: a
   
   // Check for cross-validation failures (enhanced verification)
   if (backOfIdDocument && verification.enhanced_verification_completed) {
+    // Check for photo consistency failures (critical security check)
+    if (verification.photo_consistency_score !== null && verification.photo_consistency_score < 0.75) {
+      return `🚨 SECURITY ALERT: The photos on your front and back ID documents do not match the same person (similarity score: ${verification.photo_consistency_score.toFixed(2)}). This suggests you may have uploaded someone else's document. Please ensure you upload BOTH sides of YOUR OWN identification document.`;
+    }
+    
+    // Check for data cross-validation failures
     if (verification.cross_validation_score !== null && verification.cross_validation_score < 0.7) {
-      return `Document validation failed - front and back of ID information does not match sufficiently (score: ${verification.cross_validation_score.toFixed(2)}).`;
+      return `Document validation failed - the information on the front and back of your ID does not match (score: ${verification.cross_validation_score.toFixed(2)}). Please ensure you upload both sides of the same ID document.`;
     }
     
     // Check for barcode reading failures
     if (!backOfIdDocument.barcode_data || Object.keys(backOfIdDocument.barcode_data.parsed_data || {}).length === 0) {
-      return 'Back of ID could not be processed - barcode/magnetic stripe is unreadable or damaged';
+      return 'The back of your ID could not be processed - the barcode or magnetic stripe may be damaged or unreadable. Please try taking a clearer photo of the back of your ID.';
     }
   }
   
@@ -1129,32 +1206,122 @@ router.post('/live-capture',
           const document = await verificationService.getDocumentByVerificationId(verification_id);
           
           if (document) {
-            // Run face recognition with liveness checks
+            // 🔒 ENHANCED SECURITY CHECK: Verify comprehensive document validation before proceeding with selfie matching
+            
+            // Check if there's a back-of-ID document uploaded
+            const { data: allDocuments } = await supabase
+              .from('documents')
+              .select('*')
+              .eq('verification_request_id', verification_id)
+              .order('created_at', { ascending: true });
+            
+            const frontDocument = allDocuments?.find(doc => !doc.is_back_of_id);
+            const backDocument = allDocuments?.find(doc => doc.is_back_of_id);
+            
+            // If back-of-ID exists, check if comprehensive validation passed first
+            if (backDocument) {
+              console.log('🔒 Back-of-ID detected - checking comprehensive validation status before selfie matching...');
+              
+              const currentVerification = await verificationService.getVerificationRequest(verification_id);
+              
+              // Check if comprehensive validation passed (both data and photo consistency)
+              const comprehensiveValidationFailed = 
+                currentVerification!.status === 'failed' && 
+                currentVerification!.enhanced_verification_completed;
+              
+              if (comprehensiveValidationFailed) {
+                console.log('🚨 SECURITY BLOCK: Comprehensive document validation failed - skipping selfie matching');
+                console.log('   🛡️ Reason: Front and back documents do not match the same person');
+                console.log('   📝 Status remains: FAILED due to document mismatch');
+                
+                // Don't proceed with selfie matching - documents already failed validation
+                await verificationService.updateVerificationRequest(verification_id, {
+                  live_capture_completed: true,
+                  failure_reason: currentVerification?.failure_reason || 'Document validation failed - front and back documents do not match',
+                  manual_review_reason: 'Live capture completed but documents failed comprehensive validation'
+                });
+                
+                logVerificationEvent('live_capture_blocked_document_mismatch', verification_id, {
+                  liveCaptureId: liveCapture.id,
+                  reason: 'Comprehensive document validation failed',
+                  status: 'failed'
+                });
+                
+                // Exit early - don't proceed with face matching
+                return;
+              }
+              
+              // If enhanced verification hasn't completed yet, defer selfie processing
+              if (!currentVerification!.enhanced_verification_completed) {
+                console.log('⏳ Enhanced verification still processing - deferring selfie matching...');
+                
+                await verificationService.updateVerificationRequest(verification_id, {
+                  live_capture_completed: true,
+                  status: 'pending',
+                  manual_review_reason: 'Live capture completed - waiting for back-of-ID validation to complete'
+                });
+                
+                logVerificationEvent('live_capture_deferred', verification_id, {
+                  liveCaptureId: liveCapture.id,
+                  reason: 'Waiting for enhanced verification to complete',
+                  status: 'pending'
+                });
+                
+                // Exit early - enhanced verification will trigger selfie processing when complete
+                return;
+              }
+              
+              console.log('✅ Comprehensive document validation passed - proceeding with selfie matching');
+            }
+            
+            // Run face recognition with liveness checks (only against front document)
             const [matchScore, livenessScore] = await Promise.all([
-              faceRecognitionService.compareFaces(document.file_path, liveCapturePath),
+              faceRecognitionService.compareFaces(frontDocument?.file_path || document.file_path, liveCapturePath),
               faceRecognitionService.detectLiveness(liveCapturePath, challenge_response)
             ]);
             
             // Determine final status based on both scores with detailed logging
             const isLive = livenessScore > 0.75;  // Raised from 0.7
             const faceMatch = matchScore > 0.85;  // Raised from 0.8
-            const finalStatus = isLive && faceMatch ? 'verified' : 'failed';
+            const selfieValidationPassed = isLive && faceMatch;
+            
+            // For enhanced verification, final status depends on all validations
+            let finalStatus = 'verified';
+            let combinedFailureReasons = [];
+            
+            if (backDocument) {
+              // Enhanced verification: all validations must pass
+              const currentVerification = await verificationService.getVerificationRequest(verification_id);
+              const documentValidationPassed = currentVerification!.status === 'verified';
+              
+              if (!documentValidationPassed) {
+                finalStatus = 'failed';
+                combinedFailureReasons.push('Document validation failed');
+              }
+              
+              if (!selfieValidationPassed) {
+                finalStatus = 'failed';
+                if (!isLive) combinedFailureReasons.push('Liveness detection failed');
+                if (!faceMatch) combinedFailureReasons.push('Selfie does not match document photo');
+              }
+            } else {
+              // Standard verification: only selfie validation needed
+              finalStatus = selfieValidationPassed ? 'verified' : 'failed';
+              if (!isLive) combinedFailureReasons.push('Liveness detection failed');
+              if (!faceMatch) combinedFailureReasons.push('Selfie does not match document photo');
+            }
             
             // Comprehensive score analysis logging
-            console.log(`📊 Verification Score Analysis for ${verification_id}:`);
+            console.log(`📊 Final Verification Score Analysis for ${verification_id}:`);
             console.log(`   🎯 Face Match Score: ${matchScore.toFixed(3)} (threshold: 0.85) - ${faceMatch ? '✅ PASS' : '❌ FAIL'}`);
             console.log(`   🔍 Liveness Score: ${livenessScore.toFixed(3)} (threshold: 0.75) - ${isLive ? '✅ PASS' : '❌ FAIL'}`);
             console.log(`   📝 Final Status: ${finalStatus.toUpperCase()}`);
-            console.log(`   🔗 Document Path: ${document.file_path}`);
+            console.log(`   🔗 Document Path: ${frontDocument?.file_path || document.file_path}`);
             console.log(`   📸 Live Capture Path: ${liveCapturePath}`);
+            console.log(`   🔒 Enhanced Verification: ${backDocument ? 'YES' : 'NO'}`);
             
-            // Log specific failure reasons for debugging
-            if (!isLive && !faceMatch) {
-              console.log(`   ⚠️  Both liveness and face matching failed`);
-            } else if (!isLive) {
-              console.log(`   ⚠️  Liveness detection failed (score too low)`);
-            } else if (!faceMatch) {
-              console.log(`   ⚠️  Face matching failed (score too low)`);
+            if (combinedFailureReasons.length > 0) {
+              console.log(`   ⚠️  Failure Reasons: ${combinedFailureReasons.join(', ')}`);
             }
             
             // Calculate how close scores are to thresholds
@@ -1165,18 +1332,23 @@ router.post('/live-capture',
             await verificationService.updateVerificationRequest(verification_id, {
               face_match_score: matchScore,
               liveness_score: livenessScore,
-              status: finalStatus,
-              manual_review_reason: !isLive ? 'Liveness detection failed' : 
-                                   !faceMatch ? 'Face matching failed' : undefined,
-              failure_reason: !isLive ? `Liveness detection failed - score ${livenessScore.toFixed(2)} below threshold 0.75` :
-                             !faceMatch ? `Face matching failed - score ${matchScore.toFixed(2)} below threshold 0.85` : undefined
+              live_capture_completed: true,
+              status: finalStatus as 'pending' | 'verified' | 'failed' | 'manual_review',
+              manual_review_reason: finalStatus === 'failed' ? 
+                combinedFailureReasons.join(' | ') : undefined,
+              failure_reason: finalStatus === 'failed' ? 
+                combinedFailureReasons.join('; ') : undefined
             });
             
             logVerificationEvent('live_capture_processed', verification_id, {
-              liveCapture: liveCapture.id,
+              liveCaptureId: liveCapture.id,
               matchScore,
               livenessScore,
-              finalStatus
+              finalStatus,
+              enhancedVerification: !!backDocument,
+              documentValidationPassed: !backDocument || finalStatus !== 'failed' || !combinedFailureReasons.includes('Document validation failed'),
+              selfieValidationPassed,
+              combinedFailureReasons
             });
             
           } else {
@@ -1519,6 +1691,232 @@ router.post('/check-consistency/:verification_id',
         'Verification is consistent' : 
         `Found ${consistencyCheck.issues.length} consistency issues${recalculatedScores ? ' and recalculated scores' : ''}`
     });
+  })
+);
+
+// Route: POST /api/verify/reupload-document/:verification_id - Re-upload document after validation failure
+router.post('/reupload-document/:verification_id',
+  authenticateAPIKey,
+  checkSandboxMode,
+  verificationRateLimit,
+  upload.single('document'),
+  [
+    param('verification_id')
+      .isUUID()
+      .withMessage('Verification ID must be a valid UUID'),
+    body('document_type')
+      .isIn(['passport', 'drivers_license', 'national_id', 'other'])
+      .withMessage('Document type must be one of: passport, drivers_license, national_id, other'),
+    body('document_side')
+      .isIn(['front', 'back'])
+      .withMessage('Document side must be either front or back'),
+    body('replace_existing')
+      .optional()
+      .isBoolean()
+      .withMessage('Replace existing must be a boolean')
+  ],
+  catchAsync(async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      throw new ValidationError('Validation failed', 'multiple', errors.array());
+    }
+    
+    const { verification_id } = req.params;
+    const { document_type, document_side, replace_existing = true } = req.body;
+    const file = req.file;
+    
+    if (!file) {
+      throw new FileUploadError('Document file is required');
+    }
+    
+    // Get verification request
+    const verificationRequest = await verificationService.getVerificationRequest(verification_id);
+    if (!verificationRequest) {
+      throw new ValidationError('Verification request not found', 'verification_id', verification_id);
+    }
+    
+    // Authenticate user
+    req.body.user_id = verificationRequest.user_id;
+    await new Promise((resolve, reject) => {
+      authenticateUser(req as any, res as any, (err: any) => {
+        if (err) reject(err);
+        else resolve(true);
+      });
+    });
+    
+    // Check if this is a reupload for a failed verification
+    if (verificationRequest.status !== 'failed') {
+      throw new ValidationError('Document re-upload is only allowed for failed verifications', 'status', verificationRequest.status);
+    }
+    
+    logVerificationEvent('document_reupload_started', verification_id, {
+      userId: verificationRequest.user_id,
+      documentType: document_type,
+      documentSide: document_side,
+      fileSize: file.size,
+      mimeType: file.mimetype,
+      replaceExisting: replace_existing
+    });
+    
+    try {
+      // Get existing documents
+      const { data: existingDocuments } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('verification_request_id', verification_id)
+        .order('created_at', { ascending: true });
+      
+      const isBackSide = document_side === 'back';
+      const existingDoc = existingDocuments?.find(doc => 
+        isBackSide ? doc.is_back_of_id : !doc.is_back_of_id
+      );
+      
+      // Store new document file
+      const documentPath = await storageService.storeDocument(
+        file.buffer,
+        isBackSide ? `back_${file.originalname}` : file.originalname,
+        file.mimetype,
+        verificationRequest.id
+      );
+      
+      if (replace_existing && existingDoc) {
+        // Update existing document
+        await verificationService.updateDocument(existingDoc.id, {
+          file_path: documentPath,
+          file_name: isBackSide ? `back_${file.originalname}` : file.originalname,
+          file_size: file.size,
+          mime_type: file.mimetype,
+          // Clear previous processing results
+          ocr_data: undefined,
+          barcode_data: undefined,
+          cross_validation_results: undefined,
+          quality_analysis: undefined
+        });
+        
+        console.log(`📄 ${document_side} document replaced for verification ${verification_id}`);
+      } else {
+        // Create new document record
+        await verificationService.createDocument({
+          verification_request_id: verificationRequest.id,
+          file_path: documentPath,
+          file_name: isBackSide ? `back_${file.originalname}` : file.originalname,
+          file_size: file.size,
+          mime_type: file.mimetype,
+          document_type,
+          is_back_of_id: isBackSide
+        });
+        
+        console.log(`📄 New ${document_side} document uploaded for verification ${verification_id}`);
+      }
+      
+      // Reset verification status to allow reprocessing
+      await verificationService.updateVerificationRequest(verification_id, {
+        status: 'pending',
+        enhanced_verification_completed: false,
+        photo_consistency_score: undefined,
+        cross_validation_score: undefined,
+        manual_review_reason: `${document_side} document re-uploaded - reprocessing verification`,
+        failure_reason: undefined
+      });
+      
+      // Start reprocessing based on document side
+      if (document_side === 'front') {
+        // Trigger OCR reprocessing
+        const updatedDoc = existingDoc ? 
+          await verificationService.getDocumentByVerificationId(verification_id) : 
+          existingDocuments?.find(doc => !doc.is_back_of_id);
+        
+        if (updatedDoc) {
+          ocrService.processDocument(updatedDoc.id, documentPath, document_type)
+            .then(async (ocrData) => {
+              await verificationService.updateDocument(updatedDoc.id, {
+                ocr_data: ocrData
+              });
+              
+              logVerificationEvent('reupload_ocr_completed', verification_id, {
+                documentId: updatedDoc.id,
+                documentSide: 'front'
+              });
+            })
+            .catch((error) => {
+              console.error('🚨 Reupload OCR processing failed:', error);
+              verificationService.updateVerificationRequest(verification_id, {
+                status: 'manual_review',
+                manual_review_reason: 'Front document reupload OCR processing failed'
+              });
+            });
+        }
+      } else {
+        // Trigger back-of-ID reprocessing
+        const frontDoc = existingDocuments?.find(doc => !doc.is_back_of_id);
+        const backDoc = existingDoc || existingDocuments?.find(doc => doc.is_back_of_id);
+        
+        if (frontDoc && backDoc && !req.isSandbox) {
+          barcodeService.scanBackOfId(documentPath)
+            .then(async (backOfIdData) => {
+              await verificationService.updateDocument(backDoc.id, {
+                barcode_data: backOfIdData
+              });
+              
+              // Run comprehensive validation again
+              if (frontDoc.ocr_data) {
+                const [crossValidation, photoConsistencyScore] = await Promise.all([
+                  barcodeService.crossValidateWithFrontId(frontDoc.ocr_data, backOfIdData),
+                  faceRecognitionService.compareDocumentPhotos(frontDoc.file_path, documentPath)
+                ]);
+                
+                const dataValidationPassed = crossValidation.validation_results.overall_consistency && 
+                                           crossValidation.match_score >= 0.7;
+                const photoValidationPassed = photoConsistencyScore >= 0.75;
+                const comprehensiveValidationPassed = dataValidationPassed && photoValidationPassed;
+                
+                await verificationService.updateVerificationRequest(verification_id, {
+                  cross_validation_score: crossValidation.match_score,
+                  photo_consistency_score: photoConsistencyScore,
+                  enhanced_verification_completed: true,
+                  status: comprehensiveValidationPassed ? 'verified' : 'failed',
+                  manual_review_reason: comprehensiveValidationPassed ? undefined :
+                    'Reupload validation failed - documents still do not match'
+                });
+                
+                logVerificationEvent('reupload_validation_completed', verification_id, {
+                  documentSide: 'back',
+                  comprehensiveValidationPassed,
+                  photoConsistencyScore,
+                  crossValidationScore: crossValidation.match_score
+                });
+              }
+            })
+            .catch((error) => {
+              console.error('🚨 Reupload back-of-ID processing failed:', error);
+              verificationService.updateVerificationRequest(verification_id, {
+                status: 'manual_review',
+                manual_review_reason: 'Back document reupload processing failed'
+              });
+            });
+        }
+      }
+      
+      res.json({
+        verification_id,
+        status: 'reprocessing',
+        message: `${document_side} document re-uploaded successfully. Reprocessing verification.`,
+        document_side,
+        document_type,
+        next_steps: [
+          `${document_side === 'front' ? 'OCR processing' : 'Barcode scanning and cross-validation'} in progress`,
+          `Check results with GET /api/verify/results/${verification_id}`
+        ],
+        reupload_successful: true
+      });
+      
+    } catch (error) {
+      logVerificationEvent('document_reupload_failed', verification_id, {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        documentSide: document_side
+      });
+      throw error;
+    }
   })
 );
 

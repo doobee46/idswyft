@@ -27,6 +27,7 @@ export interface VerificationRequest {
   // Enhanced verification fields
   back_of_id_uploaded?: boolean;
   cross_validation_score?: number;
+  photo_consistency_score?: number;
   enhanced_verification_completed?: boolean;
   created_at: Date;
   updated_at: Date;
