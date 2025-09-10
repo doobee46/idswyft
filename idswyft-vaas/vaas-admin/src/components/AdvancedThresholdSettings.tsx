@@ -93,7 +93,7 @@ export default function AdvancedThresholdSettings({ organizationId, canEdit, onT
       setError(null);
       
       const response = await apiClient.get('/admin/thresholds');
-      setThresholds(response.data);
+      setThresholds(response.data.data);
       
       // Initialize form with current values (would come from organization settings)
       // For now, using example values
@@ -119,7 +119,7 @@ export default function AdvancedThresholdSettings({ organizationId, canEdit, onT
         require_back_of_id: requireBackOfId,
         max_verification_attempts: maxAttempts
       });
-      setPreview(response.data);
+      setPreview(response.data.data);
     } catch (err) {
       console.warn('Failed to generate preview:', err);
     }
