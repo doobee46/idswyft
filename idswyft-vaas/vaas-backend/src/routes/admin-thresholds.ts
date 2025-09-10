@@ -19,7 +19,7 @@ const router = Router();
  */
 router.get('/', requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const organizationId = req.user?.organization_id;
+    const organizationId = req.admin?.organization_id;
     if (!organizationId) {
       return res.status(400).json({
         success: false,
@@ -64,7 +64,7 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res) => {
  */
 router.post('/preview', requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const organizationId = req.user?.organization_id;
+    const organizationId = req.admin?.organization_id;
     if (!organizationId) {
       return res.status(400).json({
         success: false,
@@ -124,7 +124,7 @@ router.post('/preview', requireAuth, async (req: AuthenticatedRequest, res) => {
  */
 router.put('/', requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const organizationId = req.user?.organization_id;
+    const organizationId = req.admin?.organization_id;
     if (!organizationId) {
       return res.status(400).json({
         success: false,
@@ -191,7 +191,7 @@ router.put('/', requireAuth, async (req: AuthenticatedRequest, res) => {
  */
 router.post('/reset', requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const organizationId = req.user?.organization_id;
+    const organizationId = req.admin?.organization_id;
     if (!organizationId) {
       return res.status(400).json({
         success: false,
