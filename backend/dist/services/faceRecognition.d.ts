@@ -11,6 +11,14 @@ export declare class FaceRecognitionService {
     private faceLandmarkDetector;
     constructor();
     private initialize;
+    /**
+     * Compare faces between front and back of ID documents to ensure they belong to the same person
+     * This is a critical security validation to prevent identity fraud
+     * @param frontDocumentPath Path to front document image
+     * @param backDocumentPath Path to back document image
+     * @returns Similarity score between 0-1 (higher = more similar)
+     */
+    compareDocumentPhotos(frontDocumentPath: string, backDocumentPath: string): Promise<number>;
     compareFaces(documentPath: string, selfiePath: string): Promise<number>;
     private compareWithAI;
     private compareWithTensorFlow;

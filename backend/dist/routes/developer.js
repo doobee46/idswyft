@@ -204,9 +204,18 @@ router.post('/api-key', apiKeyRateLimit, [
         logger.error('Failed to count API keys:', countError);
         throw new Error('Failed to check API key limits');
     }
-    const maxKeys = is_sandbox ? 10 : 5; // Allow more sandbox keys
+    const maxKeys = is_sandbox ? 10 : 3; // Stricter limit for production keys
     if (existingKeysCount && existingKeysCount >= maxKeys) {
-        throw new ValidationError(`Maximum ${maxKeys} ${is_sandbox ? 'sandbox' : 'production'} API keys allowed. Please revoke unused keys.`, 'api_key_limit', maxKeys);
+        const keyType = is_sandbox ? 'sandbox' : 'production';
+        const actionMsg = is_sandbox
+            ? 'Please revoke unused sandbox keys from your developer dashboard.'
+            : 'Production keys are limited for security. Please revoke unused keys or contact support if you need more.';
+        throw new ValidationError(`You have reached the maximum limit of ${maxKeys} ${keyType} API keys. ${actionMsg}`, 'api_key_limit_exceeded', {
+            current_count: existingKeysCount,
+            max_allowed: maxKeys,
+            key_type: keyType,
+            suggested_action: is_sandbox ? 'revoke_unused_keys' : 'contact_support_or_revoke'
+        });
     }
     // Generate API key with enhanced security
     console.log('🔑 Generating API key...');

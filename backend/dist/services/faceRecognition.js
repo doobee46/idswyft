@@ -115,6 +115,33 @@ export class FaceRecognitionService {
             throw new Error('Face recognition service initialization failed');
         }
     }
+    /**
+     * Compare faces between front and back of ID documents to ensure they belong to the same person
+     * This is a critical security validation to prevent identity fraud
+     * @param frontDocumentPath Path to front document image
+     * @param backDocumentPath Path to back document image
+     * @returns Similarity score between 0-1 (higher = more similar)
+     */
+    async compareDocumentPhotos(frontDocumentPath, backDocumentPath) {
+        try {
+            logger.info('🔒 Starting document photo cross-validation for security', {
+                frontDoc: frontDocumentPath,
+                backDoc: backDocumentPath
+            });
+            // Use enhanced face service if available
+            if (this.enhancedFaceService) {
+                logger.info('Using enhanced face recognition for document photo comparison');
+                return await this.enhancedFaceService.compareFaces(frontDocumentPath, backDocumentPath);
+            }
+            // Fallback to basic face comparison
+            logger.info('Using fallback face recognition for document photo comparison');
+            return await this.compareWithTraditional(frontDocumentPath, backDocumentPath);
+        }
+        catch (error) {
+            logger.error('Document photo comparison failed:', error);
+            throw new Error('Failed to compare document photos - this is a critical security validation that cannot be skipped');
+        }
+    }
     async compareFaces(documentPath, selfiePath) {
         await this.initialize();
         const method = this.useModernFaceRecognition ? 'Enhanced' :

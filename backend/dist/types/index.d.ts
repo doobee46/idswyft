@@ -1,6 +1,12 @@
 export interface User {
     id: string;
     email?: string;
+    phone?: string;
+    first_name?: string;
+    last_name?: string;
+    external_id?: string;
+    status?: string;
+    metadata?: any;
     created_at: Date;
     updated_at?: Date;
 }
@@ -19,6 +25,7 @@ export interface VerificationRequest {
     external_verification_id?: string;
     back_of_id_uploaded?: boolean;
     cross_validation_score?: number;
+    photo_consistency_score?: number;
     enhanced_verification_completed?: boolean;
     created_at: Date;
     updated_at: Date;
