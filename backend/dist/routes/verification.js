@@ -11,9 +11,41 @@ import { OCRService } from '../services/ocr.js';
 import { FaceRecognitionService } from '../services/faceRecognition.js';
 import { BarcodeService } from '../services/barcode.js';
 import { VerificationConsistencyService } from '../services/verificationConsistency.js';
+import { VerificationStateManager } from '../services/verificationStateManager.js';
+import { DynamicThresholdManager } from '../config/dynamicThresholds.js';
 import { logger, logVerificationEvent } from '../utils/logger.js';
+import { validateScores, getThresholdInfo, VERIFICATION_THRESHOLDS } from '../config/verificationThresholds.js';
+import { VerificationFailureType, VerificationStage } from '../types/verificationTypes.js';
 import { supabase } from '../config/database.js';
 const router = express.Router();
+/**
+ * Helper function to get organization ID from request
+ * In the future, this could be extended to support multi-tenant developers
+ */
+function getOrganizationId(req) {
+    // For now, we'll use the developer ID as organization ID
+    // This can be extended later when we implement proper organization mapping
+    return req.developer?.id || null;
+}
+/**
+ * Get dynamic thresholds for the current request context
+ */
+async function getContextualThresholds(req, isSandbox = false) {
+    const organizationId = getOrganizationId(req);
+    if (organizationId) {
+        try {
+            return await thresholdManager.getThresholdsForOrganization(organizationId, isSandbox);
+        }
+        catch (error) {
+            logger.warn('Failed to get organization thresholds, using defaults', {
+                organizationId,
+                error: error instanceof Error ? error.message : 'Unknown error'
+            });
+        }
+    }
+    // Fallback to default thresholds
+    return VERIFICATION_THRESHOLDS;
+}
 // Configure multer for file uploads
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -70,6 +102,8 @@ const ocrService = new OCRService();
 const faceRecognitionService = new FaceRecognitionService();
 const barcodeService = new BarcodeService();
 const consistencyService = new VerificationConsistencyService();
+const stateManager = new VerificationStateManager();
+const thresholdManager = DynamicThresholdManager.getInstance();
 // Route: POST /api/verify/start - Start a new verification session
 router.post('/start', authenticateAPIKey, checkSandboxMode, verificationRateLimit, [
     body('user_id')
@@ -474,18 +508,21 @@ router.post('/back-of-id', authenticateAPIKey, checkSandboxMode, verificationRat
                     try {
                         console.log('🔒 Starting critical document photo cross-validation for security...');
                         photoConsistencyScore = await faceRecognitionService.compareDocumentPhotos(frontDocument.file_path, backOfIdDocument.file_path);
-                        photoValidationPassed = photoConsistencyScore >= 0.75; // Threshold for same person
+                        // Use contextual threshold (organization-specific or default)
+                        const contextualThresholds = await getContextualThresholds(req, req.isSandbox);
+                        const photoThreshold = contextualThresholds.PHOTO_CONSISTENCY;
+                        photoValidationPassed = photoConsistencyScore >= photoThreshold;
                         console.log('🔒 Document photo cross-validation results:', {
                             verificationId: verificationRequest.id,
                             photoConsistencyScore: photoConsistencyScore.toFixed(3),
-                            threshold: 0.75,
+                            threshold: photoThreshold,
                             passed: photoValidationPassed ? '✅ PASS' : '❌ FAIL',
                             frontDoc: frontDocument.file_path,
                             backDoc: backOfIdDocument.file_path
                         });
                         if (!photoValidationPassed) {
                             console.log('🚨 SECURITY ALERT: Front and back document photos do not match the same person!');
-                            console.log(`   📊 Photo similarity score: ${photoConsistencyScore.toFixed(3)} (below 0.75 threshold)`);
+                            console.log(`   📊 Photo similarity score: ${photoConsistencyScore.toFixed(3)} (below ${photoThreshold} threshold)`);
                             console.log('   🛡️ This indicates potential identity fraud - verification FAILED');
                         }
                     }
@@ -503,33 +540,47 @@ router.post('/back-of-id', authenticateAPIKey, checkSandboxMode, verificationRat
                             photo_validation_error: photoValidationError
                         }
                     });
-                    // Update verification request with comprehensive validation scores
-                    // Both data AND photo consistency must pass for verification to succeed
+                    // Use contextual validation with state manager
+                    const contextualThresholds = await getContextualThresholds(req, req.isSandbox);
+                    const crossValidationThreshold = contextualThresholds.CROSS_VALIDATION;
                     const dataValidationPassed = crossValidation.validation_results.overall_consistency &&
-                        crossValidation.match_score >= 0.7;
-                    const comprehensiveValidationPassed = dataValidationPassed && photoValidationPassed;
-                    const finalStatus = comprehensiveValidationPassed ? 'verified' : 'failed';
-                    // Generate detailed failure reason if validation fails
-                    let failureReasons = [];
-                    if (!dataValidationPassed) {
-                        failureReasons.push(`Data cross-validation failed (score: ${crossValidation.match_score}): ${crossValidation.discrepancies.join('; ')}`);
+                        crossValidation.match_score >= crossValidationThreshold;
+                    // Check if manual review is required due to data extraction issues
+                    const requiresManualReview = crossValidation.requires_manual_review || false;
+                    // Update scores through state manager
+                    await stateManager.updateScores(verificationRequest.id, {
+                        photoConsistency: photoConsistencyScore,
+                        crossValidation: crossValidation.match_score
+                    });
+                    // Handle different error scenarios with proper classification
+                    let finalResult;
+                    if (requiresManualReview) {
+                        finalResult = await stateManager.recordError(verificationRequest.id, VerificationFailureType.EXTRACTION_FAILURE, VerificationStage.CROSS_VALIDATION, crossValidation.manual_review_reason || 'Data extraction issues detected', { crossValidation });
                     }
-                    if (!photoValidationPassed) {
-                        if (photoValidationError) {
-                            failureReasons.push(`Photo validation error: ${photoValidationError}`);
-                        }
-                        else {
-                            failureReasons.push(`Photo consistency failed - front and back documents show different people (score: ${photoConsistencyScore.toFixed(3)})`);
-                        }
+                    else if (photoValidationError) {
+                        finalResult = await stateManager.recordError(verificationRequest.id, VerificationFailureType.FACE_RECOGNITION_TECHNICAL_ERROR, VerificationStage.CROSS_VALIDATION, `Photo validation technical error: ${photoValidationError}`, { error: photoValidationError });
                     }
+                    else if (!photoValidationPassed) {
+                        finalResult = await stateManager.recordError(verificationRequest.id, VerificationFailureType.PHOTO_MISMATCH_FRAUD, VerificationStage.CROSS_VALIDATION, `Photo consistency failed - front and back documents show different people (score: ${photoConsistencyScore.toFixed(3)})`, { photoConsistencyScore, threshold: contextualThresholds.PHOTO_CONSISTENCY, organizationId: getOrganizationId(req) });
+                    }
+                    else if (!dataValidationPassed) {
+                        finalResult = await stateManager.recordError(verificationRequest.id, VerificationFailureType.DATA_INCONSISTENCY_FRAUD, VerificationStage.CROSS_VALIDATION, `Data cross-validation failed (score: ${crossValidation.match_score}): ${crossValidation.discrepancies.join('; ')}`, { crossValidation, threshold: crossValidationThreshold });
+                    }
+                    else {
+                        // Success - complete the stage
+                        await stateManager.completeStage(verificationRequest.id, VerificationStage.CROSS_VALIDATION, true);
+                        finalResult = await stateManager.getVerificationResult(verificationRequest.id);
+                    }
+                    const finalStatus = finalResult.status;
+                    const comprehensiveValidationPassed = finalStatus === 'verified';
+                    // Update legacy database fields for backward compatibility
                     await verificationService.updateVerificationRequest(verificationRequest.id, {
                         cross_validation_score: crossValidation.match_score,
                         photo_consistency_score: photoConsistencyScore,
                         enhanced_verification_completed: true,
                         status: finalStatus,
-                        manual_review_reason: finalStatus === 'failed' ?
-                            failureReasons.join(' | ') :
-                            verificationRequest.manual_review_reason
+                        manual_review_reason: finalResult.error?.userMessage,
+                        failure_reason: finalResult.error?.message
                     });
                     logVerificationEvent('enhanced_verification_completed', verificationRequest.id, {
                         backDocumentId: backOfIdDocument.id,
@@ -540,7 +591,8 @@ router.post('/back-of-id', authenticateAPIKey, checkSandboxMode, verificationRat
                         comprehensiveValidationPassed,
                         finalStatus,
                         discrepancies: crossValidation.discrepancies,
-                        failureReasons: failureReasons.length > 0 ? failureReasons : undefined
+                        errorType: finalResult.error?.type,
+                        userMessage: finalResult.error?.userMessage
                     });
                     // If comprehensive validation failed, send immediate failure notification
                     if (!comprehensiveValidationPassed) {
@@ -1049,71 +1101,89 @@ router.post('/live-capture', authenticateAPIKey, checkSandboxMode, verificationR
                         faceRecognitionService.compareFaces(frontDocument?.file_path || document.file_path, liveCapturePath),
                         faceRecognitionService.detectLiveness(liveCapturePath, challenge_response)
                     ]);
-                    // Determine final status based on both scores with detailed logging
-                    const isLive = livenessScore > 0.75; // Raised from 0.7
-                    const faceMatch = matchScore > 0.85; // Raised from 0.8
-                    const selfieValidationPassed = isLive && faceMatch;
-                    // For enhanced verification, final status depends on all validations
-                    let finalStatus = 'verified';
-                    let combinedFailureReasons = [];
+                    // Use contextual thresholds (organization-specific or defaults)
+                    const contextualThresholds = await getContextualThresholds(req, req.isSandbox);
+                    const faceMatchThreshold = req.isSandbox ?
+                        contextualThresholds.FACE_MATCHING.sandbox :
+                        contextualThresholds.FACE_MATCHING.production;
+                    const livenessThreshold = req.isSandbox ?
+                        contextualThresholds.LIVENESS.sandbox :
+                        contextualThresholds.LIVENESS.production;
+                    // Validate scores using contextual thresholds
+                    const organizationId = getOrganizationId(req);
+                    const validation = await validateScores({
+                        faceMatching: matchScore,
+                        liveness: livenessScore
+                    }, req.isSandbox, organizationId || undefined);
+                    // Update scores through state manager
+                    const stateResult = await stateManager.updateScores(verification_id, {
+                        faceMatching: matchScore,
+                        liveness: livenessScore
+                    });
+                    // For enhanced verification, check if document validation passed
+                    let documentValidationPassed = true;
                     if (backDocument) {
-                        // Enhanced verification: all validations must pass
                         const currentVerification = await verificationService.getVerificationRequest(verification_id);
-                        const documentValidationPassed = currentVerification.status === 'verified';
-                        if (!documentValidationPassed) {
-                            finalStatus = 'failed';
-                            combinedFailureReasons.push('Document validation failed');
-                        }
-                        if (!selfieValidationPassed) {
-                            finalStatus = 'failed';
-                            if (!isLive)
-                                combinedFailureReasons.push('Liveness detection failed');
-                            if (!faceMatch)
-                                combinedFailureReasons.push('Selfie does not match document photo');
-                        }
+                        documentValidationPassed = currentVerification.status === 'verified';
+                    }
+                    // Determine final status and handle errors appropriately
+                    let finalResult;
+                    if (!documentValidationPassed) {
+                        finalResult = await stateManager.recordError(verification_id, VerificationFailureType.DATA_INCONSISTENCY_FRAUD, VerificationStage.FACE_MATCHING, 'Document validation failed - front and back documents do not match', { backDocument: !!backDocument });
+                    }
+                    else if (!validation.livenessPassed) {
+                        finalResult = await stateManager.recordError(verification_id, VerificationFailureType.LIVENESS_FAILED, VerificationStage.FACE_MATCHING, `Liveness detection failed - score ${livenessScore.toFixed(3)} below threshold ${livenessThreshold}`, { livenessScore, threshold: livenessThreshold });
+                    }
+                    else if (!validation.faceMatchingPassed) {
+                        finalResult = await stateManager.recordError(verification_id, VerificationFailureType.FACE_NOT_MATCHING, VerificationStage.FACE_MATCHING, `Face matching failed - score ${matchScore.toFixed(3)} below threshold ${faceMatchThreshold}`, { matchScore, threshold: faceMatchThreshold });
                     }
                     else {
-                        // Standard verification: only selfie validation needed
-                        finalStatus = selfieValidationPassed ? 'verified' : 'failed';
-                        if (!isLive)
-                            combinedFailureReasons.push('Liveness detection failed');
-                        if (!faceMatch)
-                            combinedFailureReasons.push('Selfie does not match document photo');
+                        // Success - complete the stage
+                        await stateManager.completeStage(verification_id, VerificationStage.FACE_MATCHING, true);
+                        finalResult = stateResult;
                     }
-                    // Comprehensive score analysis logging
+                    // Comprehensive score analysis logging with centralized thresholds
+                    // const thresholdInfo = getThresholdInfo(req.isSandbox); // Removed - using detailed info below
                     console.log(`📊 Final Verification Score Analysis for ${verification_id}:`);
-                    console.log(`   🎯 Face Match Score: ${matchScore.toFixed(3)} (threshold: 0.85) - ${faceMatch ? '✅ PASS' : '❌ FAIL'}`);
-                    console.log(`   🔍 Liveness Score: ${livenessScore.toFixed(3)} (threshold: 0.75) - ${isLive ? '✅ PASS' : '❌ FAIL'}`);
-                    console.log(`   📝 Final Status: ${finalStatus.toUpperCase()}`);
+                    console.log(`   🎯 Face Match Score: ${matchScore.toFixed(3)} (threshold: ${faceMatchThreshold}) - ${validation.faceMatchingPassed ? '✅ PASS' : '❌ FAIL'}`);
+                    console.log(`   🔍 Liveness Score: ${livenessScore.toFixed(3)} (threshold: ${livenessThreshold}) - ${validation.livenessPassed ? '✅ PASS' : '❌ FAIL'}`);
+                    console.log(`   📝 Final Status: ${finalResult.status.toUpperCase()}`);
                     console.log(`   🔗 Document Path: ${frontDocument?.file_path || document.file_path}`);
                     console.log(`   📸 Live Capture Path: ${liveCapturePath}`);
                     console.log(`   🔒 Enhanced Verification: ${backDocument ? 'YES' : 'NO'}`);
-                    if (combinedFailureReasons.length > 0) {
-                        console.log(`   ⚠️  Failure Reasons: ${combinedFailureReasons.join(', ')}`);
-                    }
-                    // Calculate how close scores are to thresholds
-                    const livenessGap = livenessScore - 0.75;
-                    const faceMatchGap = matchScore - 0.85;
+                    console.log(`   🏗️  Environment: ${req.isSandbox ? 'SANDBOX' : 'PRODUCTION'}`);
+                    console.log(`   🏢 Organization: ${organizationId || 'DEFAULT'}`);
+                    console.log(`   ⚙️  Using Thresholds: ${organizationId ? 'CUSTOM' : 'SYSTEM_DEFAULT'}`);
+                    console.log(`   📊 Threshold Values: Face=${faceMatchThreshold}, Liveness=${livenessThreshold}`);
+                    // Log threshold details for debugging
+                    const detailedThresholdInfo = await getThresholdInfo(req.isSandbox, organizationId || undefined);
+                    console.log(`   📋 Full Threshold Info: ${JSON.stringify(detailedThresholdInfo, null, 2)}`);
+                    // Calculate score gaps with dynamic thresholds
+                    const livenessGap = livenessScore - livenessThreshold;
+                    const faceMatchGap = matchScore - faceMatchThreshold;
                     console.log(`   📏 Score Gaps: Liveness ${livenessGap >= 0 ? '+' : ''}${livenessGap.toFixed(3)}, Face Match ${faceMatchGap >= 0 ? '+' : ''}${faceMatchGap.toFixed(3)}`);
+                    // Update legacy database fields for backward compatibility
                     await verificationService.updateVerificationRequest(verification_id, {
                         face_match_score: matchScore,
                         liveness_score: livenessScore,
                         live_capture_completed: true,
-                        status: finalStatus,
-                        manual_review_reason: finalStatus === 'failed' ?
-                            combinedFailureReasons.join(' | ') : undefined,
-                        failure_reason: finalStatus === 'failed' ?
-                            combinedFailureReasons.join('; ') : undefined
+                        status: finalResult.status,
+                        manual_review_reason: finalResult.error?.userMessage,
+                        failure_reason: finalResult.error?.message
                     });
                     logVerificationEvent('live_capture_processed', verification_id, {
                         liveCaptureId: liveCapture.id,
                         matchScore,
                         livenessScore,
-                        finalStatus,
+                        finalStatus: finalResult.status,
                         enhancedVerification: !!backDocument,
-                        documentValidationPassed: !backDocument || finalStatus !== 'failed' || !combinedFailureReasons.includes('Document validation failed'),
-                        selfieValidationPassed,
-                        combinedFailureReasons
+                        documentValidationPassed,
+                        validation,
+                        organizationId,
+                        usingCustomThresholds: !!organizationId,
+                        thresholds: detailedThresholdInfo,
+                        errorType: finalResult.error?.type,
+                        userMessage: finalResult.error?.userMessage
                     });
                 }
                 else {

@@ -132,6 +132,8 @@ export declare class BarcodeService {
     private normalizeDateForComparison;
     crossValidateWithFrontId(frontOcrData: any, backOfIdData: BackOfIdData): Promise<{
         match_score: number;
+        requires_manual_review?: boolean;
+        manual_review_reason?: string;
         validation_results: {
             id_number_match?: boolean;
             expiry_date_match?: boolean;

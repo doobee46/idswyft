@@ -1,5 +1,10 @@
 import { logger } from '@/utils/logger.js';
 import { StorageService } from './storage.js';
+import { VERIFICATION_THRESHOLDS } from '@/config/verificationThresholds.js';
+import { 
+  VerificationFailureType,
+  VerificationErrorClassifier
+} from '@/types/verificationTypes.js';
 // @ts-ignore - No types available for parse-usdl
 import { parse as parseUSDL } from 'parse-usdl';
 
@@ -1692,6 +1697,8 @@ This is for document verification and security analysis purposes.`
 
   async crossValidateWithFrontId(frontOcrData: any, backOfIdData: BackOfIdData): Promise<{
     match_score: number;
+    requires_manual_review?: boolean;
+    manual_review_reason?: string;
     validation_results: {
       id_number_match?: boolean;
       expiry_date_match?: boolean;
@@ -1941,29 +1948,44 @@ This is for document verification and security analysis purposes.`
       console.log('📄 PDF417 validation completed:', pdf417Insights);
     }
 
-    // Improve fallback logic when no data can be compared
-    // If photo consistency already passed (1.0) and we can't find data to compare,
-    // this likely means OCR/PDF417 extraction issues rather than fraud
-    const matchScore = totalChecks > 0 ? matches / totalChecks : 0.85; // More generous fallback for data extraction issues
-    const overallConsistency = matchScore >= 0.7 && discrepancies.length === 0;
+    // Proper handling for data extraction failures using centralized thresholds
+    // If no data can be compared (totalChecks = 0), this indicates extraction issues
+    // that require manual admin review, not automatic approval
+    let matchScore: number;
+    let requiresManualReview = false;
+    let manualReviewReason: string | undefined;
     
-    // Log the issue for debugging
     if (totalChecks === 0) {
       console.log('⚠️  No comparable data fields found between front OCR and back PDF417');
-      console.log('   📋 This may indicate OCR/PDF417 extraction issues rather than document fraud');
-      console.log('   🔒 Photo consistency should be the primary validation in this case');
+      console.log('   📋 This indicates OCR/PDF417 extraction issues - routing to MANUAL REVIEW');
+      console.log('   👥 Admin will need to verify documents manually for approval');
+      
+      matchScore = 0.6; // Below verification threshold but above complete failure
+      requiresManualReview = true;
+      manualReviewReason = 'Data extraction failed - unable to compare front OCR with back PDF417 data. Admin review required.';
+    } else {
+      matchScore = matches / totalChecks;
     }
+    
+    const crossValidationThreshold = VERIFICATION_THRESHOLDS.CROSS_VALIDATION;
+    const overallConsistency = matchScore >= crossValidationThreshold && discrepancies.length === 0 && !requiresManualReview;
 
+    // Log cross-validation analysis with centralized thresholds
     logger.info('Cross-validation completed', {
       matchScore,
       totalChecks,
       matches,
       discrepancies: discrepancies.length,
-      overallConsistency
+      overallConsistency,
+      threshold: crossValidationThreshold,
+      requiresManualReview,
+      pdf417Validation
     });
 
     return {
       match_score: matchScore,
+      requires_manual_review: requiresManualReview,
+      manual_review_reason: manualReviewReason,
       validation_results: {
         id_number_match: frontOcrData?.id_number && backOfIdData.parsed_data?.id_number ? 
           frontOcrData.id_number === backOfIdData.parsed_data.id_number : undefined,

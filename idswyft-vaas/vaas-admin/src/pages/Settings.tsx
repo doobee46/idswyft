@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/api';
 import { Organization, OrganizationSettings } from '../types.js';
 import { Settings as SettingsIcon, Save, AlertCircle, CheckCircle, Shield, Palette, Bell, Clock, Users, Zap } from 'lucide-react';
+import AdvancedThresholdSettings from '../components/AdvancedThresholdSettings';
 
 export default function Settings() {
   const { organization, admin } = useAuth();
@@ -134,13 +135,28 @@ export default function Settings() {
         {/* Settings Content */}
         <div className="flex-1">
           {activeSection === 'verification' && (
-            <VerificationSettingsSection
-              settings={orgData.settings}
-              onSave={handleSaveSettings}
-              onQuickToggle={handleQuickToggle}
-              isLoading={isLoading}
-              canEdit={canEdit}
-            />
+            <div className="space-y-6">
+              {/* Enhanced Threshold Management */}
+              <AdvancedThresholdSettings 
+                organizationId={orgData.id}
+                canEdit={canEdit}
+                onThresholdsUpdated={() => {
+                  // Refresh organization data when thresholds are updated
+                  if (organization) {
+                    setOrgData(organization);
+                  }
+                }}
+              />
+              
+              {/* Legacy Settings (kept for backward compatibility) */}
+              <VerificationSettingsSection
+                settings={orgData.settings}
+                onSave={handleSaveSettings}
+                onQuickToggle={handleQuickToggle}
+                isLoading={isLoading}
+                canEdit={canEdit}
+              />
+            </div>
           )}
 
           {activeSection === 'security' && (
@@ -252,53 +268,50 @@ function VerificationSettingsSection({ settings, onSave, onQuickToggle, isLoadin
         </div>
       </div>
 
-      {/* Detailed Settings */}
-      <div className="bg-white shadow rounded-lg">
+      {/* Legacy Threshold Management (Simplified) */}
+      <div className="bg-gray-50 border border-gray-200 rounded-lg">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Verification Thresholds</h3>
+          <h3 className="text-lg font-medium text-gray-700">Basic Settings (Legacy)</h3>
+          <p className="text-sm text-gray-500 mt-1">
+            Use the advanced threshold settings above for better control. These basic settings are kept for backward compatibility.
+          </p>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Auto-Approve Threshold (%)
+              <label className="block text-sm font-medium text-gray-600 mb-1">
+                Auto-Approve (%)
               </label>
               <input
                 type="number"
-                min="0"
-                max="100"
+                min="70"
+                max="95"
                 value={formData.auto_approve_threshold}
                 onChange={(e) => handleChange('auto_approve_threshold', Number(e.target.value))}
                 disabled={!canEdit}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
               />
-              <p className="mt-1 text-xs text-gray-500">
-                Verifications above this score are automatically approved
-              </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Manual Review Threshold (%)
+              <label className="block text-sm font-medium text-gray-600 mb-1">
+                Manual Review (%)
               </label>
               <input
                 type="number"
-                min="0"
-                max="100"
+                min="30"
+                max="80"
                 value={formData.manual_review_threshold}
                 onChange={(e) => handleChange('manual_review_threshold', Number(e.target.value))}
                 disabled={!canEdit}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
               />
-              <p className="mt-1 text-xs text-gray-500">
-                Verifications below this score require manual review
-              </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Max Verification Attempts
+              <label className="block text-sm font-medium text-gray-600 mb-1">
+                Max Attempts
               </label>
               <input
                 type="number"
@@ -307,23 +320,20 @@ function VerificationSettingsSection({ settings, onSave, onQuickToggle, isLoadin
                 value={formData.max_verification_attempts}
                 onChange={(e) => handleChange('max_verification_attempts', Number(e.target.value))}
                 disabled={!canEdit}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
               />
-              <p className="mt-1 text-xs text-gray-500">
-                Maximum retry attempts for failed verifications
-              </p>
             </div>
           </div>
 
           {canEdit && (
-            <div className="flex justify-end">
+            <div className="flex justify-end pt-2">
               <button
                 type="submit"
                 disabled={isLoading}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
               >
                 <Save className="h-4 w-4 mr-2" />
-                {isLoading ? 'Saving...' : 'Save Changes'}
+                {isLoading ? 'Saving...' : 'Update Legacy Settings'}
               </button>
             </div>
           )}
