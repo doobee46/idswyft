@@ -47,8 +47,16 @@ class ApiClient {
   private token: string | null = null;
 
   constructor() {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002/api';
+    console.log('[API Client] Initializing with baseURL:', apiUrl);
+    console.log('[API Client] Environment check:', {
+      VITE_API_URL: import.meta.env.VITE_API_URL,
+      NODE_ENV: import.meta.env.NODE_ENV,
+      MODE: import.meta.env.MODE
+    });
+    
     this.client = axios.create({
-      baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3002/api',
+      baseURL: apiUrl,
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
@@ -64,7 +72,10 @@ class ApiClient {
     // Request interceptor
     this.client.interceptors.request.use(
       (config) => {
+        const fullUrl = config.baseURL ? `${config.baseURL}${config.url}` : config.url;
         console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`);
+        console.log(`[API] Full URL: ${fullUrl}`);
+        console.log(`[API] Base URL: ${config.baseURL}`);
         return config;
       },
       (error) => {
