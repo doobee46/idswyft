@@ -46,6 +46,8 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
   const [finalStatus, setFinalStatus] = useState<'verified' | 'manual_review' | 'pending' | 'failed' | null>(null);
   const [sessionTerminated, setSessionTerminated] = useState(false);
   const [verificationId, setVerificationId] = useState<string | null>(null);
+  const [failureReason, setFailureReason] = useState<string | null>(null);
+  const [showFailureFeedback, setShowFailureFeedback] = useState(false);
 
   // Organization context for branding
   const { setBranding, setOrganizationName } = useOrganization();
@@ -280,6 +282,12 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
         
         console.log('Polling verification status:', status, 'attempt:', attempts + 1);
         
+        // Check for failure reason during polling
+        if (results.failure_reason && !showFailureFeedback) {
+          setFailureReason(results.failure_reason);
+          setShowFailureFeedback(true);
+        }
+        
         // Handle verification status directly from backend
         if (status === 'verified') {
           setFinalStatus('verified');
@@ -295,6 +303,9 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
           }
           setCurrentStep('complete');
         } else if (status === 'failed') {
+          if (results.failure_reason) {
+            setFailureReason(results.failure_reason);
+          }
           setFinalStatus('failed');
           setCurrentStep('complete');
         } else if (status === 'manual_review') {
@@ -437,21 +448,47 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
           )}
 
           {currentStep === 'document-processing' && (
-            <DocumentProcessingStep />
+            <>
+              <DocumentProcessingStep />
+              {showFailureFeedback && failureReason && (
+                <FailureFeedbackAlert 
+                  failureReason={failureReason}
+                  onDismiss={() => setShowFailureFeedback(false)}
+                  onRetry={() => {
+                    setShowFailureFeedback(false);
+                    setFailureReason(null);
+                    setCurrentStep('document-upload');
+                  }}
+                />
+              )}
+            </>
           )}
 
           {currentStep === 'identity-verification' && (
             <>
               {!showLiveCapture && (
-                <IdentityVerificationStep
-                  session={session}
-                  ocrData={ocrData}
-                  backOfIdUploaded={backOfIdUploaded}
-                  showLiveCapture={showLiveCapture}
-                  onBackOfIdUpload={handleBackOfIdUpload}
-                  onStartLiveCapture={() => setShowLiveCapture(true)}
-                  uploadProgress={uploadProgress}
-                />
+                <>
+                  <IdentityVerificationStep
+                    session={session}
+                    ocrData={ocrData}
+                    backOfIdUploaded={backOfIdUploaded}
+                    showLiveCapture={showLiveCapture}
+                    onBackOfIdUpload={handleBackOfIdUpload}
+                    onStartLiveCapture={() => setShowLiveCapture(true)}
+                    uploadProgress={uploadProgress}
+                  />
+                  {showFailureFeedback && failureReason && (
+                    <FailureFeedbackAlert 
+                      failureReason={failureReason}
+                      onDismiss={() => setShowFailureFeedback(false)}
+                      onRetry={() => {
+                        setShowFailureFeedback(false);
+                        setFailureReason(null);
+                        setCurrentStep('document-upload');
+                      }}
+                    />
+                  )}
+                </>
               )}
               
               {showLiveCapture && (
@@ -905,6 +942,97 @@ const CompleteStep: React.FC<{ finalStatus: string | null; session: Verification
           <p className="text-xs text-gray-500">
             <strong>Security Notice:</strong> This verification link will automatically become inactive after 5 seconds for security purposes. You may safely close this window.
           </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Real-time failure feedback component for in-flow notifications
+interface FailureFeedbackAlertProps {
+  failureReason: string;
+  onDismiss: () => void;
+  onRetry: () => void;
+}
+
+const FailureFeedbackAlert: React.FC<FailureFeedbackAlertProps> = ({ 
+  failureReason, 
+  onDismiss, 
+  onRetry 
+}) => {
+  // Convert technical failure reason to user-friendly message
+  const getUserFriendlyMessage = (reason: string) => {
+    const lowerReason = reason.toLowerCase();
+    
+    if (lowerReason.includes('document') && lowerReason.includes('match')) {
+      return {
+        title: 'Document Validation Issue',
+        message: 'The front and back of your ID document don\'t appear to match. Please ensure you\'re uploading both sides of the same document.',
+        suggestion: 'Try uploading clearer photos of both sides of your ID.'
+      };
+    }
+    
+    if (lowerReason.includes('photo') || lowerReason.includes('face')) {
+      return {
+        title: 'Photo Quality Issue',
+        message: 'We had trouble verifying the photo on your ID document.',
+        suggestion: 'Please ensure the photo on your ID is clear and visible, then try again.'
+      };
+    }
+    
+    if (lowerReason.includes('quality') || lowerReason.includes('blurry') || lowerReason.includes('unclear')) {
+      return {
+        title: 'Document Quality Issue',
+        message: 'Your document image may be too blurry or unclear for verification.',
+        suggestion: 'Please take a clearer photo with good lighting and try again.'
+      };
+    }
+    
+    if (lowerReason.includes('expired') || lowerReason.includes('invalid')) {
+      return {
+        title: 'Document Validity Issue',
+        message: 'There may be an issue with your document\'s validity or expiration.',
+        suggestion: 'Please check that your ID is current and valid, then try again.'
+      };
+    }
+    
+    // Generic fallback
+    return {
+      title: 'Verification Issue',
+      message: 'We encountered an issue while verifying your documents.',
+      suggestion: 'Please ensure your documents are clear, valid, and properly aligned, then try again.'
+    };
+  };
+
+  const feedback = getUserFriendlyMessage(failureReason);
+
+  return (
+    <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4 animate-fade-in">
+      <div className="flex items-start space-x-3">
+        <div className="flex-shrink-0">
+          <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
+        </div>
+        <div className="flex-1">
+          <h4 className="text-red-900 font-medium text-sm mb-1">{feedback.title}</h4>
+          <p className="text-red-800 text-sm mb-2">{feedback.message}</p>
+          <p className="text-red-700 text-sm mb-3">
+            <strong>Suggestion:</strong> {feedback.suggestion}
+          </p>
+          
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button
+              onClick={onRetry}
+              className="flex-1 bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700 transition-colors"
+            >
+              Upload New Documents
+            </button>
+            <button
+              onClick={onDismiss}
+              className="flex-1 bg-white text-red-700 border border-red-300 px-4 py-2 rounded-md text-sm font-medium hover:bg-red-50 transition-colors"
+            >
+              Continue Anyway
+            </button>
+          </div>
         </div>
       </div>
     </div>

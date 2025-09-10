@@ -11,6 +11,7 @@ interface VerificationResults {
   verification_id: string;
   status: 'pending' | 'processing' | 'completed' | 'verified' | 'failed' | 'manual_review';
   confidence_score?: number;
+  failure_reason?: string;
   ocr_data?: {
     full_name?: string;
     document_number?: string;
