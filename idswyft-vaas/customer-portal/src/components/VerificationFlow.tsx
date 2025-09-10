@@ -43,7 +43,7 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
   const [ocrData, setOcrData] = useState<any>(null);
   const [backOfIdUploaded, setBackOfIdUploaded] = useState(false);
   const [showLiveCapture, setShowLiveCapture] = useState(false);
-  const [finalStatus, setFinalStatus] = useState<'verified' | 'manual_review' | 'pending' | null>(null);
+  const [finalStatus, setFinalStatus] = useState<'verified' | 'manual_review' | 'pending' | 'failed' | null>(null);
   const [sessionTerminated, setSessionTerminated] = useState(false);
   const [verificationId, setVerificationId] = useState<string | null>(null);
 
@@ -295,7 +295,7 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
           }
           setCurrentStep('complete');
         } else if (status === 'failed') {
-          setFinalStatus('pending');
+          setFinalStatus('failed');
           setCurrentStep('complete');
         } else if (status === 'manual_review') {
           setFinalStatus('manual_review');
@@ -854,6 +854,16 @@ const CompleteStep: React.FC<{ finalStatus: string | null; session: Verification
           message: 'Your verification is under review. You will be notified of the results within 24-48 hours.',
           statusColor: 'bg-yellow-50 border-yellow-200',
           statusText: 'text-yellow-800'
+        };
+      case 'failed':
+        return {
+          icon: AlertCircle,
+          iconColor: 'text-red-600',
+          bgColor: 'bg-red-100',
+          title: 'Verification Unsuccessful',
+          message: 'We were unable to verify your identity with the provided documents. Please ensure your documents are clear, valid, and match each other. You may contact support if you need assistance.',
+          statusColor: 'bg-red-50 border-red-200',
+          statusText: 'text-red-800'
         };
       case 'pending':
       default:
