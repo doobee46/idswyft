@@ -423,13 +423,44 @@ class ApiClient {
 
   // API Keys
   async listApiKeys(): Promise<ApiKey[]> {
-    const response: AxiosResponse<ApiResponse<ApiKey[]>> = await this.client.get('/api-keys');
+    const response: AxiosResponse<ApiResponse<any[]>> = await this.client.get('/api-keys');
     
     if (!response.data.success) {
       throw new Error(response.data.error?.message || 'Failed to list API keys');
     }
 
-    return response.data.data!;
+    // Transform VaaS backend response to match frontend expectations
+    const vaasKeys = response.data.data || [];
+    const transformedKeys: ApiKey[] = vaasKeys.map((vaasKey: any) => ({
+      id: vaasKey.id,
+      organization_id: vaasKey.organization_id || '',
+      name: vaasKey.key_name,
+      description: vaasKey.description || '',
+      key_prefix: vaasKey.key_prefix,
+      key_suffix: '***', // VaaS backend doesn't provide suffix
+      permissions: {
+        read_verifications: true, // VaaS keys have basic permissions
+        write_verifications: true,
+        read_users: true,
+        write_users: false,
+        read_webhooks: false,
+        write_webhooks: false,
+        read_analytics: false,
+        admin_access: false
+      },
+      environment: 'production', // Default for VaaS keys
+      status: vaasKey.is_active ? 'active' : 'disabled',
+      rate_limit: undefined,
+      allowed_ips: undefined,
+      expires_at: vaasKey.expires_at,
+      last_used_at: vaasKey.last_used_at,
+      usage_count: 0, // VaaS backend doesn't track usage yet
+      created_by: '',
+      created_at: vaasKey.created_at,
+      updated_at: vaasKey.updated_at || vaasKey.created_at
+    }));
+
+    return transformedKeys;
   }
 
   async getApiKey(id: string): Promise<ApiKey> {
@@ -443,13 +474,57 @@ class ApiClient {
   }
 
   async createApiKey(data: ApiKeyFormData): Promise<ApiKeyCreateResponse> {
-    const response: AxiosResponse<ApiResponse<ApiKeyCreateResponse>> = await this.client.post('/api-keys', data);
+    // Transform frontend data to match VaaS backend API expectations
+    const vaasApiData = {
+      key_name: data.name,
+      description: data.description || undefined,
+      expires_in_days: data.expires_at ? 
+        Math.ceil((new Date(data.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 
+        undefined
+    };
+
+    const response: AxiosResponse<ApiResponse<any>> = await this.client.post('/api-keys', vaasApiData);
     
     if (!response.data.success) {
       throw new Error(response.data.error?.message || 'Failed to create API key');
     }
 
-    return response.data.data!;
+    const vaasResponse = response.data.data;
+    
+    // Transform VaaS backend response to match frontend expectations
+    const transformedResponse: ApiKeyCreateResponse = {
+      api_key: {
+        id: vaasResponse.key_info.id,
+        organization_id: '', // Will be filled by the backend
+        name: vaasResponse.key_info.key_name,
+        description: vaasResponse.key_info.description || '',
+        key_prefix: vaasResponse.key_info.key_prefix,
+        key_suffix: '***', // VaaS backend doesn't provide suffix
+        permissions: {
+          read_verifications: true, // VaaS keys have basic permissions
+          write_verifications: true,
+          read_users: true,
+          write_users: false,
+          read_webhooks: false,
+          write_webhooks: false,
+          read_analytics: false,
+          admin_access: false
+        },
+        environment: data.environment,
+        status: 'active',
+        rate_limit: data.rate_limit,
+        allowed_ips: data.allowed_ips,
+        expires_at: vaasResponse.key_info.expires_at,
+        last_used_at: undefined,
+        usage_count: 0,
+        created_by: '',
+        created_at: vaasResponse.key_info.created_at,
+        updated_at: vaasResponse.key_info.created_at
+      },
+      secret_key: vaasResponse.secret_key
+    };
+
+    return transformedResponse;
   }
 
   async updateApiKey(id: string, updates: Partial<ApiKey>): Promise<ApiKey> {
