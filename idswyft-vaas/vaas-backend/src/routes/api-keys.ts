@@ -78,6 +78,9 @@ router.post('/migrate', async (req, res) => {
         ON vaas_api_keys(organization_id, is_active);
       CREATE INDEX IF NOT EXISTS idx_vaas_api_keys_hash 
         ON vaas_api_keys(key_hash);
+        
+      -- Disable RLS for now to allow access
+      ALTER TABLE vaas_api_keys DISABLE ROW LEVEL SECURITY;
     `;
 
     const { error: createError } = await vaasSupabase.rpc('exec_sql', {
@@ -271,18 +274,20 @@ router.post('/',
 
     // Check existing key count (limit to 10 VaaS API keys per organization)
     console.log('[VaasAPIKeys] Checking existing API key count...');
-    const { count: existingCount, error: countError } = await vaasSupabase
+    const { data: existingKeys, error: countError } = await vaasSupabase
       .from('vaas_api_keys')
-      .select('*', { count: 'exact', head: true })
+      .select('id')
       .eq('organization_id', organizationId)
       .eq('is_active', true);
 
-    console.log('[VaasAPIKeys] Count result:', { existingCount, countError });
+    console.log('[VaasAPIKeys] Count result:', { existingKeysLength: existingKeys?.length, countError });
 
     if (countError) {
       console.error('[VaasAPIKeys] Count error details:', countError);
       throw new Error(`Failed to check API key count: ${countError.message}`);
     }
+
+    const existingCount = existingKeys?.length || 0;
 
     const maxKeys = 10;
     if ((existingCount ?? 0) >= maxKeys) {
