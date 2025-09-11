@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Navigate, Link } from 'react-router-dom';
-import { Eye, EyeOff, AlertCircle, Shield } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, Shield, ArrowRight, Lock, Mail, Building, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { LoginRequest } from '../../types.js';
 
@@ -62,184 +62,256 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary-600 to-primary-900 p-12 flex-col justify-between">
-        <div>
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
-              <Shield className="w-6 h-6 text-primary-600" />
-            </div>
-            <span className="text-2xl font-bold text-white">Idswyft VaaS</span>
-          </div>
-          
-          <div className="mt-12">
-            <h1 className="text-4xl font-bold text-white mb-4">
-              Enterprise Identity Verification Platform
-            </h1>
-            <p className="text-xl text-primary-100">
-              Secure, scalable, and compliant identity verification solutions for your business.
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-4 text-primary-100">
-          <div className="flex items-center space-x-3">
-            <div className="w-2 h-2 bg-primary-300 rounded-full"></div>
-            <span>Multi-tenant organization management</span>
-          </div>
-          <div className="flex items-center space-x-3">
-            <div className="w-2 h-2 bg-primary-300 rounded-full"></div>
-            <span>Real-time verification monitoring</span>
-          </div>
-          <div className="flex items-center space-x-3">
-            <div className="w-2 h-2 bg-primary-300 rounded-full"></div>
-            <span>Comprehensive webhook system</span>
-          </div>
-          <div className="flex items-center space-x-3">
-            <div className="w-2 h-2 bg-primary-300 rounded-full"></div>
-            <span>Advanced analytics and reporting</span>
-          </div>
-        </div>
+    <div className="min-h-screen gradient-bg relative overflow-hidden">
+      {/* Decorative elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-indigo-600/20 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-indigo-400/20 to-purple-600/20 rounded-full blur-3xl"></div>
       </div>
 
-      {/* Right side - Login form */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="lg:hidden flex items-center justify-center space-x-3 mb-6">
-              <div className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center">
-                <Shield className="w-6 h-6 text-white" />
+      <div className="min-h-screen flex relative z-10">
+        {/* Left side - Enhanced Branding */}
+        <div className="hidden lg:flex lg:w-1/2 p-12 flex-col justify-between relative">
+          {/* Glass panel background */}
+          <div className="absolute inset-4 glass-panel opacity-80"></div>
+          
+          <div className="relative z-10">
+            <div className="flex items-center space-x-4 mb-12">
+              <div className="relative">
+                <div className="w-14 h-14 bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-xl border border-white/20">
+                  <Shield className="w-8 h-8 text-blue-600" />
+                </div>
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white flex items-center justify-center">
+                  <CheckCircle className="w-2.5 h-2.5 text-white" />
+                </div>
               </div>
-              <span className="text-2xl font-bold text-gray-900">Idswyft VaaS</span>
+              <div>
+                <h1 className="text-3xl font-bold gradient-text">Idswyft VaaS</h1>
+                <p className="text-slate-600 font-medium">Admin Portal</p>
+              </div>
             </div>
             
-            <h2 className="text-3xl font-bold text-gray-900">Welcome back</h2>
-            <p className="text-gray-600 mt-2">Sign in to your admin dashboard</p>
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-4xl font-bold text-slate-800 mb-4 leading-tight">
+                  Enterprise Identity
+                  <br />
+                  <span className="gradient-text">Verification Platform</span>
+                </h2>
+                <p className="text-lg text-slate-600 leading-relaxed">
+                  Secure, scalable, and compliant identity verification solutions designed for enterprise administrators.
+                </p>
+              </div>
+
+              <div className="inline-flex items-center space-x-2 px-4 py-2 bg-green-100/80 backdrop-blur-sm rounded-full border border-green-200/50">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-sm font-semibold text-green-700">System Online</span>
+              </div>
+            </div>
           </div>
 
-          {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center space-x-3">
-              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-              <p className="text-red-700 text-sm">{error}</p>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="email" className="form-label">
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className={`form-input ${validationErrors.email ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
-                placeholder="admin@company.com"
-                value={formData.email}
-                onChange={handleChange}
-              />
-              {validationErrors.email && (
-                <p className="mt-1 text-sm text-red-600">{validationErrors.email}</p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="password" className="form-label">
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  required
-                  className={`form-input pr-10 ${validationErrors.password ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
-                  placeholder="Enter your password"
-                  value={formData.password}
-                  onChange={handleChange}
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-gray-400" />
-                  )}
-                </button>
-              </div>
-              {validationErrors.password && (
-                <p className="mt-1 text-sm text-red-600">{validationErrors.password}</p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="organization_slug" className="form-label">
-                Organization (Optional)
-              </label>
-              <input
-                id="organization_slug"
-                name="organization_slug"
-                type="text"
-                autoComplete="organization"
-                className="form-input"
-                placeholder="your-company-slug"
-                value={formData.organization_slug}
-                onChange={handleChange}
-              />
-              <p className="mt-1 text-sm text-gray-500">
-                Leave blank if you belong to only one organization
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="text-sm">
-                <Link
-                  to="/forgot-password"
-                  className="font-medium text-primary-600 hover:text-primary-500 transition-colors"
-                >
-                  Forgot your password?
-                </Link>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full btn btn-primary py-3 text-base"
-            >
-              {loading ? (
-                <div className="flex items-center justify-center space-x-2">
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Signing in...</span>
+          <div className="relative z-10">
+            <div className="grid grid-cols-1 gap-4">
+              <div className="flex items-center space-x-4 p-4 rounded-2xl bg-white/40 backdrop-blur-sm border border-white/20 hover-lift">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                  <Building className="w-5 h-5 text-white" />
                 </div>
-              ) : (
-                'Sign in'
-              )}
-            </button>
-          </form>
-
-          <div className="mt-8 text-center">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
+                <div>
+                  <p className="font-semibold text-slate-800">Multi-tenant Management</p>
+                  <p className="text-sm text-slate-600">Organization-level access control</p>
+                </div>
               </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-gray-50 text-gray-500">Need help?</span>
+              
+              <div className="flex items-center space-x-4 p-4 rounded-2xl bg-white/40 backdrop-blur-sm border border-white/20 hover-lift">
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
+                  <AlertCircle className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-800">Real-time Monitoring</p>
+                  <p className="text-sm text-slate-600">Live verification dashboard</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right side - Enhanced Login form */}
+        <div className="flex-1 flex items-center justify-center p-8 relative">
+          <div className="w-full max-w-lg">
+            {/* Mobile branding */}
+            <div className="lg:hidden text-center mb-8 animate-fade-in">
+              <div className="flex items-center justify-center space-x-4 mb-6">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-xl">
+                  <Shield className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold gradient-text">Idswyft VaaS</h1>
+                  <p className="text-slate-600 text-sm">Admin Portal</p>
+                </div>
               </div>
             </div>
             
-            <div className="mt-4 text-sm text-gray-600">
-              Contact your organization administrator or{' '}
-              <a href="mailto:support@idswyft.app" className="text-primary-600 hover:text-primary-500">
-                support@idswyft.app
-              </a>
+            {/* Main login card */}
+            <div className="card p-8 animate-fade-in">
+              <div className="text-center mb-8">
+                <h2 className="text-3xl font-bold text-slate-800 mb-2">Welcome back</h2>
+                <p className="text-slate-600">Sign in to your admin dashboard</p>
+              </div>
+
+              {error && (
+                <div className="mb-6 bg-red-50/80 backdrop-blur-sm border-2 border-red-200 rounded-2xl p-4 flex items-center space-x-3 animate-fade-in">
+                  <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <AlertCircle className="w-4 h-4 text-red-500" />
+                  </div>
+                  <p className="text-red-700 text-sm font-medium">{error}</p>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="form-group">
+                  <label htmlFor="email" className="form-label">
+                    Email Address
+                  </label>
+                  <div className="relative group">
+                    <div className="form-icon">
+                      <Mail className="form-icon-svg" />
+                    </div>
+                    <input
+                      id="email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      className={`form-input form-input-icon ${validationErrors.email ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''}`}
+                      placeholder="admin@company.com"
+                      value={formData.email}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  {validationErrors.email && (
+                    <p className="mt-2 text-sm text-red-600 font-medium flex items-center space-x-1">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>{validationErrors.email}</span>
+                    </p>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="password" className="form-label">
+                    Password
+                  </label>
+                  <div className="relative group">
+                    <div className="form-icon">
+                      <Lock className="form-icon-svg" />
+                    </div>
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
+                      required
+                      className={`form-input form-input-icon pr-12 ${validationErrors.password ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''}`}
+                      placeholder="Enter your password"
+                      value={formData.password}
+                      onChange={handleChange}
+                    />
+                    <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center hover:bg-slate-50 rounded-r-xl transition-colors"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-5 w-5 text-slate-400 hover:text-slate-600 transition-colors" />
+                      ) : (
+                        <Eye className="h-5 w-5 text-slate-400 hover:text-slate-600 transition-colors" />
+                      )}
+                    </button>
+                  </div>
+                  {validationErrors.password && (
+                    <p className="mt-2 text-sm text-red-600 font-medium flex items-center space-x-1">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>{validationErrors.password}</span>
+                    </p>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="organization_slug" className="form-label">
+                    Organization <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
+                  <div className="relative group">
+                    <div className="form-icon">
+                      <Building className="form-icon-svg" />
+                    </div>
+                    <input
+                      id="organization_slug"
+                      name="organization_slug"
+                      type="text"
+                      autoComplete="organization"
+                      className="form-input form-input-icon"
+                      placeholder="your-company-slug"
+                      value={formData.organization_slug}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <p className="mt-2 text-sm text-slate-500 flex items-center space-x-1">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    <span>Leave blank if you belong to only one organization</span>
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="text-sm">
+                    <Link
+                      to="/forgot-password"
+                      className="font-semibold text-blue-600 hover:text-blue-700 transition-all duration-200 flex items-center space-x-1 group"
+                    >
+                      <span>Forgot your password?</span>
+                      <div className="w-1 h-1 bg-blue-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    </Link>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full btn btn-primary py-4 text-base font-semibold shadow-xl"
+                >
+                  {loading ? (
+                    <div className="flex items-center justify-center space-x-3">
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Signing in...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center space-x-2">
+                      <span>Sign in</span>
+                      <div className="w-1 h-1 bg-white rounded-full opacity-75"></div>
+                    </div>
+                  )}
+                </button>
+              </form>
+
+              <div className="mt-8 text-center">
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-slate-200" />
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-4 bg-white text-slate-500 font-medium">Need help?</span>
+                  </div>
+                </div>
+                
+                <div className="mt-6 text-sm text-slate-600">
+                  <p className="mb-2">Contact your organization administrator or</p>
+                  <a 
+                    href="mailto:support@idswyft.app" 
+                    className="inline-flex items-center space-x-2 font-semibold text-blue-600 hover:text-blue-700 transition-all duration-200 group"
+                  >
+                    <Mail className="w-4 h-4" />
+                    <span>support@idswyft.app</span>
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
         </div>
