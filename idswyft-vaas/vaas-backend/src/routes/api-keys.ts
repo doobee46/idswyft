@@ -25,27 +25,46 @@ router.get('/health', async (req, res) => {
   });
 });
 
+// Database connection test endpoint
+router.post('/test-db', async (req, res) => {
+  try {
+    console.log('🔄 Testing VaaS database connection...');
+    
+    // Test basic connection
+    const { data: testResult, error: connectionError } = await vaasSupabase
+      .from('admin_accounts')
+      .select('id')
+      .limit(1);
+
+    console.log('🔍 Connection test result:', { testResult, connectionError });
+
+    res.json({
+      success: true,
+      data: {
+        connectionTest: connectionError ? 'failed' : 'success',
+        error: connectionError,
+        hasData: !!testResult?.length
+      }
+    });
+  } catch (error: any) {
+    console.error('❌ Database test failed:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'DB_TEST_ERROR',
+        message: error.message || 'Database test failed'
+      }
+    });
+  }
+});
+
 // Migration endpoint to create vaas_api_keys table
 router.post('/migrate', async (req, res) => {
   try {
     console.log('🔄 Running VaaS API keys table migration...');
     
-    // Try to create the table directly - handle "already exists" error gracefully
-    // First test if table exists by attempting a simple query
-    const { data: testData, error: testError } = await vaasSupabase
-      .from('vaas_api_keys')
-      .select('id')
-      .limit(1);
-
-    if (!testError) {
-      console.log('✅ vaas_api_keys table already exists');
-      return res.json({
-        success: true,
-        message: 'vaas_api_keys table already exists'
-      });
-    }
-
-    console.log('🔧 Table does not exist, creating it...');
+    // Simple approach: just try to create the table and handle errors
+    console.log('🔧 Creating vaas_api_keys table...');
 
     console.log('🔧 Creating vaas_api_keys table...');
     
