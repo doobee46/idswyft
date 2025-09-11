@@ -35,10 +35,15 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res) => {
       
     if (error) {
       console.error('Failed to get organization settings:', error);
-      return res.status(500).json({
-        success: false,
-        error: { code: 'DATABASE_ERROR', message: 'Failed to fetch organization settings' }
-      });
+      // If column doesn't exist, continue with defaults
+      if (error.code === '42703') {
+        console.log('threshold_settings column does not exist yet, using defaults');
+      } else {
+        return res.status(500).json({
+          success: false,
+          error: { code: 'DATABASE_ERROR', message: 'Failed to fetch organization settings' }
+        });
+      }
     }
     
     // Default threshold settings if none exist
@@ -236,6 +241,13 @@ router.put('/', requireAuth, async (req: AuthenticatedRequest, res) => {
       
     if (error) {
       console.error('Failed to save threshold settings:', error);
+      // If column doesn't exist, we need to add it
+      if (error.code === '42703') {
+        return res.status(500).json({
+          success: false,
+          error: { code: 'SCHEMA_ERROR', message: 'Database schema needs to be updated. Please contact support.' }
+        });
+      }
       return res.status(500).json({
         success: false,
         error: { code: 'DATABASE_ERROR', message: 'Failed to save threshold settings' }
