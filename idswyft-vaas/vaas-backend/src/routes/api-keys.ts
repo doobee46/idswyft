@@ -30,31 +30,22 @@ router.post('/migrate', async (req, res) => {
   try {
     console.log('🔄 Running VaaS API keys table migration...');
     
-    // Check if vaas_api_keys table exists
-    const { data: tables, error: tableError } = await vaasSupabase
-      .from('information_schema.tables')
-      .select('table_name')
-      .eq('table_schema', 'public')
-      .eq('table_name', 'vaas_api_keys');
+    // Try to create the table directly - handle "already exists" error gracefully
+    // First test if table exists by attempting a simple query
+    const { data: testData, error: testError } = await vaasSupabase
+      .from('vaas_api_keys')
+      .select('id')
+      .limit(1);
 
-    if (tableError) {
-      console.log('❌ Failed to check table existence:', tableError);
-      return res.status(500).json({
-        success: false,
-        error: {
-          code: 'MIGRATION_ERROR',
-          message: 'Failed to check table existence'
-        }
-      });
-    }
-
-    if (tables && tables.length > 0) {
+    if (!testError) {
       console.log('✅ vaas_api_keys table already exists');
       return res.json({
         success: true,
         message: 'vaas_api_keys table already exists'
       });
     }
+
+    console.log('🔧 Table does not exist, creating it...');
 
     console.log('🔧 Creating vaas_api_keys table...');
     
