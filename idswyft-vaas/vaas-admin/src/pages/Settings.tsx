@@ -58,7 +58,7 @@ export default function Settings() {
   const canEdit = admin?.permissions.manage_settings || false;
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Verification & System Settings</h1>
         <p className="text-gray-600">Configure technical verification thresholds, security settings, and system preferences</p>
@@ -239,8 +239,8 @@ function VerificationSettingsSection({ settings, onSave, onQuickToggle, isLoadin
   return (
     <div className="space-y-6">
       {/* Quick Toggles */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200">
+      <div className="content-card-glass">
+        <div className="px-6 py-4 border-b border-white/20">
           <h3 className="text-lg font-medium text-gray-900 flex items-center">
             <Zap className="h-5 w-5 mr-2 text-blue-600" />
             Quick Settings
@@ -286,7 +286,7 @@ function VerificationSettingsSection({ settings, onSave, onQuickToggle, isLoadin
 
       {/* Legacy Threshold Management (Simplified) */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200">
+        <div className="px-6 py-4 border-b border-white/20">
           <h3 className="text-lg font-medium text-gray-700">Additional Settings</h3>
           <p className="text-sm text-gray-500 mt-1">
             Additional verification settings that complement the advanced threshold management above.

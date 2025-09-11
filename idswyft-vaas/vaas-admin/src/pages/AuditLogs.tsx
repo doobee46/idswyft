@@ -263,13 +263,13 @@ export default function AuditLogs() {
           <div className="h-8 bg-gray-200 rounded w-64 mb-6"></div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             {[1, 2, 3, 4].map(i => (
-              <div key={i} className="bg-white p-6 rounded-lg border">
+              <div key={i} className="stat-card-glass p-6">
                 <div className="h-4 bg-gray-200 rounded w-24 mb-2"></div>
                 <div className="h-8 bg-gray-200 rounded w-16"></div>
               </div>
             ))}
           </div>
-          <div className="bg-white rounded-lg border">
+          <div className="content-card-glass">
             <div className="p-6 border-b">
               <div className="h-6 bg-gray-200 rounded w-32"></div>
             </div>
@@ -285,7 +285,7 @@ export default function AuditLogs() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 space-y-8 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center">
@@ -322,7 +322,7 @@ export default function AuditLogs() {
       {/* Stats Cards */}
       {stats && !statsLoading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg border">
+          <div className="stat-card-glass p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm">Today</p>
@@ -332,7 +332,7 @@ export default function AuditLogs() {
             </div>
           </div>
           
-          <div className="bg-white p-6 rounded-lg border">
+          <div className="stat-card-glass p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm">This Week</p>
@@ -342,7 +342,7 @@ export default function AuditLogs() {
             </div>
           </div>
           
-          <div className="bg-white p-6 rounded-lg border">
+          <div className="stat-card-glass p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm">Security Alerts</p>
@@ -352,7 +352,7 @@ export default function AuditLogs() {
             </div>
           </div>
           
-          <div className="bg-white p-6 rounded-lg border">
+          <div className="stat-card-glass p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm">Failed Logins</p>
@@ -365,7 +365,7 @@ export default function AuditLogs() {
       )}
 
       {/* Search and Filters */}
-      <div className="bg-white rounded-lg border mb-6">
+      <div className="content-card-glass mb-6">
         <div className="p-6 border-b">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
@@ -516,7 +516,7 @@ export default function AuditLogs() {
       </div>
 
       {/* Audit Logs Table */}
-      <div className="bg-white rounded-lg border">
+      <div className="content-card-glass">
         <div className="px-6 py-4 border-b">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-semibold text-gray-900">
@@ -558,7 +558,7 @@ export default function AuditLogs() {
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white/30 backdrop-blur-sm divide-y divide-white/20">
               {logs.map((log) => {
                 const ActorIcon = actorIcons[log.actor_type];
                 return (

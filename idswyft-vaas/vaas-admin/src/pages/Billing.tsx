@@ -171,7 +171,7 @@ export default function Billing() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-8">
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start space-y-4 lg:space-y-0">
         <div>
@@ -297,7 +297,7 @@ function BillingOverviewTab({ billingData }: BillingOverviewTabProps) {
     <div className="space-y-6">
       {/* Subscription Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="stat-card-glass p-6">
           <div className="flex items-center">
             <Crown className="h-8 w-8 text-purple-600" />
             <div className="ml-4">
@@ -308,7 +308,7 @@ function BillingOverviewTab({ billingData }: BillingOverviewTabProps) {
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="stat-card-glass p-6">
           <div className="flex items-center">
             <DollarSign className="h-8 w-8 text-green-600" />
             <div className="ml-4">
@@ -323,7 +323,7 @@ function BillingOverviewTab({ billingData }: BillingOverviewTabProps) {
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="stat-card-glass p-6">
           <div className="flex items-center">
             <Activity className="h-8 w-8 text-blue-600" />
             <div className="ml-4">
@@ -338,7 +338,7 @@ function BillingOverviewTab({ billingData }: BillingOverviewTabProps) {
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="stat-card-glass p-6">
           <div className="flex items-center">
             <Calendar className="h-8 w-8 text-orange-600" />
             <div className="ml-4">
@@ -359,7 +359,7 @@ function BillingOverviewTab({ billingData }: BillingOverviewTabProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Usage Progress */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="stat-card-glass p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
             <TrendingUp className="h-5 w-5 mr-2 text-blue-600" />
             Current Usage
@@ -418,7 +418,7 @@ function BillingOverviewTab({ billingData }: BillingOverviewTabProps) {
         </div>
 
         {/* Payment Information */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="stat-card-glass p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
             <CreditCard className="h-5 w-5 mr-2 text-green-600" />
             Payment Information
@@ -529,7 +529,7 @@ function UsageDetailsTab({ billingData, usageHistory }: UsageDetailsTabProps) {
       </div>
 
       {/* Usage Chart Placeholder */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
+      <div className="content-card-glass p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Usage Trends</h3>
         <div className="h-64 flex items-center justify-center border-2 border-gray-200 border-dashed rounded-lg">
           <div className="text-center">
@@ -545,8 +545,8 @@ function UsageDetailsTab({ billingData, usageHistory }: UsageDetailsTabProps) {
       </div>
 
       {/* Recent Usage Table */}
-      <div className="bg-white border border-gray-200 rounded-lg">
-        <div className="p-6 border-b border-gray-200">
+      <div className="content-card-glass">
+        <div className="p-6 border-b border-white/20">
           <h3 className="text-lg font-semibold text-gray-900">Recent Daily Usage</h3>
         </div>
         <div className="overflow-x-auto">

@@ -348,14 +348,14 @@ export default function AdminUserManagement() {
           <div className="h-8 bg-gray-200 rounded w-64 mb-6"></div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             {[1, 2, 3, 4].map(i => (
-              <div key={i} className="bg-white p-6 rounded-lg border">
+              <div key={i} className="stat-card-glass p-6">
                 <div className="h-4 bg-gray-200 rounded w-24 mb-2"></div>
                 <div className="h-8 bg-gray-200 rounded w-16"></div>
               </div>
             ))}
           </div>
-          <div className="bg-white rounded-lg border">
-            <div className="p-6 border-b">
+          <div className="content-card-glass">
+            <div className="p-6 border-b border-white/20">
               <div className="h-6 bg-gray-200 rounded w-32"></div>
             </div>
             <div className="p-6">
@@ -370,7 +370,7 @@ export default function AdminUserManagement() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 space-y-8 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center">
@@ -404,7 +404,7 @@ export default function AdminUserManagement() {
       {/* Stats Cards */}
       {stats && !statsLoading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg border">
+          <div className="stat-card-glass p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm">Total Admins</p>
@@ -414,7 +414,7 @@ export default function AdminUserManagement() {
             </div>
           </div>
           
-          <div className="bg-white p-6 rounded-lg border">
+          <div className="stat-card-glass p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm">Active</p>
@@ -424,7 +424,7 @@ export default function AdminUserManagement() {
             </div>
           </div>
           
-          <div className="bg-white p-6 rounded-lg border">
+          <div className="stat-card-glass p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm">Pending Invites</p>
@@ -434,7 +434,7 @@ export default function AdminUserManagement() {
             </div>
           </div>
           
-          <div className="bg-white p-6 rounded-lg border">
+          <div className="stat-card-glass p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm">Suspended</p>
@@ -447,8 +447,8 @@ export default function AdminUserManagement() {
       )}
 
       {/* Search and Filters */}
-      <div className="bg-white rounded-lg border mb-6">
-        <div className="p-6 border-b">
+      <div className="content-card-glass mb-6">
+        <div className="p-6 border-b border-white/20">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
@@ -553,7 +553,7 @@ export default function AdminUserManagement() {
       </div>
 
       {/* Admin Users Table */}
-      <div className="bg-white rounded-lg border mb-6">
+      <div className="content-card-glass mb-6">
         <div className="px-6 py-4 border-b">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-semibold text-gray-900">
@@ -589,7 +589,7 @@ export default function AdminUserManagement() {
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white/30 backdrop-blur-sm divide-y divide-white/20">
               {users.map((user) => {
                 const StatusIcon = statusIcons[user.status];
                 const canModify = admin?.id !== user.id; // Prevent self-modification
@@ -809,7 +809,7 @@ export default function AdminUserManagement() {
 
       {/* Pending Invites Section */}
       {invites.length > 0 && (
-        <div className="bg-white rounded-lg border mb-6">
+        <div className="content-card-glass mb-6">
           <div className="px-6 py-4 border-b">
             <h3 className="text-lg font-semibold text-gray-900">Pending Invites ({invites.length})</h3>
           </div>

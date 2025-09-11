@@ -94,7 +94,7 @@ export default function Analytics() {
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="card p-6">
+              <div key={i} className="content-card-glass p-6">
                 <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
                 <div className="h-8 bg-gray-200 rounded w-1/2"></div>
               </div>
@@ -112,7 +112,7 @@ export default function Analytics() {
   if (error) {
     return (
       <div className="p-6">
-        <div className="card p-6 text-center">
+        <div className="content-card-glass p-6 text-center">
           <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Error Loading Analytics</h3>
           <p className="text-gray-600 mb-4">{error}</p>
@@ -126,7 +126,7 @@ export default function Analytics() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -265,7 +265,7 @@ function OverviewTab({ stats, usage, selectedPeriod }: TabProps) {
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {overviewStats.map((stat, index) => (
-          <div key={index} className="bg-white rounded-lg border border-gray-200 p-6">
+          <div key={index} className="stat-card-glass p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">{stat.name}</p>
@@ -295,8 +295,8 @@ function OverviewTab({ stats, usage, selectedPeriod }: TabProps) {
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Verification Status Distribution */}
-        <div className="bg-white rounded-lg border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
+        <div className="content-card-glass">
+          <div className="p-6 border-b border-white/20">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center">
               <PieChart className="h-5 w-5 mr-2 text-blue-600" />
               Verification Status Distribution
@@ -333,8 +333,8 @@ function OverviewTab({ stats, usage, selectedPeriod }: TabProps) {
         </div>
 
         {/* Usage Overview */}
-        <div className="bg-white rounded-lg border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
+        <div className="content-card-glass">
+          <div className="p-6 border-b border-white/20">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center">
               <Activity className="h-5 w-5 mr-2 text-green-600" />
               Usage Summary
@@ -414,8 +414,8 @@ function TrendsTab({ stats, selectedPeriod }: TabProps) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
+        <div className="content-card-glass">
+          <div className="p-6 border-b border-white/20">
             <h3 className="text-lg font-semibold text-gray-900">Success Rate Trend</h3>
           </div>
           <div className="p-6">
@@ -426,8 +426,8 @@ function TrendsTab({ stats, selectedPeriod }: TabProps) {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
+        <div className="content-card-glass">
+          <div className="p-6 border-b border-white/20">
             <h3 className="text-lg font-semibold text-gray-900">Volume Trend</h3>
           </div>
           <div className="p-6">
@@ -446,7 +446,7 @@ function UsersTab({ stats, recentVerifications }: TabProps) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="stat-card-glass p-6">
           <div className="flex items-center">
             <Users className="h-8 w-8 text-blue-600" />
             <div className="ml-4">
@@ -456,7 +456,7 @@ function UsersTab({ stats, recentVerifications }: TabProps) {
           </div>
         </div>
         
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="stat-card-glass p-6">
           <div className="flex items-center">
             <CheckCircle className="h-8 w-8 text-green-600" />
             <div className="ml-4">
@@ -466,7 +466,7 @@ function UsersTab({ stats, recentVerifications }: TabProps) {
           </div>
         </div>
         
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="stat-card-glass p-6">
           <div className="flex items-center">
             <Clock className="h-8 w-8 text-yellow-600" />
             <div className="ml-4">
@@ -483,23 +483,23 @@ function UsersTab({ stats, recentVerifications }: TabProps) {
         </div>
         <div className="overflow-hidden">
           <table className="min-w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-white/50 backdrop-blur-sm">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
                   User
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
                   Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white/30 backdrop-blur-sm divide-y divide-white/20">
               {recentVerifications?.slice(0, 5).map((verification) => (
                 <tr key={verification.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -558,8 +558,8 @@ function PerformanceTab({ stats, usage }: TabProps) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
+        <div className="content-card-glass">
+          <div className="p-6 border-b border-white/20">
             <h3 className="text-lg font-semibold text-gray-900">System Performance</h3>
           </div>
           <div className="p-6 space-y-6">
@@ -598,8 +598,8 @@ function PerformanceTab({ stats, usage }: TabProps) {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
+        <div className="content-card-glass">
+          <div className="p-6 border-b border-white/20">
             <h3 className="text-lg font-semibold text-gray-900">Quality Metrics</h3>
           </div>
           <div className="p-6 space-y-4">

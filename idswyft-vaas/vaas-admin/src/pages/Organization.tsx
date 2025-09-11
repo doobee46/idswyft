@@ -68,7 +68,7 @@ export default function Organization() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Organization Settings</h1>
         <p className="text-gray-600">Manage your organization's business settings, branding, and data storage configuration</p>
@@ -368,7 +368,7 @@ function MainAPIKeysManagement({ organizationId, canManageKeys }: MainAPIKeysMan
         </div>
       )}
 
-      <div className="bg-white shadow rounded-lg">
+      <div className="content-card-glass">
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <div>
             <h3 className="text-lg font-medium text-gray-900">Main API Keys</h3>
@@ -974,8 +974,8 @@ function StorageSettings({ organizationId, canManageStorage }: StorageSettingsPr
       )}
 
       {/* Storage Configuration Card */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200">
+      <div className="content-card-glass">
+        <div className="px-6 py-4 border-b border-white/20">
           <h3 className="text-lg font-medium text-gray-900">Document Storage Configuration</h3>
           <p className="mt-1 text-sm text-gray-500">
             Configure where identity documents are stored for data sovereignty and compliance

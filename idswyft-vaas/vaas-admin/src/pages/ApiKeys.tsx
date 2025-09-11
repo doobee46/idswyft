@@ -218,7 +218,7 @@ export default function ApiKeys() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-8">
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start space-y-4 lg:space-y-0">
         <div>
@@ -266,8 +266,8 @@ export default function ApiKeys() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="p-4 border-b border-gray-200">
+      <div className="content-card-glass p-6">
+        <div className="pb-4 border-b border-white/20">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
             <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
               {/* Search */}
@@ -314,14 +314,14 @@ export default function ApiKeys() {
       </div>
 
       {/* API Keys List */}
-      <div className="bg-white shadow rounded-lg">
+      <div className="content-card-glass">
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-3"></div>
             Loading API keys...
           </div>
         ) : filteredApiKeys.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="text-center py-12 px-6">
             <Key className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               {apiKeys.length === 0 ? 'No API keys created' : 'No API keys match your filters'}
@@ -345,31 +345,31 @@ export default function ApiKeys() {
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-white/50 backdrop-blur-sm">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
                     API Key
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
                     Environment
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
                     Usage
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
                     Last Used
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white/30 backdrop-blur-sm divide-y divide-white/20">
                 {filteredApiKeys.map((apiKey) => (
-                  <tr key={apiKey.id} className="hover:bg-gray-50">
+                  <tr key={apiKey.id} className="table-row-glass">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <Key className="w-5 h-5 text-gray-400 mr-3 flex-shrink-0" />
@@ -928,7 +928,7 @@ function UsageModal({ apiKey, usageData, onClose }: UsageModalProps) {
         </div>
 
         {/* Usage Chart Placeholder */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <div className="content-card-glass p-6 mb-6">
           <h4 className="text-lg font-semibold text-gray-900 mb-4">Daily Usage Trend</h4>
           <div className="h-64 flex items-center justify-center border-2 border-gray-200 border-dashed rounded-lg">
             <div className="text-center">

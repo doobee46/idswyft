@@ -225,7 +225,7 @@ export default function Users() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-8">
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">End Users</h1>
@@ -252,7 +252,7 @@ export default function Users() {
       </div>
 
       {/* Filters */}
-      <div className="card p-6">
+      <div className="content-card-glass p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label className="form-label">Search</label>
@@ -328,7 +328,7 @@ export default function Users() {
       </div>
 
       {/* User List */}
-      <div className="card">
+      <div className="content-card-glass">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -353,7 +353,7 @@ export default function Users() {
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white/30 backdrop-blur-sm divide-y divide-white/20">
               {loading ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
@@ -524,7 +524,7 @@ export default function Users() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+          <div className="bg-white/50 backdrop-blur-sm px-4 py-3 flex items-center justify-between border-t border-white/20 sm:px-6">
             <div className="flex-1 flex justify-between sm:hidden">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}

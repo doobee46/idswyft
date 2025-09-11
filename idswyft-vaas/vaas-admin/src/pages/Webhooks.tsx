@@ -272,7 +272,7 @@ export default function Webhooks() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-8">
       {/* Enhanced Header */}
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start space-y-4 lg:space-y-0">
         <div>
@@ -339,7 +339,7 @@ export default function Webhooks() {
       </div>
 
       {/* Enhanced Filters and Search */}
-      <div className="bg-white shadow rounded-lg">
+      <div className="content-card-glass">
         <div className="p-4 border-b border-gray-200">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
             <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
@@ -406,7 +406,7 @@ export default function Webhooks() {
       </div>
 
       {/* Webhook List */}
-      <div className="card">
+      <div className="content-card-glass">
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="w-6 h-6 border-2 border-primary-600 border-t-transparent rounded-full animate-spin mr-3"></div>
@@ -457,7 +457,7 @@ export default function Webhooks() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white/30 backdrop-blur-sm divide-y divide-white/20">
                 {filteredWebhooks.map((webhook) => (
                   <tr key={webhook.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">

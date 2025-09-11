@@ -188,7 +188,7 @@ const StartVerification: React.FC = () => {
           </button>
         </div>
 
-        <div className="card p-8 text-center">
+        <div className="content-card-glass p-8 text-center">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
@@ -259,7 +259,7 @@ const StartVerification: React.FC = () => {
           </button>
         </div>
 
-        <div className="card p-8 text-center">
+        <div className="content-card-glass p-8 text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <AlertTriangle className="w-8 h-8 text-red-600" />
           </div>
@@ -290,7 +290,7 @@ const StartVerification: React.FC = () => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="p-6 space-y-8 max-w-2xl mx-auto">
       <div className="mb-6">
         <button
           onClick={() => navigate('/dashboard')}
@@ -301,7 +301,7 @@ const StartVerification: React.FC = () => {
         </button>
       </div>
 
-      <div className="card p-8">
+      <div className="content-card-glass p-8">
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Shield className="w-8 h-8 text-primary-600" />
