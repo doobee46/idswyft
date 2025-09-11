@@ -7,6 +7,112 @@ import crypto from 'crypto';
 
 const router = Router();
 
+// Health check endpoint for VaaS API keys
+router.get('/health', async (req, res) => {
+  res.json({
+    success: true,
+    service: 'VaaS API Keys',
+    status: 'healthy',
+    endpoints: [
+      'GET /api-keys',
+      'POST /api-keys', 
+      'GET /api-keys/:keyId',
+      'PUT /api-keys/:keyId',
+      'DELETE /api-keys/:keyId',
+      'POST /api-keys/:keyId/rotate',
+      'GET /api-keys/:keyId/usage'
+    ]
+  });
+});
+
+// Migration endpoint to create vaas_api_keys table
+router.post('/migrate', async (req, res) => {
+  try {
+    console.log('🔄 Running VaaS API keys table migration...');
+    
+    // Check if vaas_api_keys table exists
+    const { data: tables, error: tableError } = await vaasSupabase
+      .from('information_schema.tables')
+      .select('table_name')
+      .eq('table_schema', 'public')
+      .eq('table_name', 'vaas_api_keys');
+
+    if (tableError) {
+      console.log('❌ Failed to check table existence:', tableError);
+      return res.status(500).json({
+        success: false,
+        error: {
+          code: 'MIGRATION_ERROR',
+          message: 'Failed to check table existence'
+        }
+      });
+    }
+
+    if (tables && tables.length > 0) {
+      console.log('✅ vaas_api_keys table already exists');
+      return res.json({
+        success: true,
+        message: 'vaas_api_keys table already exists'
+      });
+    }
+
+    console.log('🔧 Creating vaas_api_keys table...');
+    
+    // Create the table using SQL
+    const createTableSQL = `
+      CREATE TABLE IF NOT EXISTS vaas_api_keys (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id UUID NOT NULL,
+        key_name VARCHAR(100) NOT NULL,
+        description TEXT,
+        key_prefix VARCHAR(50) NOT NULL,
+        key_hash VARCHAR(255) NOT NULL,
+        is_active BOOLEAN DEFAULT true,
+        expires_at TIMESTAMP WITH TIME ZONE,
+        last_used_at TIMESTAMP WITH TIME ZONE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+      
+      CREATE INDEX IF NOT EXISTS idx_vaas_api_keys_org_active 
+        ON vaas_api_keys(organization_id, is_active);
+      CREATE INDEX IF NOT EXISTS idx_vaas_api_keys_hash 
+        ON vaas_api_keys(key_hash);
+    `;
+
+    const { error: createError } = await vaasSupabase.rpc('exec_sql', {
+      sql: createTableSQL
+    });
+
+    if (createError) {
+      console.log('❌ Failed to create table:', createError);
+      return res.status(500).json({
+        success: false,
+        error: {
+          code: 'MIGRATION_ERROR',
+          message: 'Failed to create vaas_api_keys table'
+        }
+      });
+    }
+
+    console.log('✅ vaas_api_keys table created successfully!');
+    
+    res.json({
+      success: true,
+      message: 'vaas_api_keys table created successfully'
+    });
+  } catch (error: any) {
+    console.error('❌ Migration failed:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'MIGRATION_ERROR',
+        message: error.message || 'Migration failed'
+      }
+    });
+  }
+});
+
 // Generate VaaS API key (different format from main API keys)
 const generateVaasAPIKey = (): { key: string; hash: string; prefix: string } => {
   const key = `vaas_${crypto.randomBytes(32).toString('hex')}`;
@@ -139,8 +245,13 @@ router.post('/',
   requireAuth,
   async (req: AuthenticatedRequest, res: Response) => {
   try {
+    console.log('[VaasAPIKeys] Creating new API key...');
+    console.log('[VaasAPIKeys] Request body:', req.body);
+    console.log('[VaasAPIKeys] Admin:', req.admin);
+    
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('[VaasAPIKeys] Validation errors:', errors.array());
       const response: VaasApiResponse = {
         success: false,
         error: {
@@ -155,14 +266,21 @@ router.post('/',
     const organizationId = req.admin!.organization_id;
     const { key_name, description, expires_in_days } = req.body;
 
+    console.log('[VaasAPIKeys] Organization ID:', organizationId);
+    console.log('[VaasAPIKeys] Key name:', key_name);
+
     // Check existing key count (limit to 10 VaaS API keys per organization)
+    console.log('[VaasAPIKeys] Checking existing API key count...');
     const { count: existingCount, error: countError } = await vaasSupabase
       .from('vaas_api_keys')
       .select('*', { count: 'exact', head: true })
       .eq('organization_id', organizationId)
       .eq('is_active', true);
 
+    console.log('[VaasAPIKeys] Count result:', { existingCount, countError });
+
     if (countError) {
+      console.error('[VaasAPIKeys] Count error details:', countError);
       throw new Error(`Failed to check API key count: ${countError.message}`);
     }
 
