@@ -30,9 +30,9 @@ router.post('/test-db', async (req, res) => {
   try {
     console.log('🔄 Testing VaaS database connection...');
     
-    // Test basic connection
+    // Test basic connection with VaaS tables
     const { data: testResult, error: connectionError } = await vaasSupabase
-      .from('admin_accounts')
+      .from('vaas_admins')
       .select('id')
       .limit(1);
 
