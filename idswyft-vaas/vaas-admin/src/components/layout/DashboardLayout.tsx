@@ -83,7 +83,7 @@ const navigationItems = [
     current: false,
   },
   {
-    name: 'Settings',
+    name: 'Verification Settings',
     href: '/settings',
     icon: Settings,
     current: false,

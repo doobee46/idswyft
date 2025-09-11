@@ -60,8 +60,8 @@ export default function Settings() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-        <p className="text-gray-600">Configure your verification and system preferences</p>
+        <h1 className="text-2xl font-bold text-gray-900">Verification & System Settings</h1>
+        <p className="text-gray-600">Configure technical verification thresholds, security settings, and system preferences</p>
       </div>
 
       {error && (
@@ -91,7 +91,7 @@ export default function Settings() {
               }`}
             >
               <Shield className="h-4 w-4 mr-3" />
-              Verification Settings
+              Verification Configuration
             </button>
             
             <button
@@ -136,6 +136,22 @@ export default function Settings() {
         <div className="flex-1">
           {activeSection === 'verification' && (
             <div className="space-y-6">
+              {/* Primary Verification Configuration */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <Shield className="h-5 w-5 text-blue-400" />
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-blue-800">Primary Verification Configuration</h3>
+                    <p className="mt-1 text-sm text-blue-700">
+                      This is the main location for configuring all verification thresholds and technical settings. 
+                      For business settings like company information and branding, visit the Organization page.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Enhanced Threshold Management */}
               <AdvancedThresholdSettings 
                 organizationId={orgData.id}
@@ -271,9 +287,9 @@ function VerificationSettingsSection({ settings, onSave, onQuickToggle, isLoadin
       {/* Legacy Threshold Management (Simplified) */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-700">Basic Settings (Legacy)</h3>
+          <h3 className="text-lg font-medium text-gray-700">Additional Settings</h3>
           <p className="text-sm text-gray-500 mt-1">
-            Use the advanced threshold settings above for better control. These basic settings are kept for backward compatibility.
+            Additional verification settings that complement the advanced threshold management above.
           </p>
         </div>
         
@@ -333,7 +349,7 @@ function VerificationSettingsSection({ settings, onSave, onQuickToggle, isLoadin
                 className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
               >
                 <Save className="h-4 w-4 mr-2" />
-                {isLoading ? 'Saving...' : 'Update Legacy Settings'}
+                {isLoading ? 'Saving...' : 'Update Additional Settings'}
               </button>
             </div>
           )}
