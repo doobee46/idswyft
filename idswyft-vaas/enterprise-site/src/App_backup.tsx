@@ -78,7 +78,14 @@ function App() {
       <nav className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-4xl px-6">
         <div className="bg-white/90 backdrop-blur-xl rounded-full border border-white/20 shadow-2xl shadow-black/10 px-6 py-4">
           <div className="flex justify-between items-center">
-            <div className="flex items-center">              <img                 src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_main.png"                alt="Idswyft VaaS"                className="h-8 w-auto flex-shrink-0"              />            </div>
+            <div className="flex items-center space-x-3">
+              <div className="w-9 h-9 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
+                <Shield className="h-4 w-4 text-white" />
+              </div>
+              <div className="hidden sm:block">
+                <span className="text-gray-900 text-lg font-bold">Idswyft VaaS</span>
+              </div>
+            </div>
             
             <div className="hidden lg:flex items-center space-x-8">
               <a href="#features" className="text-gray-600 hover:text-gray-900 transition-colors font-medium text-sm hover:scale-105 transform transition-transform">Features</a>

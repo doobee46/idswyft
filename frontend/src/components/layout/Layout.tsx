@@ -53,14 +53,12 @@ export function Layout({ children }: LayoutProps) {
           <div className="flex justify-between items-center">
             {/* Logo */}
             <div className="flex-shrink-0 flex items-center">
-              <Link to="/" className="flex items-center space-x-3">
-                <div className="w-9 h-9 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
-                  <ShieldCheckIcon className="h-4 w-4 text-white" />
-                </div>
-                <div className="hidden sm:block">
-                  <span className="text-gray-900 text-lg font-bold">Idswyft</span>
-                  <div className="text-xs text-gray-500 font-medium">Identity Verification</div>
-                </div>
+              <Link to="/" className="flex items-center">
+                <img 
+                  src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_main.png"
+                  alt="Idswyft"
+                  className="h-8 w-auto flex-shrink-0"
+                />
               </Link>
             </div>
             

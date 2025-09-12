@@ -58,9 +58,12 @@ export const AdminLogin: React.FC = () => {
                   if (fallback) fallback.style.display = 'flex';
                 }}
               />
-              <div className="hidden items-center space-x-2 mb-4">
-                <ShieldCheckIcon className="h-10 w-10 text-primary-600" />
-                <span className="text-2xl font-bold text-gray-900">Idswyft</span>
+              <div className="hidden items-center mb-4">
+                <img 
+                  src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_main.png"
+                  alt="Idswyft"
+                  className="h-10 w-auto"
+                />
               </div>
               <h2 className="text-3xl font-bold text-gray-900">Admin Login</h2>
             </div>

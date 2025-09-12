@@ -169,9 +169,12 @@ export const AdminPage: React.FC = () => {
                 if (fallback) fallback.style.display = 'flex';
               }}
             />
-            <div className="hidden items-center space-x-2">
-              <ShieldCheckIcon className="h-8 w-8 text-primary-600" />
-              <span className="text-2xl font-bold text-gray-900">Idswyft</span>
+            <div className="hidden items-center">
+              <img 
+                src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_main.png"
+                alt="Idswyft"
+                className="h-8 w-auto"
+              />
             </div>
             <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
           </div>
