@@ -53,17 +53,19 @@
   /* Border radius scale */
   --radius-2xl: 1rem;
   --radius-3xl: 1.5rem;
+  }
+
+  /* Base styles optimized for identity verification platform */
+  body {
+    font-family: var(--font-sans);
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    @apply bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 text-slate-900;
+  }
 }
 
-/* Base styles optimized for identity verification platform */
-body {
-  font-family: var(--font-sans);
-  font-feature-settings: "rlig" 1, "calt" 1;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  @apply bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 text-slate-900;
-}
-
+@layer components {
 /* Identity verification platform specific backgrounds */
 .platform-bg {
   @apply bg-gradient-to-br from-slate-50 via-blue-50/50 to-indigo-50/80 min-h-screen;
@@ -511,4 +513,4 @@ svg {
     opacity: 1;
     transform: translateY(0);
   }
-}
+}}
