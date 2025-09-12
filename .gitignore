@@ -113,3 +113,9 @@ sdks/*/*.egg-info/
 
 # Temporary processing files
 backend/temp/
+# Brand Strategy & Confidential Documents
+BRAND.md
+brand-strategy/
+brand-assets/
+*.brand
+brand-guidelines/
