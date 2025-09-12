@@ -338,21 +338,9 @@ body {
 }
 
 /* Enhanced stat card variations */
-.stat-card-blue {
-  @apply stat-card-glass border-l-4 border-blue-500;
-}
 
-.stat-card-green {
-  @apply stat-card-glass border-l-4 border-green-500;
-}
 
-.stat-card-yellow {
-  @apply stat-card-glass border-l-4 border-yellow-500;
-}
 
-.stat-card-purple {
-  @apply stat-card-glass border-l-4 border-purple-500;
-}
 
 /* Icon container variations */
 .icon-container-blue {
