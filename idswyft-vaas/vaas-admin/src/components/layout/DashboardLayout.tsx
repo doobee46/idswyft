@@ -179,18 +179,7 @@ export default function DashboardLayout() {
   const Sidebar = ({ className = '' }: { className?: string }) => (
     <div className={`flex flex-col h-full sidebar-glass ${className}`}>
       {/* Logo */}
-      <div className="flex items-center px-6 py-6 border-b border-white/20">
-        <div className="relative">
-          <div className="w-10 h-10 bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-xl border border-white/30">
-            <Shield className="w-6 h-6 text-blue-600" />
-          </div>
-          <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border border-white"></div>
-        </div>
-        <div className="ml-3">
-          <h1 className="text-xl font-bold gradient-text">VaaS Admin</h1>
-          <p className="text-xs text-slate-600 font-medium">Enterprise Portal</p>
-        </div>
-      </div>
+      <div className="flex items-center px-6 py-6 border-b border-white/20">        <img           src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_main.png"           alt="Idswyft VaaS Admin"           className="w-[140px] h-[30px]"        />      </div>
 
       {/* Organization info */}
       <div className="px-6 py-4 border-b border-white/20 bg-white/10 backdrop-blur-sm">
