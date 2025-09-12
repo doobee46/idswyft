@@ -184,7 +184,7 @@ export function Layout({ children }: LayoutProps) {
             <div className="col-span-1 md:col-span-2">
               <div className="mb-6">
                 <img 
-                  src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo.png" 
+                  src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_main.png" 
                   alt="Idswyft" 
                   className="h-10 w-auto flex-shrink-0"
                   onError={(e) => {
