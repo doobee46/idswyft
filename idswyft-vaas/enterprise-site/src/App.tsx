@@ -78,7 +78,7 @@ function App() {
       <nav className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-4xl px-6">
         <div className="bg-white/90 backdrop-blur-xl rounded-full border border-white/20 shadow-2xl shadow-black/10 px-6 py-4">
           <div className="flex justify-between items-center">
-            <div className="flex items-center">              <img                 src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_main.png"                alt="Idswyft VaaS"                className="h-8 w-auto flex-shrink-0"              />            </div>
+            <div className="flex items-center">              <img                 src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_main.png"                alt="Idswyft VaaS"                className="w-[140px] h-[30px] flex-shrink-0"              />            </div>
             
             <div className="hidden lg:flex items-center space-x-8">
               <a href="#features" className="text-gray-600 hover:text-gray-900 transition-colors font-medium text-sm hover:scale-105 transform transition-transform">Features</a>
