@@ -877,9 +877,18 @@ export function HomePage() {
   return (
     <div className="bg-gray-50">
       {/* Hero section */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <div className="relative overflow-hidden bg-white">
         
-        <div className="relative max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-12 sm:pt-20 pb-20 sm:pb-40">
+        {/* Hero Background Image */}
+        <div className="absolute inset-0 z-0">
+        	<img 
+                src="https://images.unsplash.com/photo-1563013544-824ae1b704d3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2340&q=80"
+                alt="Digital identity verification technology"
+                className="w-full h-full object-cover opacity-3"
+        	/>
+        </div>
+
+        <div className="relative max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-12 sm:pt-20 pb-20 sm:pb-40 z-10">
           <div className="text-center">
             <div className={`transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
               {/* Badge - Mobile optimized */}
