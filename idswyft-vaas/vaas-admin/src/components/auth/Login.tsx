@@ -86,7 +86,7 @@ export default function Login() {
                 </div>
               </div>
               <div>
-                <h1 className="text-3xl font-bold gradient-text">Idswyft VaaS</h1>
+                <img src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_main.png" alt="Idswyft VaaS" className="w-[140px] h-[30px]" />
                 <p className="text-slate-600 font-medium">Admin Portal</p>
               </div>
             </div>
@@ -145,7 +145,7 @@ export default function Login() {
                   <Shield className="w-7 h-7 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold gradient-text">Idswyft VaaS</h1>
+                  <img src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_main.png" alt="Idswyft VaaS" className="w-[140px] h-[30px]" />
                   <p className="text-slate-600 text-sm">Admin Portal</p>
                 </div>
               </div>
