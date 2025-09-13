@@ -159,7 +159,7 @@ export const AdminPage: React.FC = () => {
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-4">
             <img 
-              src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_main.png" 
+              src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_new.png" 
               alt="Idswyft" 
               className="w-[140px] h-[30px]"
               onError={(e) => {
@@ -171,7 +171,7 @@ export const AdminPage: React.FC = () => {
             />
             <div className="hidden items-center">
               <img 
-                src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_main.png"
+                src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_new.png"
                 alt="Idswyft"
                 className="w-[140px] h-[30px]"
               />

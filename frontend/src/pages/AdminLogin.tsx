@@ -48,7 +48,7 @@ export const AdminLogin: React.FC = () => {
           <div className="text-center">
             <div className="flex flex-col items-center mb-6">
               <img 
-                src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_main.png" 
+                src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_new.png" 
                 alt="Idswyft" 
                 className="w-[140px] h-[30px] mb-4"
                 onError={(e) => {
@@ -60,7 +60,7 @@ export const AdminLogin: React.FC = () => {
               />
               <div className="hidden items-center mb-4">
                 <img 
-                  src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_main.png"
+                  src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_new.png"
                   alt="Idswyft"
                   className="w-[140px] h-[30px]"
                 />

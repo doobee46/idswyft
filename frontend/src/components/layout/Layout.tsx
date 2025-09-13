@@ -55,7 +55,7 @@ export function Layout({ children }: LayoutProps) {
             <div className="flex-shrink-0 flex items-center">
               <Link to="/" className="flex items-center">
                 <img 
-                  src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_main.png"
+                  src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_new.png"
                   alt="Idswyft"
                   className="w-[140px] h-[30px] flex-shrink-0"
                 />
@@ -182,7 +182,7 @@ export function Layout({ children }: LayoutProps) {
             <div className="col-span-1 md:col-span-2">
               <div className="mb-6">
                 <img 
-                  src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_main.png" 
+                  src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_new.png" 
                   alt="Idswyft" 
                   className="w-[140px] h-[30px] flex-shrink-0"
                   onError={(e) => {

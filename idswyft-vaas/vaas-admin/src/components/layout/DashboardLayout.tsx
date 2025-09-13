@@ -179,7 +179,7 @@ export default function DashboardLayout() {
   const Sidebar = ({ className = '' }: { className?: string }) => (
     <div className={`flex flex-col h-full sidebar-glass ${className}`}>
       {/* Logo */}
-      <div className="flex items-center px-6 py-6 border-b border-white/20">        <img           src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_main.png"           alt="Idswyft VaaS Admin"           className="w-[140px] h-[30px]"        />      </div>
+      <div className="flex items-center px-6 py-6 border-b border-white/20">        <img           src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_new.png"           alt="Idswyft VaaS Admin"           className="w-[140px] h-[30px]"        />      </div>
 
       {/* Organization info */}
       <div className="px-6 py-4 border-b border-white/20 bg-white/10 backdrop-blur-sm">
