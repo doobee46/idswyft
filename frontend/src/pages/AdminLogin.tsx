@@ -50,7 +50,7 @@ export const AdminLogin: React.FC = () => {
               <img 
                 src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_new.png" 
                 alt="Idswyft" 
-                className="w-[140px] h-[30px] mb-4"
+                className="h-8 w-auto mb-4"
                 onError={(e) => {
                   // Fallback to icon and text if image fails to load
                   e.currentTarget.style.display = 'none';
@@ -62,7 +62,7 @@ export const AdminLogin: React.FC = () => {
                 <img 
                   src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_new.png"
                   alt="Idswyft"
-                  className="w-[140px] h-[30px]"
+                  className="h-8 w-auto"
                 />
               </div>
               <h2 className="text-3xl font-bold text-gray-900">Admin Login</h2>

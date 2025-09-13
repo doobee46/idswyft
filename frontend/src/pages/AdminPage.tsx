@@ -161,7 +161,7 @@ export const AdminPage: React.FC = () => {
             <img 
               src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_new.png" 
               alt="Idswyft" 
-              className="w-[140px] h-[30px]"
+              className="h-8 w-auto"
               onError={(e) => {
                 // Fallback to icon and text if image fails to load
                 e.currentTarget.style.display = 'none';
@@ -173,7 +173,7 @@ export const AdminPage: React.FC = () => {
               <img 
                 src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_new.png"
                 alt="Idswyft"
-                className="w-[140px] h-[30px]"
+                className="h-8 w-auto"
               />
             </div>
             <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
