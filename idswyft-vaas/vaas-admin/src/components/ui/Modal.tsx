@@ -84,15 +84,16 @@ export default function Modal({
       <div className="flex min-h-full items-center justify-center p-4">
         <div
           className={`
-            relative w-full ${sizeClasses[size]}
+            relative w-full ${sizeClasses[size]} max-h-[90vh]
             bg-white rounded-xl shadow-2xl transform transition-all
+            flex flex-col
             ${className}
           `}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Modal Header */}
           {(title || showCloseButton) && (
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
               {title && (
                 <h2 id="modal-title" className="text-xl font-semibold text-gray-900">
                   {title}
@@ -111,7 +112,7 @@ export default function Modal({
           )}
 
           {/* Modal Content */}
-          <div className={title || showCloseButton ? "p-6" : "p-0"}>
+          <div className={`overflow-y-auto flex-1 ${title || showCloseButton ? "p-6" : "p-0"}`}>
             {children}
           </div>
         </div>
