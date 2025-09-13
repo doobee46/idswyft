@@ -85,24 +85,27 @@ export default function Modal({
         <div
           className={`
             relative w-full ${sizeClasses[size]} max-h-[90vh]
-            bg-white rounded-xl shadow-2xl transform transition-all
-            flex flex-col
+            bg-white rounded-2xl shadow-2xl transform transition-all duration-300
+            flex flex-col border border-gray-100
             ${className}
           `}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Modal Header */}
           {(title || showCloseButton) && (
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100 flex-shrink-0 bg-gradient-to-r from-gray-50 to-white rounded-t-2xl">
               {title && (
-                <h2 id="modal-title" className="text-xl font-semibold text-gray-900">
-                  {title}
-                </h2>
+                <div className="flex items-center space-x-3">
+                  <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full"></div>
+                  <h2 id="modal-title" className="text-xl font-semibold text-gray-900 tracking-tight">
+                    {title}
+                  </h2>
+                </div>
               )}
               {showCloseButton && (
                 <button
                   onClick={onClose}
-                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-2.5 text-gray-400 hover:text-gray-600 hover:bg-white hover:shadow-md rounded-xl transition-all duration-200 border border-transparent hover:border-gray-200"
                   aria-label="Close modal"
                 >
                   <X className="w-5 h-5" />
@@ -112,7 +115,7 @@ export default function Modal({
           )}
 
           {/* Modal Content */}
-          <div className={`overflow-y-auto flex-1 ${title || showCloseButton ? "p-6" : "p-0"}`}>
+          <div className={`overflow-y-auto flex-1 bg-white ${title || showCloseButton ? "p-6" : "p-0"} ${!title && !showCloseButton ? "rounded-2xl" : "rounded-b-2xl"}`}>
             {children}
           </div>
         </div>
@@ -145,20 +148,22 @@ export function ConfirmationModal({
   confirmVariant?: 'primary' | 'danger' | 'warning';
 }) {
   const confirmButtonClass = {
-    primary: 'btn btn-primary',
-    danger: 'btn bg-red-600 hover:bg-red-700 text-white',
-    warning: 'btn bg-yellow-600 hover:bg-yellow-700 text-white'
+    primary: 'px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium rounded-lg transition-all duration-200 shadow-sm hover:shadow-md',
+    danger: 'px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-medium rounded-lg transition-all duration-200 shadow-sm hover:shadow-md',
+    warning: 'px-4 py-2.5 bg-gradient-to-r from-yellow-600 to-yellow-700 hover:from-yellow-700 hover:to-yellow-800 text-white font-medium rounded-lg transition-all duration-200 shadow-sm hover:shadow-md'
   }[confirmVariant];
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
       <div className="space-y-6">
-        <p className="text-gray-700">{message}</p>
+        <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+          <p className="text-gray-700 leading-relaxed">{message}</p>
+        </div>
 
-        <div className="flex justify-end space-x-3">
+        <div className="flex justify-end space-x-3 pt-2">
           <button
             onClick={onClose}
-            className="btn btn-secondary"
+            className="px-4 py-2.5 text-gray-700 bg-white hover:bg-gray-50 font-medium rounded-lg transition-all duration-200 border border-gray-300 hover:border-gray-400 shadow-sm hover:shadow-md"
           >
             {cancelText}
           </button>
