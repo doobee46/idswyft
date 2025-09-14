@@ -12,6 +12,7 @@ import { FaceRecognitionService } from '@/services/faceRecognition.js';
 import { BarcodeService } from '@/services/barcode.js';
 import { VerificationConsistencyService } from '@/services/verificationConsistency.js';
 import { VerificationStateManager } from '@/services/verificationStateManager.js';
+
 import { DynamicThresholdManager } from '@/config/dynamicThresholds.js';
 import { logger, logVerificationEvent } from '@/utils/logger.js';
 import { 

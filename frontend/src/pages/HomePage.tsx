@@ -890,14 +890,13 @@ export function HomePage() {
               </div>
               
               <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 mb-8 leading-tight px-2">
-                <span className="block">AI-Powered Identity</span>
+                <span className="block">Verify Users IDs</span>
                 <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600">
-                  Verification
+                  for security and compliance.
                 </span>
               </h1>
               <p className="max-w-4xl mx-auto text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 mb-8 sm:mb-12 leading-relaxed font-light px-3">
-                The most <span className="font-semibold text-gray-900">advanced AI-powered</span> identity verification platform. 
-                GPT-4o Vision OCR, AI liveness detection, smart face matching, and back-of-ID scanning with cross-validation.
+                The most <span className="font-semibold text-gray-900">AI-driven services</span> that verify the identities of new and existing users, assess risk and help you meet compliance mandates.
                 <span className="block mt-2 sm:mt-4 text-sm sm:text-base lg:text-lg text-gray-500">AI-Enhanced • Developer-friendly • Production-ready</span>
               </p>
             </div>

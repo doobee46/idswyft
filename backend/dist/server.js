@@ -115,10 +115,10 @@ app.get('/api/docs', (req, res) => {
             },
             verification: {
                 'POST /api/verify/start': 'Start a new verification session',
-                'POST /api/verify/document': 'Upload identity document for verification',
-                'POST /api/verify/back-of-id': 'Upload back-of-ID for enhanced verification',
+                'POST /api/verify/document': 'Upload identity document for verification (now with robust OCR processing)',
+                'POST /api/verify/back-of-id': 'Upload back-of-ID for enhanced verification (now with robust barcode scanning)',
                 'POST /api/verify/selfie': 'Upload selfie for face matching',
-                'POST /api/verify/live-capture': 'Upload live capture for liveness detection',
+                'POST /api/verify/live-capture': 'Upload live capture for liveness detection (now with robust state management)',
                 'GET /api/verify/results/:verification_id': 'Get complete verification results',
                 'GET /api/verify/status/:user_id': 'Get verification status (deprecated)',
                 'GET /api/verify/history/:user_id': 'Get verification history for user',
