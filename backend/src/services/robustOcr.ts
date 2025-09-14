@@ -207,7 +207,7 @@ export class RobustOCRService {
 
     try {
       await worker.setParameters({
-        tessedit_pageseg_mode: psm,
+        tessedit_pageseg_mode: psm as any,
         preserve_interword_spaces: '1',
         tessedit_ocr_engine_mode: Tesseract.OEM.LSTM_ONLY,
         tessedit_char_blacklist: ''

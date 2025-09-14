@@ -152,7 +152,7 @@ router.post('/document',
 
           // Update verification status - let the robust manager handle state transitions
           await verificationService.updateVerificationRequest(verificationRequest.id, {
-            status: 'document_uploaded'
+            status: 'pending'
           });
 
           logVerificationEvent('robust_ocr_completed', verificationRequest.id, {
@@ -300,7 +300,7 @@ router.post('/back-of-id',
 
             const crossValidationInput = {
               frontOCR: frontDocument.ocr_data,
-              backPDF417: backOfIdResult.pdf417Data,
+              backPDF417: backOfIdResult.pdf417Data?.parsed_data,
               documentPhoto: {
                 personFound: true,
                 faceExtracted: true,
@@ -479,8 +479,8 @@ router.post('/live-capture',
         // Use robust verification manager to process completion
         const context = {
           verificationId: verification_id,
-          isSandbox: req.isSandbox,
-          organizationId: getOrganizationId(req),
+          isSandbox: req.isSandbox || false,
+          organizationId: getOrganizationId(req) || undefined,
           faceMatchScore,
           livenessScore,
           crossValidationScore: verificationRequest.cross_validation_score || undefined,
