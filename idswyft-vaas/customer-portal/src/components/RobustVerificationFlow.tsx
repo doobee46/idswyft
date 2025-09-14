@@ -87,9 +87,9 @@ const RobustVerificationFlow: React.FC<RobustVerificationFlowProps> = ({ session
   const selfieInputRef = useRef<HTMLInputElement>(null);
 
   // Timeout refs
-  const timeoutRef = useRef<NodeJS.Timeout>();
-  const countdownRef = useRef<NodeJS.Timeout>();
-  const statusPollingRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<number | undefined>(undefined);
+  const countdownRef = useRef<number | undefined>(undefined);
+  const statusPollingRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     loadSession();
@@ -136,7 +136,7 @@ const RobustVerificationFlow: React.FC<RobustVerificationFlowProps> = ({ session
 
     // Start countdown
     const startTime = Date.now();
-    countdownRef.current = setInterval(() => {
+    countdownRef.current = window.setInterval(() => {
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, timeoutMs - elapsed);
       setTimeRemaining(remaining);
@@ -147,7 +147,7 @@ const RobustVerificationFlow: React.FC<RobustVerificationFlowProps> = ({ session
     }, 1000);
 
     // Set timeout
-    timeoutRef.current = setTimeout(() => {
+    timeoutRef.current = window.setTimeout(() => {
       handleTimeout(step);
     }, timeoutMs);
   };
@@ -235,7 +235,7 @@ const RobustVerificationFlow: React.FC<RobustVerificationFlowProps> = ({ session
     try {
       console.log('🔄 Rechecking document processing status...');
 
-      const status = await verificationAPI.getVerificationStatus(verificationId);
+      const status = await verificationAPI.getResults(session!, verificationId);
 
       if (status.status === 'verified' || status.status === 'failed' || status.status === 'manual_review') {
         setFinalStatus(status.status);
@@ -263,7 +263,7 @@ const RobustVerificationFlow: React.FC<RobustVerificationFlowProps> = ({ session
     try {
       console.log('🔄 Rechecking identity verification status...');
 
-      const status = await verificationAPI.getVerificationStatus(verificationId);
+      const status = await verificationAPI.getResults(session!, verificationId);
 
       if (status.status === 'verified' || status.status === 'failed' || status.status === 'manual_review') {
         setFinalStatus(status.status);
@@ -281,7 +281,7 @@ const RobustVerificationFlow: React.FC<RobustVerificationFlowProps> = ({ session
 
   const terminateSession = async () => {
     try {
-      await customerPortalAPI.terminateSession(sessionToken);
+      await customerPortalAPI.terminateVerificationSession(sessionToken);
       setSessionTerminated(true);
     } catch (error) {
       console.error('Failed to terminate session:', error);
@@ -299,7 +299,7 @@ const RobustVerificationFlow: React.FC<RobustVerificationFlowProps> = ({ session
       }
 
       const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-      if (!allowedTypes.includes(file.mimetype || file.type)) {
+      if (!allowedTypes.includes(file.type)) {
         throw new Error('Please upload a valid image file (JPEG, PNG, or WebP)');
       }
 
@@ -316,21 +316,33 @@ const RobustVerificationFlow: React.FC<RobustVerificationFlowProps> = ({ session
         });
       }, 100);
 
-      // Upload file
-      const result = await verificationAPI.uploadDocument(sessionToken, file, type, documentType);
+            // Upload file using correct API methods
+      let currentVerificationId = verificationId;
+
+      if (type === 'front') {
+        if (!session) throw new Error('Session not loaded');
+        currentVerificationId = await verificationAPI.startVerification(session);
+        setVerificationId(currentVerificationId);
+        await verificationAPI.uploadDocument(session, currentVerificationId, file, documentType);
+      } else if (type === 'back') {
+        if (!session || !currentVerificationId) throw new Error('Session or verification ID not available');
+        await verificationAPI.uploadBackOfId(session, currentVerificationId, file, documentType);
+      } else if (type === 'selfie') {
+        if (!session || !currentVerificationId) throw new Error('Session or verification ID not available');
+        await verificationAPI.captureSelfie(session, currentVerificationId, file);
+      }
 
       clearInterval(progressInterval);
       setUploadProgress(100);
 
       if (type === 'front') {
-        setVerificationId(result.verificationId);
         setCurrentStep('document-processing');
 
         // Start monitoring document processing
         startTimeoutMonitoring('document-processing', TIMEOUTS.documentProcessing);
 
         // Poll for OCR completion
-        pollForOCRCompletion(result.verificationId);
+        pollForOCRCompletion(currentVerificationId!);
       } else if (type === 'back') {
         setBackOfIdUploaded(true);
       } else if (type === 'selfie') {
@@ -341,7 +353,7 @@ const RobustVerificationFlow: React.FC<RobustVerificationFlowProps> = ({ session
         startTimeoutMonitoring('identity-verification', TIMEOUTS.identityVerification);
 
         // Poll for final status
-        pollForFinalStatus(verificationId || result.verificationId);
+        pollForFinalStatus(currentVerificationId!);
       }
 
     } catch (error) {
@@ -360,7 +372,7 @@ const RobustVerificationFlow: React.FC<RobustVerificationFlowProps> = ({ session
         attempts++;
         console.log(`🔄 Polling OCR completion (attempt ${attempts}/${maxAttempts})`);
 
-        const status = await verificationAPI.getVerificationStatus(vId);
+        const status = await verificationAPI.getResults(session!, vId);
 
         if (status.ocr_data && Object.keys(status.ocr_data).length > 0) {
           console.log('✅ OCR completed successfully');
@@ -373,7 +385,7 @@ const RobustVerificationFlow: React.FC<RobustVerificationFlowProps> = ({ session
         if (status.status === 'failed') {
           console.log('❌ Verification failed during OCR');
           setFinalStatus('failed');
-          setFailureReason(status.manual_review_reason || 'Document processing failed');
+          setFailureReason(status.failure_reason || 'Document processing failed');
           clearTimeoutMonitoring();
           setCurrentStep('complete');
           return;
@@ -386,7 +398,7 @@ const RobustVerificationFlow: React.FC<RobustVerificationFlowProps> = ({ session
         }
 
         // Continue polling
-        statusPollingRef.current = setTimeout(poll, 10000); // Poll every 10 seconds
+        statusPollingRef.current = window.setTimeout(poll, 10000); // Poll every 10 seconds
 
       } catch (error) {
         console.error('OCR polling error:', error);
@@ -394,7 +406,7 @@ const RobustVerificationFlow: React.FC<RobustVerificationFlowProps> = ({ session
           setError('Failed to check processing status. Please try refreshing or contact support.');
         } else {
           // Retry polling
-          statusPollingRef.current = setTimeout(poll, 5000);
+          statusPollingRef.current = window.setTimeout(poll, 5000);
         }
       }
     };
@@ -411,13 +423,13 @@ const RobustVerificationFlow: React.FC<RobustVerificationFlowProps> = ({ session
         attempts++;
         console.log(`🔄 Polling final status (attempt ${attempts}/${maxAttempts})`);
 
-        const status = await verificationAPI.getVerificationStatus(vId);
+        const status = await verificationAPI.getResults(session!, vId);
 
         if (status.status === 'verified' || status.status === 'failed' || status.status === 'manual_review') {
           console.log(`✅ Final status received: ${status.status}`);
           setFinalStatus(status.status);
           if (status.status === 'failed') {
-            setFailureReason(status.manual_review_reason || 'Verification failed');
+            setFailureReason(status.failure_reason || 'Verification failed');
           }
           clearTimeoutMonitoring();
           setCurrentStep('complete');
@@ -431,7 +443,7 @@ const RobustVerificationFlow: React.FC<RobustVerificationFlowProps> = ({ session
         }
 
         // Continue polling
-        statusPollingRef.current = setTimeout(poll, 10000); // Poll every 10 seconds
+        statusPollingRef.current = window.setTimeout(poll, 10000); // Poll every 10 seconds
 
       } catch (error) {
         console.error('Final status polling error:', error);
@@ -439,7 +451,7 @@ const RobustVerificationFlow: React.FC<RobustVerificationFlowProps> = ({ session
           setError('Failed to get verification results. Please contact support.');
         } else {
           // Retry polling
-          statusPollingRef.current = setTimeout(poll, 5000);
+          statusPollingRef.current = window.setTimeout(poll, 5000);
         }
       }
     };
