@@ -469,7 +469,7 @@ const RobustVerificationFlow: React.FC<RobustVerificationFlowProps> = ({ session
       <div className={`mb-4 p-3 rounded-lg border ${
         isWarning ? 'bg-yellow-50 border-yellow-200' : 'bg-blue-50 border-blue-200'
       }`}>
-        <div className=\"flex items-center space-x-2 text-sm\">
+        <div className="flex items-center space-x-2 text-sm">
           <Clock className={`w-4 h-4 ${isWarning ? 'text-yellow-600' : 'text-blue-600'}`} />
           <span className={isWarning ? 'text-yellow-800' : 'text-blue-800'}>
             Processing timeout in {formatTimeRemaining(timeRemaining)}
@@ -481,44 +481,44 @@ const RobustVerificationFlow: React.FC<RobustVerificationFlowProps> = ({ session
 
   // Render timeout page
   const renderTimeoutPage = () => (
-    <div className=\"min-h-screen bg-gray-50 flex items-center justify-center p-4\">
-      <div className=\"max-w-md w-full bg-white rounded-lg shadow-lg p-6 text-center\">
-        <div className=\"w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4\">
-          <Clock className=\"w-8 h-8 text-yellow-600\" />
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6 text-center">
+        <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Clock className="w-8 h-8 text-yellow-600" />
         </div>
 
-        <h2 className=\"text-xl font-semibold text-gray-900 mb-2\">
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">
           Processing Timeout
         </h2>
 
-        <p className=\"text-gray-600 mb-6\">
+        <p className="text-gray-600 mb-6">
           The verification is taking longer than expected. This might be due to high server load or a technical issue.
         </p>
 
         {error && (
-          <div className=\"mb-4 p-3 bg-red-50 border border-red-200 rounded-lg\">
-            <div className=\"flex items-center space-x-2\">
-              <AlertCircle className=\"w-4 h-4 text-red-500 flex-shrink-0\" />
-              <p className=\"text-sm text-red-700\">{error}</p>
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+              <p className="text-sm text-red-700">{error}</p>
             </div>
           </div>
         )}
 
-        <div className=\"space-y-3\">
+        <div className="space-y-3">
           {canRetry && (
             <button
               onClick={retryCurrentOperation}
               disabled={loading}
-              className=\"w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2\"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
             >
               {loading ? (
                 <>
-                  <Loader className=\"w-4 h-4 animate-spin\" />
+                  <Loader className="w-4 h-4 animate-spin" />
                   <span>Retrying...</span>
                 </>
               ) : (
                 <>
-                  <RefreshCw className=\"w-4 h-4\" />
+                  <RefreshCw className="w-4 h-4" />
                   <span>Retry ({retryCount}/{RETRY_LIMITS.maxRetries})</span>
                 </>
               )}
@@ -527,14 +527,14 @@ const RobustVerificationFlow: React.FC<RobustVerificationFlowProps> = ({ session
 
           <button
             onClick={() => window.location.reload()}
-            className=\"w-full bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2\"
+            className="w-full bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
           >
-            <RefreshCw className=\"w-4 h-4\" />
+            <RefreshCw className="w-4 h-4" />
             <span>Start Over</span>
           </button>
         </div>
 
-        <p className=\"text-xs text-gray-500 mt-4\">
+        <p className="text-xs text-gray-500 mt-4">
           If the problem persists, please contact support with your session reference.
         </p>
       </div>
@@ -552,38 +552,38 @@ const RobustVerificationFlow: React.FC<RobustVerificationFlowProps> = ({ session
   // For brevity, I'll return a placeholder here - the full component would include
   // all the existing steps with the timeout monitoring integrated
   return (
-    <div className=\"min-h-screen bg-gray-50\">
+    <div className="min-h-screen bg-gray-50">
       <BrandedHeader />
 
-      <div className=\"max-w-2xl mx-auto p-4\">
+      <div className="max-w-2xl mx-auto p-4">
         {renderTimeoutWarning()}
 
         {loading && (
-          <div className=\"flex items-center justify-center py-12\">
-            <Loader className=\"w-8 h-8 animate-spin text-blue-600\" />
-            <span className=\"ml-2 text-gray-600\">Loading session...</span>
+          <div className="flex items-center justify-center py-12">
+            <Loader className="w-8 h-8 animate-spin text-blue-600" />
+            <span className="ml-2 text-gray-600">Loading session...</span>
           </div>
         )}
 
         {error && !loading && (
-          <div className=\"bg-red-50 border border-red-200 rounded-lg p-4 mb-4\">
-            <div className=\"flex items-center space-x-2\">
-              <XCircle className=\"w-5 h-5 text-red-500 flex-shrink-0\" />
-              <p className=\"text-red-700\">{error}</p>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <div className="flex items-center space-x-2">
+              <XCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+              <p className="text-red-700">{error}</p>
             </div>
           </div>
         )}
 
         {/* Rest of the verification flow UI would be rendered here */}
-        <div className=\"bg-white rounded-lg shadow-lg p-6\">
-          <p className=\"text-gray-600\">
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <p className="text-gray-600">
             Robust verification flow with timeout handling is now active.
             Current step: {currentStep}
           </p>
 
           {timeoutActive && (
-            <div className=\"mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg\">
-              <p className=\"text-sm text-blue-800\">
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
                 Processing... Time remaining: {formatTimeRemaining(timeRemaining)}
               </p>
             </div>
