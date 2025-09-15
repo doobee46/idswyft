@@ -1090,9 +1090,17 @@ router.post('/live-capture', authenticateAPIKey, checkSandboxMode, verificationR
                             // Exit early - don't proceed with face matching
                             return;
                         }
+                        // Check both database and state manager for enhanced verification completion
+                        const stateManagerResult = await stateManager.getVerificationResult(verification_id);
+                        const enhancedVerificationComplete = currentVerification.enhanced_verification_completed ||
+                            (stateManagerResult && stateManagerResult.completedStages?.includes(VerificationStage.CROSS_VALIDATION));
                         // If enhanced verification hasn't completed yet, defer selfie processing
-                        if (!currentVerification.enhanced_verification_completed) {
-                            console.log('⏳ Enhanced verification still processing - deferring selfie matching...');
+                        if (!enhancedVerificationComplete) {
+                            console.log('⏳ Enhanced verification still processing - deferring selfie matching...', {
+                                databaseFlag: currentVerification.enhanced_verification_completed,
+                                stateManagerStages: stateManagerResult?.completedStages || [],
+                                hasCrossValidation: stateManagerResult?.completedStages?.includes(VerificationStage.CROSS_VALIDATION) || false
+                            });
                             await verificationService.updateVerificationRequest(verification_id, {
                                 live_capture_completed: true,
                                 status: 'pending',
