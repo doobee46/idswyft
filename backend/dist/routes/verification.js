@@ -133,12 +133,14 @@ router.post('/start', authenticateAPIKey, checkSandboxMode, verificationRateLimi
     const verificationRequest = await verificationService.createVerificationRequest({
         user_id,
         developer_id: req.developer.id,
-        is_sandbox: req.isSandbox
+        is_sandbox: req.isSandbox || false
     });
+    // Initialize state manager context
+    await stateManager.initializeVerification(verificationRequest.id, user_id, req.isSandbox || false);
     logVerificationEvent('verification_started', verificationRequest.id, {
         userId: user_id,
         developerId: req.developer.id,
-        sandbox: req.isSandbox
+        sandbox: req.isSandbox || false
     });
     res.status(201).json({
         verification_id: verificationRequest.id,
@@ -195,7 +197,7 @@ router.post('/document', authenticateAPIKey, checkSandboxMode, verificationRateL
         fileSize: file.size,
         mimeType: file.mimetype,
         developerId: req.developer?.id,
-        isSandbox: req.isSandbox
+        isSandbox: req.isSandbox || false
     });
     try {
         // Store document file
@@ -212,7 +214,7 @@ router.post('/document', authenticateAPIKey, checkSandboxMode, verificationRateL
         // Analyze document quality
         let qualityAnalysis = null;
         try {
-            if (!req.isSandbox && (file.mimetype.startsWith('image/'))) {
+            if (!(req.isSandbox || false) && (file.mimetype.startsWith('image/'))) {
                 // Get the actual file path for quality analysis
                 const localFilePath = await storageService.getLocalFilePath(documentPath);
                 qualityAnalysis = await verificationService.analyzeDocumentQuality(localFilePath);
@@ -352,7 +354,7 @@ router.post('/selfie', authenticateAPIKey, checkSandboxMode, upload.single('self
             selfie_id: selfie.id
         });
         // Start face recognition processing asynchronously
-        if (!req.isSandbox) {
+        if (!(req.isSandbox || false)) {
             // Real face recognition
             const document = await verificationService.getDocumentByVerificationId(verification_id);
             if (document) {
@@ -456,7 +458,7 @@ router.post('/back-of-id', authenticateAPIKey, checkSandboxMode, verificationRat
         fileSize: file.size,
         mimeType: file.mimetype,
         developerId: req.developer?.id,
-        isSandbox: req.isSandbox
+        isSandbox: req.isSandbox || false
     });
     try {
         // Store back-of-ID file
@@ -472,7 +474,7 @@ router.post('/back-of-id', authenticateAPIKey, checkSandboxMode, verificationRat
             is_back_of_id: true
         });
         // Process back-of-ID scanning asynchronously
-        if (!req.isSandbox && file.mimetype.startsWith('image/')) {
+        if (!(req.isSandbox || false) && file.mimetype.startsWith('image/')) {
             console.log('🔄 Starting back-of-ID barcode/QR scanning...', {
                 backDocumentId: backOfIdDocument.id,
                 backOfIdPath,
@@ -509,7 +511,7 @@ router.post('/back-of-id', authenticateAPIKey, checkSandboxMode, verificationRat
                         console.log('🔒 Starting critical document photo cross-validation for security...');
                         photoConsistencyScore = await faceRecognitionService.compareDocumentPhotos(frontDocument.file_path, backOfIdDocument.file_path);
                         // Use contextual threshold (organization-specific or default)
-                        const contextualThresholds = await getContextualThresholds(req, req.isSandbox);
+                        const contextualThresholds = await getContextualThresholds(req, req.isSandbox || false);
                         const photoThreshold = contextualThresholds.PHOTO_CONSISTENCY;
                         photoValidationPassed = photoConsistencyScore >= photoThreshold;
                         console.log('🔒 Document photo cross-validation results:', {
@@ -541,7 +543,7 @@ router.post('/back-of-id', authenticateAPIKey, checkSandboxMode, verificationRat
                         }
                     });
                     // Use contextual validation with state manager
-                    const contextualThresholds = await getContextualThresholds(req, req.isSandbox);
+                    const contextualThresholds = await getContextualThresholds(req, req.isSandbox || false);
                     const crossValidationThreshold = contextualThresholds.CROSS_VALIDATION;
                     const dataValidationPassed = crossValidation.validation_results.overall_consistency &&
                         crossValidation.match_score >= crossValidationThreshold;
@@ -616,7 +618,7 @@ router.post('/back-of-id', authenticateAPIKey, checkSandboxMode, verificationRat
                 });
             });
         }
-        else if (req.isSandbox) {
+        else if (req.isSandbox || false) {
             // For sandbox: Use PDF417 barcode scanning only, fallback to mock data if it fails
             console.log('🔧 Sandbox mode: Attempting real PDF417 barcode scanning...');
             try {
@@ -1039,7 +1041,7 @@ router.post('/live-capture', authenticateAPIKey, checkSandboxMode, verificationR
             live_capture_completed: true
         });
         // Process liveness detection and face matching
-        if (!req.isSandbox) {
+        if (!(req.isSandbox || false)) {
             try {
                 // Get document for face matching
                 const document = await verificationService.getDocumentByVerificationId(verification_id);
@@ -1102,11 +1104,11 @@ router.post('/live-capture', authenticateAPIKey, checkSandboxMode, verificationR
                         faceRecognitionService.detectLiveness(liveCapturePath, challenge_response)
                     ]);
                     // Use contextual thresholds (organization-specific or defaults)
-                    const contextualThresholds = await getContextualThresholds(req, req.isSandbox);
-                    const faceMatchThreshold = req.isSandbox ?
+                    const contextualThresholds = await getContextualThresholds(req, req.isSandbox || false);
+                    const faceMatchThreshold = req.isSandbox || false ?
                         contextualThresholds.FACE_MATCHING.sandbox :
                         contextualThresholds.FACE_MATCHING.production;
-                    const livenessThreshold = req.isSandbox ?
+                    const livenessThreshold = req.isSandbox || false ?
                         contextualThresholds.LIVENESS.sandbox :
                         contextualThresholds.LIVENESS.production;
                     // Validate scores using contextual thresholds
@@ -1114,7 +1116,7 @@ router.post('/live-capture', authenticateAPIKey, checkSandboxMode, verificationR
                     const validation = await validateScores({
                         faceMatching: matchScore,
                         liveness: livenessScore
-                    }, req.isSandbox, organizationId || undefined);
+                    }, req.isSandbox || false, organizationId || undefined);
                     // Update scores through state manager
                     const stateResult = await stateManager.updateScores(verification_id, {
                         faceMatching: matchScore,
@@ -1143,7 +1145,7 @@ router.post('/live-capture', authenticateAPIKey, checkSandboxMode, verificationR
                         finalResult = stateResult;
                     }
                     // Comprehensive score analysis logging with centralized thresholds
-                    // const thresholdInfo = getThresholdInfo(req.isSandbox); // Removed - using detailed info below
+                    // const thresholdInfo = getThresholdInfo(req.isSandbox || false); // Removed - using detailed info below
                     console.log(`📊 Final Verification Score Analysis for ${verification_id}:`);
                     console.log(`   🎯 Face Match Score: ${matchScore.toFixed(3)} (threshold: ${faceMatchThreshold}) - ${validation.faceMatchingPassed ? '✅ PASS' : '❌ FAIL'}`);
                     console.log(`   🔍 Liveness Score: ${livenessScore.toFixed(3)} (threshold: ${livenessThreshold}) - ${validation.livenessPassed ? '✅ PASS' : '❌ FAIL'}`);
@@ -1151,12 +1153,12 @@ router.post('/live-capture', authenticateAPIKey, checkSandboxMode, verificationR
                     console.log(`   🔗 Document Path: ${frontDocument?.file_path || document.file_path}`);
                     console.log(`   📸 Live Capture Path: ${liveCapturePath}`);
                     console.log(`   🔒 Enhanced Verification: ${backDocument ? 'YES' : 'NO'}`);
-                    console.log(`   🏗️  Environment: ${req.isSandbox ? 'SANDBOX' : 'PRODUCTION'}`);
+                    console.log(`   🏗️  Environment: ${req.isSandbox || false ? 'SANDBOX' : 'PRODUCTION'}`);
                     console.log(`   🏢 Organization: ${organizationId || 'DEFAULT'}`);
                     console.log(`   ⚙️  Using Thresholds: ${organizationId ? 'CUSTOM' : 'SYSTEM_DEFAULT'}`);
                     console.log(`   📊 Threshold Values: Face=${faceMatchThreshold}, Liveness=${livenessThreshold}`);
                     // Log threshold details for debugging
-                    const detailedThresholdInfo = await getThresholdInfo(req.isSandbox, organizationId || undefined);
+                    const detailedThresholdInfo = await getThresholdInfo(req.isSandbox || false, organizationId || undefined);
                     console.log(`   📋 Full Threshold Info: ${JSON.stringify(detailedThresholdInfo, null, 2)}`);
                     // Calculate score gaps with dynamic thresholds
                     const livenessGap = livenessScore - livenessThreshold;
@@ -1615,7 +1617,7 @@ router.post('/reupload-document/:verification_id', authenticateAPIKey, checkSand
             // Trigger back-of-ID reprocessing
             const frontDoc = existingDocuments?.find(doc => !doc.is_back_of_id);
             const backDoc = existingDoc || existingDocuments?.find(doc => doc.is_back_of_id);
-            if (frontDoc && backDoc && !req.isSandbox) {
+            if (frontDoc && backDoc && !(req.isSandbox || false)) {
                 barcodeService.scanBackOfId(documentPath)
                     .then(async (backOfIdData) => {
                     await verificationService.updateDocument(backDoc.id, {
