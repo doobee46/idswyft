@@ -751,6 +751,16 @@ router.get('/results/:verification_id', authenticateAPIKey, [
             verification_id
         });
     }
+    // Check state manager for current status first
+    const stateManagerResult = await stateManager.getVerificationResult(verification_id);
+    const currentStatus = stateManagerResult?.status || verificationRequest.status;
+    console.log("🔍 Status check for verification results:", {
+        verificationId: verification_id,
+        databaseStatus: verificationRequest.status,
+        stateManagerStatus: stateManagerResult?.status,
+        finalStatus: currentStatus,
+        hasStateManagerResult: !!stateManagerResult
+    });
     // Get all documents for this verification
     const { data: documents } = await supabase
         .from('documents')
@@ -774,7 +784,7 @@ router.get('/results/:verification_id', authenticateAPIKey, [
     const responseData = {
         verification_id,
         user_id: verificationRequest.user_id,
-        status: verificationRequest.status,
+        status: currentStatus,
         created_at: verificationRequest.created_at,
         updated_at: verificationRequest.updated_at,
         // Document verification results
