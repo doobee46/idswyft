@@ -65,7 +65,7 @@ const RobustVerificationFlow: React.FC<RobustVerificationFlowProps> = ({ session
   const [ocrData, setOcrData] = useState<any>(null);
   const [backOfIdUploaded, setBackOfIdUploaded] = useState(false);
   const [showLiveCapture, setShowLiveCapture] = useState(false);
-  const [finalStatus, setFinalStatus] = useState<'verified' | 'manual_review' | 'pending' | 'failed' | null>(null);
+  const [finalStatus, setFinalStatus] = useState<'pending' | 'processing' | 'completed' | 'verified' | 'failed' | 'manual_review' | null>(null);
   const [sessionTerminated, setSessionTerminated] = useState(false);
   const [verificationId, setVerificationId] = useState<string | null>(null);
   const [failureReason, setFailureReason] = useState<string | null>(null);
@@ -285,6 +285,33 @@ const RobustVerificationFlow: React.FC<RobustVerificationFlowProps> = ({ session
       setSessionTerminated(true);
     } catch (error) {
       console.error('Failed to terminate session:', error);
+    }
+  };
+
+
+  const loadFinalVerificationResults = async (vId: string) => {
+    try {
+      console.log('🔄 Loading final verification results...');
+
+      if (!session) {
+        throw new Error('Session not available');
+      }
+
+      const status = await verificationAPI.getResults(session, vId);
+
+      console.log('✅ Final verification results loaded:', status.status);
+      setFinalStatus(status.status);
+
+      if (status.status === 'failed') {
+        setFailureReason(status.failure_reason || 'Verification failed');
+      }
+
+      clearTimeoutMonitoring();
+      setCurrentStep('complete');
+
+    } catch (error) {
+      console.error('Failed to load final verification results:', error);
+      setError('Failed to get verification results. Please contact support.');
     }
   };
 
