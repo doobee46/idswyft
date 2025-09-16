@@ -253,7 +253,7 @@ export class EnhancedBarcodeService {
     const imageBuffer = await this.storageService.downloadFile(imagePath);
 
     const { data: { text } } = await Tesseract.recognize(imageBuffer, 'eng', {
-      logger: m => {} // Suppress OCR logging
+      logger: (_m: any) => {} // Suppress OCR logging
     });
 
     if (!text || text.trim().length < 20) {

@@ -751,9 +751,9 @@ router.get('/results/:verification_id', authenticateAPIKey, [
             verification_id
         });
     }
-    // Check state manager for current status first
+    // Check state manager for current status - database is source of truth
     const stateManagerResult = await stateManager.getVerificationResult(verification_id);
-    const currentStatus = stateManagerResult?.status || verificationRequest.status;
+    const currentStatus = verificationRequest.status || stateManagerResult?.status;
     console.log("🔍 Status check for verification results:", {
         verificationId: verification_id,
         databaseStatus: verificationRequest.status,

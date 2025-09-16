@@ -150,7 +150,7 @@ export class ImprovedCrossValidation {
         total_checks: totalChecks,
         successful_matches: matches,
         discrepancies,
-        extraction_quality
+        extraction_quality: extractionQuality
       },
       discrepancies
     };
