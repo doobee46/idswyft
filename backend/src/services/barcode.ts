@@ -69,6 +69,7 @@ export interface PDF417Data {
     endorsements?: string;
     restrictions?: string;
     vehicleClass?: string;
+    documentDiscriminator?: string;
     organ_donor?: boolean;
   };
   confidence: number;
@@ -196,6 +197,7 @@ export class BarcodeService {
           endorsements: parsedData.endorsements || undefined,
           restrictions: parsedData.restrictions || undefined,
           vehicleClass: parsedData.vehicleClass || undefined,
+          documentDiscriminator: parsedData.documentDiscriminator || undefined,
           organ_donor: parsedData.organDonor || false
         },
         confidence,

@@ -31,6 +31,7 @@ export interface PDF417Data {
         endorsements?: string;
         restrictions?: string;
         vehicleClass?: string;
+        documentDiscriminator?: string;
         organ_donor?: boolean;
     };
     confidence: number;
