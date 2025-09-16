@@ -1,8 +1,9 @@
-// Individual step components for the verification flow
+// Individual step components for the verification flow - FIXED TO USE EXISTING LiveCaptureComponent
 import React, { useRef, useState } from 'react';
 import { VerificationStep, VerificationStatus, VerificationState } from '../../types/verification';
 import { VerificationSession } from '../../types';
 import { Upload, FileText, Camera, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import LiveCaptureComponent from '../LiveCaptureComponent';
 
 interface VerificationStepComponentProps {
   state: VerificationState;
@@ -21,13 +22,11 @@ export const VerificationStepComponent: React.FC<VerificationStepComponentProps>
 }) => {
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const [documentType, setDocumentType] = useState('drivers_license');
-  const [isCapturing, setIsCapturing] = useState(false);
   const [uploadingFront, setUploadingFront] = useState(false);
   const [uploadingBack, setUploadingBack] = useState(false);
+  const [showLiveCapture, setShowLiveCapture] = useState(false);
 
   const handleFrontDocumentSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -57,46 +56,20 @@ export const VerificationStepComponent: React.FC<VerificationStepComponentProps>
     }
   };
 
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' }
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        setIsCapturing(true);
-      }
-    } catch (error) {
-      console.error('Camera access failed:', error);
-    }
+  const handleLiveCaptureStart = () => {
+    console.log('🎥 Starting live capture using existing LiveCaptureComponent...');
+    setShowLiveCapture(true);
   };
 
-  const capturePhoto = async () => {
-    if (!videoRef.current || !canvasRef.current) return;
+  const handleLiveCaptureComplete = async (imageData: string) => {
+    console.log('📸 Live capture completed, processing...');
+    setShowLiveCapture(false);
+    await onLiveCapture(imageData);
+  };
 
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
-    const context = canvas.getContext('2d');
-
-    if (!context) return;
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    context.drawImage(video, 0, 0);
-
-    const imageData = canvas.toDataURL('image/jpeg', 0.8);
-    const base64Data = imageData.split(',')[1];
-
-    try {
-      await onLiveCapture(base64Data);
-
-      // Stop camera
-      const stream = video.srcObject as MediaStream;
-      stream?.getTracks().forEach(track => track.stop());
-      setIsCapturing(false);
-    } catch (error) {
-      console.error('Live capture failed:', error);
-    }
+  const handleLiveCaptureCancel = () => {
+    console.log('❌ Live capture cancelled');
+    setShowLiveCapture(false);
   };
 
   const renderStep = () => {
@@ -247,6 +220,18 @@ export const VerificationStepComponent: React.FC<VerificationStepComponentProps>
         );
 
       case VerificationStep.LIVE_CAPTURE:
+        // Use the existing sophisticated LiveCaptureComponent instead of basic camera implementation
+        if (showLiveCapture) {
+          return (
+            <LiveCaptureComponent
+              onCapture={handleLiveCaptureComplete}
+              onCancel={handleLiveCaptureCancel}
+              isLoading={state.status === VerificationStatus.PROCESSING}
+            />
+          );
+        }
+
+        // Show the start button for live capture
         return (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Live Photo Capture</h2>
@@ -255,33 +240,14 @@ export const VerificationStepComponent: React.FC<VerificationStepComponentProps>
             </p>
 
             <div className="text-center">
-              {!isCapturing ? (
-                <button
-                  onClick={startCamera}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center space-x-2 mx-auto"
-                >
-                  <Camera className="w-5 h-5" />
-                  <span>Start Camera</span>
-                </button>
-              ) : (
-                <div className="space-y-4">
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    muted
-                    className="w-80 h-60 border border-gray-300 rounded-lg mx-auto"
-                  />
-                  <button
-                    onClick={capturePhoto}
-                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg"
-                  >
-                    Capture Photo
-                  </button>
-                </div>
-              )}
+              <button
+                onClick={handleLiveCaptureStart}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center space-x-2 mx-auto transition-colors"
+              >
+                <Camera className="w-5 h-5" />
+                <span>Start Camera</span>
+              </button>
             </div>
-
-            <canvas ref={canvasRef} className="hidden" />
           </div>
         );
 
