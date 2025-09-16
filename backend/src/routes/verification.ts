@@ -683,6 +683,9 @@ router.post('/back-of-id',
               // Handle different error scenarios with proper classification
               let finalResult;
               if (requiresManualReview) {
+                // CRITICAL FIX: Mark enhanced verification as completed even for manual review cases
+                // This prevents live capture deadlock where users get stuck waiting
+                console.log('🔧 MANUAL REVIEW CASE: Marking enhanced verification as completed to prevent deadlock');
                 finalResult = await stateManager.recordError(
                   verificationRequest.id,
                   VerificationFailureType.EXTRACTION_FAILURE,
@@ -690,6 +693,12 @@ router.post('/back-of-id',
                   (crossValidation as any).manual_review_reason || 'Data extraction issues detected',
                   { crossValidation }
                 );
+
+                // Force completion of enhanced verification to allow live capture to proceed
+                await verificationService.updateVerificationRequest(verificationRequest.id, {
+                  enhanced_verification_completed: true
+                });
+                console.log('✅ Enhanced verification marked as completed - live capture can now proceed');
               } else if (photoValidationError) {
                 finalResult = await stateManager.recordError(
                   verificationRequest.id,
@@ -758,11 +767,16 @@ router.post('/back-of-id',
           .catch((error) => {
             console.error('🚨 Back-of-ID scanning failed:', error);
             logger.error('Back-of-ID scanning failed:', error);
-            
+
+            // CRITICAL FIX: Mark enhanced verification as completed even when scanning fails
+            // This prevents live capture deadlock where users get stuck waiting
+            console.log('🔧 SCANNING FAILURE: Marking enhanced verification as completed to prevent deadlock');
             verificationService.updateVerificationRequest(verificationRequest.id, {
               status: 'manual_review',
-              manual_review_reason: 'Back-of-ID scanning failed'
+              manual_review_reason: 'Back-of-ID scanning failed',
+              enhanced_verification_completed: true
             });
+            console.log('✅ Enhanced verification marked as completed despite scanning failure - live capture can now proceed');
 
             logVerificationEvent('back_of_id_scanning_failed', verificationRequest.id, {
               backDocumentId: backOfIdDocument.id,
@@ -1995,10 +2009,14 @@ router.post('/reupload-document/:verification_id',
             })
             .catch((error) => {
               console.error('🚨 Reupload OCR processing failed:', error);
+              // CRITICAL FIX: Mark enhanced verification as completed even when reupload fails
+              console.log('🔧 REUPLOAD OCR FAILURE: Marking enhanced verification as completed to prevent deadlock');
               verificationService.updateVerificationRequest(verification_id, {
                 status: 'manual_review',
-                manual_review_reason: 'Front document reupload OCR processing failed'
+                manual_review_reason: 'Front document reupload OCR processing failed',
+                enhanced_verification_completed: true
               });
+              console.log('✅ Enhanced verification marked as completed despite reupload failure - live capture can now proceed');
             });
         }
       } else {
@@ -2044,10 +2062,14 @@ router.post('/reupload-document/:verification_id',
             })
             .catch((error) => {
               console.error('🚨 Reupload back-of-ID processing failed:', error);
+              // CRITICAL FIX: Mark enhanced verification as completed even when reupload fails
+              console.log('🔧 REUPLOAD BACK-ID FAILURE: Marking enhanced verification as completed to prevent deadlock');
               verificationService.updateVerificationRequest(verification_id, {
                 status: 'manual_review',
-                manual_review_reason: 'Back document reupload processing failed'
+                manual_review_reason: 'Back document reupload processing failed',
+                enhanced_verification_completed: true
               });
+              console.log('✅ Enhanced verification marked as completed despite reupload failure - live capture can now proceed');
             });
         }
       }
