@@ -1470,23 +1470,12 @@ This is for document verification and security analysis purposes.`
         // Convert to grayscale
         .greyscale()
         // Much higher contrast for back-of-ID cards
-        .contrast(0.8)
+        .contrast(0.3)
         // Adjust brightness more aggressively  
-        .brightness(0.3)
+        .brightness(0.1)
         // Normalize colors
         .normalize()
-        // Apply edge detection for better text clarity
-        .convolute([
-          [-1, -1, -1],
-          [-1,  9, -1],
-          [-1, -1, -1]
-        ])
-        // Apply another sharpening pass
-        .convolute([
-          [ 0, -1,  0],
-          [-1,  5, -1],
-          [ 0, -1,  0]
-        ]);
+        // REMOVED: Edge detection and sharpening filters were destroying barcode patterns
       
       const enhancedBuffer = await enhancedImage.getBufferAsync(Jimp.default.MIME_PNG);
       
@@ -1916,7 +1905,97 @@ This is for document verification and security analysis purposes.`
         }
       }
       
-      // Cross-validate issuing state/authority
+
+
+      // Cross-validate eye color (AAMVA field DAY)
+      const frontEyeColor = frontOcrData?.eye_color || frontOcrData?.eyeColor;
+      if (frontEyeColor && pdf417.eyeColor) {
+        pdf417Checks++;
+        const frontEyeNormalized = frontEyeColor.toUpperCase().trim();
+        const pdf417EyeNormalized = pdf417.eyeColor.toUpperCase().trim();
+
+        if (frontEyeNormalized === pdf417EyeNormalized ||
+            frontEyeNormalized.includes(pdf417EyeNormalized) ||
+            pdf417EyeNormalized.includes(frontEyeNormalized)) {
+          fieldsMatched++;
+          console.log('✅ PDF417 eye color matches front ID');
+        } else {
+          discrepancies.push(
+            `PDF417 eye color mismatch: front="${frontEyeColor}" vs PDF417="${pdf417.eyeColor}"`
+          );
+        }
+      }
+
+      // Cross-validate weight (AAMVA field DCE)
+      const frontWeight = frontOcrData?.weight;
+      if (frontWeight && pdf417.weight) {
+        pdf417Checks++;
+        // Normalize weight values (remove units, compare numbers)
+        const frontWeightNum = parseInt(frontWeight.replace(/\D/g, ''));
+        const pdf417WeightNum = parseInt(pdf417.weight.replace(/\D/g, ''));
+
+        // Allow 5 pound difference for weight variations
+        if (Math.abs(frontWeightNum - pdf417WeightNum) <= 5) {
+          fieldsMatched++;
+          console.log('✅ PDF417 weight matches front ID (within tolerance)');
+        } else {
+          discrepancies.push(
+            `PDF417 weight mismatch: front="${frontWeight}" vs PDF417="${pdf417.weight}"`
+          );
+        }
+      }
+
+      // Cross-validate middle name (AAMVA field DAD)
+      const frontMiddleName = frontOcrData?.middle_name || frontOcrData?.middleName;
+      if (frontMiddleName && pdf417.middleName) {
+        pdf417Checks++;
+        const frontMiddleNormalized = frontMiddleName.toLowerCase().trim();
+        const pdf417MiddleNormalized = pdf417.middleName.toLowerCase().trim();
+
+        // Allow partial matching for middle names (initials vs full name)
+        if (frontMiddleNormalized === pdf417MiddleNormalized ||
+            frontMiddleNormalized.charAt(0) === pdf417MiddleNormalized.charAt(0) ||
+            frontMiddleNormalized.includes(pdf417MiddleNormalized) ||
+            pdf417MiddleNormalized.includes(frontMiddleNormalized)) {
+          fieldsMatched++;
+          console.log('✅ PDF417 middle name matches front ID');
+        } else {
+          discrepancies.push(
+            `PDF417 middle name mismatch: front="${frontMiddleName}" vs PDF417="${pdf417.middleName}"`
+          );
+        }
+      }
+
+      // Cross-validate vehicle class (AAMVA field DCA)
+      const frontVehicleClass = frontOcrData?.vehicle_class || frontOcrData?.class;
+      if (frontVehicleClass && pdf417.vehicleClass) {
+        pdf417Checks++;
+        const frontClassNormalized = frontVehicleClass.toUpperCase().trim();
+        const pdf417ClassNormalized = pdf417.vehicleClass.toUpperCase().trim();
+
+        if (frontClassNormalized === pdf417ClassNormalized) {
+          fieldsMatched++;
+          console.log('✅ PDF417 vehicle class matches front ID');
+        } else {
+          discrepancies.push(
+            `PDF417 vehicle class mismatch: front="${frontVehicleClass}" vs PDF417="${pdf417.vehicleClass}"`
+          );
+        }
+      }
+
+      // Cross-validate document discriminator (AAMVA field DCF) - unique identifier
+      const frontDocDiscriminator = frontOcrData?.document_discriminator || frontOcrData?.discriminator;
+      if (frontDocDiscriminator && pdf417.documentDiscriminator) {
+        pdf417Checks++;
+        if (frontDocDiscriminator === pdf417.documentDiscriminator) {
+          fieldsMatched++;
+          console.log('✅ PDF417 document discriminator matches front ID - high confidence match');
+        } else {
+          discrepancies.push(
+            `PDF417 document discriminator mismatch: front="${frontDocDiscriminator}" vs PDF417="${pdf417.documentDiscriminator}"`
+          );
+        }
+      }      // Cross-validate issuing state/authority
       if (frontOcrData?.issuing_authority && pdf417.state) {
         pdf417Checks++;
         if (this.matchIssuingAuthorities(frontOcrData.issuing_authority, pdf417.state)) {
