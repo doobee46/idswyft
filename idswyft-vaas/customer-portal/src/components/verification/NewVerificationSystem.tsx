@@ -1,4 +1,4 @@
-// New clean verification system component
+// New clean verification system component with enterprise branding
 import React, { useState, useEffect } from 'react';
 import { VerificationStep, VerificationStatus, VerificationState } from '../../types/verification';
 import { VerificationSession } from '../../types';
@@ -6,6 +6,8 @@ import { VerificationStateManager } from './VerificationStateManager';
 import { VerificationController } from './VerificationController';
 import { VerificationStepComponent } from './VerificationStepComponent';
 import customerPortalAPI from '../../services/api';
+import { useOrganization } from '../../contexts/OrganizationContext';
+import BrandedHeader from '../BrandedHeader';
 
 interface NewVerificationSystemProps {
   sessionToken: string;
@@ -19,6 +21,9 @@ export const NewVerificationSystem: React.FC<NewVerificationSystemProps> = ({ se
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Organization branding context
+  const { setBranding, setOrganizationName } = useOrganization();
+
   // Initialize session and verification
   useEffect(() => {
     const initializeSession = async () => {
@@ -31,6 +36,14 @@ export const NewVerificationSystem: React.FC<NewVerificationSystemProps> = ({ se
         const sessionData = await customerPortalAPI.getVerificationSession(sessionToken);
         setSession(sessionData);
         controller.setSession(sessionData);
+
+        // Apply organization branding
+        if (sessionData.organization) {
+          setOrganizationName(sessionData.organization.name);
+          if (sessionData.organization.branding) {
+            setBranding(sessionData.organization.branding);
+          }
+        }
 
         console.log('✅ Session initialized:', sessionData);
 
@@ -117,10 +130,12 @@ export const NewVerificationSystem: React.FC<NewVerificationSystemProps> = ({ se
 
   return (
     <div className="max-w-4xl mx-auto">
-      {/* Header */}
+      {/* Branded Header */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Identity Verification</h1>
-        <p className="text-gray-600">Complete the verification process to continue</p>
+        <BrandedHeader
+          showSubtitle={true}
+          subtitle="Complete the verification process to continue"
+        />
 
         {/* Progress indicator */}
         <div className="mt-4">

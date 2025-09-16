@@ -164,9 +164,21 @@ export class VerificationController {
 
         const results = await newVerificationApi.getVerificationResults(this.session!, state.verificationId!);
 
-        // Check if barcode data is available
-        if (results.back_of_id_uploaded && results.barcode_data) {
-          console.log('✅ Step 5 Complete: Back document processed');
+        // Check if back document processing is complete
+        // Back document is processed if it's uploaded and either has barcode data or processing is complete
+        const backDocumentProcessed = results.back_of_id_uploaded &&
+                                     (results.barcode_data ||
+                                      results.enhanced_verification_completed ||
+                                      results.cross_validation_score !== null);
+
+        if (backDocumentProcessed) {
+          console.log('✅ Step 5 Complete: Back document processed', {
+            back_of_id_uploaded: results.back_of_id_uploaded,
+            has_barcode_data: !!results.barcode_data,
+            enhanced_verification_completed: results.enhanced_verification_completed,
+            cross_validation_score: results.cross_validation_score
+          });
+
           this.stateManager.setBackDocumentProcessed(results.barcode_data);
 
           // Move to cross validation
@@ -212,12 +224,29 @@ export class VerificationController {
 
         const results = await newVerificationApi.getVerificationResults(this.session!, state.verificationId!);
 
-        // Check if enhanced verification (cross validation) is completed
-        if (results.enhanced_verification_completed) {
-          console.log('✅ Step 6 Complete: Cross validation finished');
+        // Check multiple indicators for cross validation completion
+        const crossValidationComplete = results.enhanced_verification_completed ||
+                                       (results.cross_validation_score !== null && results.cross_validation_score !== undefined) ||
+                                       (results.status === 'verified' && results.back_of_id_uploaded) ||
+                                       (results.status === 'failed' && results.back_of_id_uploaded);
 
-          const crossValidationPassed = results.status === 'verified' ||
-                                       (results.cross_validation_score && results.cross_validation_score >= 0.7);
+        if (crossValidationComplete) {
+          console.log('✅ Step 6 Complete: Cross validation finished', {
+            enhanced_verification_completed: results.enhanced_verification_completed,
+            cross_validation_score: results.cross_validation_score,
+            status: results.status,
+            back_of_id_uploaded: results.back_of_id_uploaded
+          });
+
+          // Determine if cross validation passed
+          let crossValidationPassed = false;
+          if (results.status === 'verified') {
+            crossValidationPassed = true;
+          } else if (results.status === 'failed') {
+            crossValidationPassed = false;
+          } else if (results.cross_validation_score !== null && results.cross_validation_score !== undefined) {
+            crossValidationPassed = results.cross_validation_score >= 0.7;
+          }
 
           this.stateManager.setCrossValidationCompleted(
             crossValidationPassed,
@@ -227,16 +256,31 @@ export class VerificationController {
 
           if (crossValidationPassed) {
             // Move to live capture
+            console.log('🎯 Cross validation passed - moving to live capture');
             this.stateManager.moveToStep(VerificationStep.LIVE_CAPTURE, VerificationStatus.PENDING);
           } else {
             // Cross validation failed - set final result
+            console.log('❌ Cross validation failed - setting final result');
             this.stateManager.setFinalResult('failed', results.failure_reason || 'Cross validation failed');
           }
           return;
         }
 
+        // Log current status for debugging
+        console.log('🔍 Cross validation status check:', {
+          attempt: attempts,
+          maxAttempts,
+          enhanced_verification_completed: results.enhanced_verification_completed,
+          cross_validation_score: results.cross_validation_score,
+          status: results.status,
+          back_of_id_uploaded: results.back_of_id_uploaded,
+          crossValidationComplete
+        });
+
         if (attempts >= maxAttempts) {
-          throw new Error('Cross validation timeout');
+          console.error('⏰ Cross validation timeout - max attempts reached');
+          this.stateManager.setError('Cross validation timeout - the process is taking longer than expected. Please try again or contact support.');
+          return;
         }
 
         // Continue polling
