@@ -42,6 +42,7 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
   const [documentType, setDocumentType] = useState<string>('');
   const [ocrData, setOcrData] = useState<any>(null);
   const [backOfIdUploaded, setBackOfIdUploaded] = useState(false);
+  const [crossValidationCompleted, setCrossValidationCompleted] = useState(false);
   const [showLiveCapture, setShowLiveCapture] = useState(false);
   const [finalStatus, setFinalStatus] = useState<'verified' | 'manual_review' | 'pending' | 'failed' | null>(null);
   const [sessionTerminated, setSessionTerminated] = useState(false);
@@ -191,6 +192,8 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
 
       setDocuments(prev => ({ ...prev, back: file }));
       setBackOfIdUploaded(true);
+      // Start polling for cross-validation completion
+      pollForCrossValidationCompletion(verificationId);
       setUploadProgress(0);
     } catch (error: any) {
       console.error('Failed to upload back of ID:', error);
@@ -250,6 +253,57 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
     // Clear interval after 60 seconds
     setTimeout(() => clearInterval(pollInterval), 60000);
   };
+
+  const pollForCrossValidationCompletion = (verificationId: string) => {
+    const maxAttempts = 30; // 30 attempts = 5 minutes max
+    let attempts = 0;
+
+    const poll = async () => {
+      try {
+        attempts++;
+        console.log(`🔄 Polling cross-validation completion (attempt ${attempts}/${maxAttempts})`);
+
+        const status = await verificationAPI.getResults(session!, verificationId);
+
+        // Check for enhanced verification completion
+        if ((status as any).enhanced_verification_completed) {
+          console.log('✅ Cross-validation completed successfully');
+          setCrossValidationCompleted(true);
+          return;
+        }
+
+        // Check for final status that indicates completion or failure
+        if (status.status === 'verified' || status.status === 'failed' || status.status === 'manual_review') {
+          console.log(`✅ Verification completed with status: ${status.status}`);
+          setCrossValidationCompleted(true);
+          setFinalStatus(status.status as any);
+          setCurrentStep('complete');
+          return;
+        }
+
+        if (attempts >= maxAttempts) {
+          console.warn('⏱️ Cross-validation polling timeout');
+          setCrossValidationCompleted(true); // Allow user to proceed
+          return;
+        }
+
+        // Continue polling
+        setTimeout(poll, 10000); // Poll every 10 seconds
+
+      } catch (error) {
+        console.error('Cross-validation polling error:', error);
+        if (attempts >= 3) {
+          setCrossValidationCompleted(true); // Allow user to proceed on error
+        } else {
+          // Retry polling
+          setTimeout(poll, 5000);
+        }
+      }
+    };
+
+    poll();
+  };
+
 
   const submitVerification = async () => {
     if (!verificationId) {
@@ -472,6 +526,7 @@ const VerificationFlow: React.FC<VerificationFlowProps> = ({ sessionToken }) => 
                     session={session}
                     ocrData={ocrData}
                     backOfIdUploaded={backOfIdUploaded}
+                    crossValidationCompleted={crossValidationCompleted}
                     showLiveCapture={showLiveCapture}
                     onBackOfIdUpload={handleBackOfIdUpload}
                     onStartLiveCapture={() => setShowLiveCapture(true)}
@@ -715,6 +770,7 @@ const IdentityVerificationStep: React.FC<{
   session: VerificationSession;
   ocrData: any;
   backOfIdUploaded: boolean;
+  crossValidationCompleted: boolean;
   showLiveCapture: boolean;
   onBackOfIdUpload: (file: File) => void;
   onStartLiveCapture: () => void;
@@ -722,7 +778,8 @@ const IdentityVerificationStep: React.FC<{
 }> = ({ 
   session, 
   ocrData, 
-  backOfIdUploaded, 
+  backOfIdUploaded,
+  crossValidationCompleted, 
   showLiveCapture, 
   onBackOfIdUpload, 
   onStartLiveCapture,
@@ -789,7 +846,20 @@ const IdentityVerificationStep: React.FC<{
         </div>
       )}
 
-      {backOfIdUploaded && (
+      {/* Waiting for Cross-Validation Status */}
+      {backOfIdUploaded && !crossValidationCompleted && (
+        <div className="mb-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center space-x-2 text-blue-800">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+            <span className="font-medium">Processing Cross-Validation</span>
+          </div>
+          <p className="mt-1 text-blue-700 text-sm">
+            Please wait while we cross-validate your front and back ID documents. This process ensures data consistency and authenticity.
+          </p>
+        </div>
+      )}
+
+      {backOfIdUploaded && crossValidationCompleted && (
         <div className="mb-8 bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-center space-x-2 text-green-800">
             <CheckCircle className="w-5 w-5" />
@@ -802,7 +872,7 @@ const IdentityVerificationStep: React.FC<{
       )}
 
       {/* Live Capture or Selfie Upload - Only show after back-of-ID is uploaded */}
-      {backOfIdUploaded && (
+      {backOfIdUploaded && crossValidationCompleted && (
         <div className="text-center">
           <h3 className="text-lg font-semibold mb-4">Identity Verification</h3>
           <p className="text-gray-600 mb-6">
@@ -849,7 +919,7 @@ const IdentityVerificationStep: React.FC<{
       )}
 
       {/* Instructions when back-of-ID is not uploaded yet */}
-      {!backOfIdUploaded && (
+      {!backOfIdUploaded && crossValidationCompleted && (
         <div className="text-center bg-blue-50 border border-blue-200 rounded-lg p-6">
           <div className="text-blue-600 mb-2">
             <svg className="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
