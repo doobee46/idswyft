@@ -172,19 +172,27 @@ export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> =
     try {
       console.log('📸 Uploading live capture...');
 
-      // Convert data URL to File
-      const dataURItoBlob = (dataURI: string) => {
-        const byteString = atob(dataURI.split(',')[1]);
-        const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
-        const ab = new ArrayBuffer(byteString.length);
-        const ia = new Uint8Array(ab);
-        for (let i = 0; i < byteString.length; i++) {
-          ia[i] = byteString.charCodeAt(i);
+      // Convert base64 data to File
+      const base64toBlob = (base64Data: string) => {
+        // If imageData is already just base64 data (no data URL prefix), use it directly
+        // If it's a full data URL, extract the base64 part
+        const base64String = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
+
+        try {
+          const byteString = atob(base64String);
+          const ab = new ArrayBuffer(byteString.length);
+          const ia = new Uint8Array(ab);
+          for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+          }
+          return new Blob([ab], { type: 'image/jpeg' });
+        } catch (error) {
+          console.error('Base64 decoding error:', error);
+          throw new Error('The string contains invalid characters.');
         }
-        return new Blob([ab], { type: mimeString });
       };
 
-      const blob = dataURItoBlob(imageData);
+      const blob = base64toBlob(imageData);
       const file = new File([blob], 'selfie.jpg', { type: 'image/jpeg' });
 
       await verificationAPI.captureSelfie(session, verificationId, file);
