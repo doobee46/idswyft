@@ -1,4 +1,5 @@
-// Clean verification API service connecting to backend endpoints
+// Clean verification API service connecting to new v2 backend endpoints
+// Uses the NewVerificationEngine for proper state machine flow
 import { VerificationSession } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
@@ -20,23 +21,40 @@ interface StartVerificationResponse {
 
 interface VerificationResults {
   verification_id: string;
-  user_id: string;
-  status: 'pending' | 'processing' | 'verified' | 'failed' | 'manual_review';
-  document_uploaded: boolean;
-  document_type?: string;
+  status: 'pending' | 'front_document_uploaded' | 'front_document_processing' | 'front_document_processed' |
+          'back_document_uploaded' | 'back_document_processing' | 'back_document_processed' |
+          'cross_validation_processing' | 'cross_validation_completed' |
+          'live_capture_ready' | 'live_capture_uploaded' | 'live_capture_processing' | 'live_capture_completed' |
+          'verified' | 'failed' | 'manual_review';
+  current_step: number;
+  total_steps: number;
+
+  // Document states
+  front_document_uploaded: boolean;
+  back_document_uploaded: boolean;
+  live_capture_uploaded: boolean;
+
+  // Processing results
   ocr_data?: any;
-  back_of_id_uploaded: boolean;
   barcode_data?: any;
   cross_validation_results?: any;
-  cross_validation_score?: number;
-  enhanced_verification_completed: boolean;
-  live_capture_completed: boolean;
-  face_match_score?: number;
-  liveness_score?: number;
-  confidence_score?: number;
+  face_match_results?: any;
+  liveness_results?: any;
+
+  // Algorithm decisions
+  barcode_extraction_failed: boolean;
+  documents_match: boolean;
+  face_match_passed: boolean;
+  liveness_passed: boolean;
+
+  // Final result
+  final_result?: 'verified' | 'failed' | 'manual_review';
   failure_reason?: string;
   manual_review_reason?: string;
-  next_steps: string[];
+
+  // Timestamps
+  created_at: string;
+  updated_at: string;
 }
 
 class NewVerificationAPI {
@@ -81,10 +99,10 @@ class NewVerificationAPI {
       ...(useSandbox && { sandbox: true })
     };
 
-    console.log('📡 Request:', { url: `${API_BASE_URL}/api/verify/start`, body: requestBody, sandbox: useSandbox });
+    console.log('📡 Request:', { url: `${API_BASE_URL}/api/v2/verify/initialize`, body: requestBody, sandbox: useSandbox });
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/verify/start`, {
+      const response = await fetch(`${API_BASE_URL}/api/v2/verify/initialize`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -117,15 +135,13 @@ class NewVerificationAPI {
     const useSandbox = this.shouldUseSandbox();
 
     const formData = new FormData();
-    formData.append('verification_id', verificationId);
     formData.append('document', file);
     formData.append('document_type', documentType);
-    formData.append('user_id', session.id);
     if (useSandbox) {
       formData.append('sandbox', 'true');
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/verify/document`, {
+    const response = await fetch(`${API_BASE_URL}/api/v2/verify/${verificationId}/front-document`, {
       method: 'POST',
       headers: {
         'X-API-Key': apiKey,
@@ -150,15 +166,12 @@ class NewVerificationAPI {
     const useSandbox = this.shouldUseSandbox();
 
     const formData = new FormData();
-    formData.append('verification_id', verificationId);
-    formData.append('back_of_id', file);
-    formData.append('document_type', documentType);
-    formData.append('user_id', session.id);
+    formData.append('document', file);
     if (useSandbox) {
       formData.append('sandbox', 'true');
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/verify/back-of-id`, {
+    const response = await fetch(`${API_BASE_URL}/api/v2/verify/${verificationId}/back-document`, {
       method: 'POST',
       headers: {
         'X-API-Key': apiKey,
@@ -182,21 +195,29 @@ class NewVerificationAPI {
     const apiKey = this.getApiKey(session);
     const useSandbox = this.shouldUseSandbox();
 
-    const requestBody = {
-      verification_id: verificationId,
-      live_image_data: imageData,
-      challenge_response: 'blink',
-      user_id: session.id,
-      ...(useSandbox && { sandbox: true })
-    };
+    // Convert base64 image to blob for FormData
+    const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
+    const byteCharacters = atob(base64Data);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: 'image/jpeg' });
+    const file = new File([blob], 'selfie.jpg', { type: 'image/jpeg' });
 
-    const response = await fetch(`${API_BASE_URL}/api/verify/live-capture`, {
+    const formData = new FormData();
+    formData.append('selfie', file);
+    if (useSandbox) {
+      formData.append('sandbox', 'true');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/v2/verify/${verificationId}/live-capture`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
         'X-API-Key': apiKey,
       },
-      body: JSON.stringify(requestBody),
+      body: formData,
     });
 
     if (!response.ok) {
@@ -209,13 +230,71 @@ class NewVerificationAPI {
     console.log('✅ Live capture completed:', result);
   }
 
+  async performCrossValidation(session: VerificationSession, verificationId: string): Promise<void> {
+    console.log('🔍 Performing cross-validation...', { verificationId });
+
+    const apiKey = this.getApiKey(session);
+    const useSandbox = this.shouldUseSandbox();
+
+    const requestBody = {
+      ...(useSandbox && { sandbox: true })
+    };
+
+    const response = await fetch(`${API_BASE_URL}/api/v2/verify/${verificationId}/cross-validation`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      console.error('❌ Cross-validation failed:', errorData);
+      throw new Error(errorData?.error || errorData?.message || 'Cross-validation failed');
+    }
+
+    const result = await response.json();
+    console.log('✅ Cross-validation completed:', result);
+  }
+
+  async finalizeVerification(session: VerificationSession, verificationId: string): Promise<void> {
+    console.log('⚖️ Finalizing verification...', { verificationId });
+
+    const apiKey = this.getApiKey(session);
+    const useSandbox = this.shouldUseSandbox();
+
+    const requestBody = {
+      ...(useSandbox && { sandbox: true })
+    };
+
+    const response = await fetch(`${API_BASE_URL}/api/v2/verify/${verificationId}/finalize`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      console.error('❌ Finalization failed:', errorData);
+      throw new Error(errorData?.error || errorData?.message || 'Verification finalization failed');
+    }
+
+    const result = await response.json();
+    console.log('✅ Verification finalized:', result);
+  }
+
   async getVerificationResults(session: VerificationSession, verificationId: string): Promise<VerificationResults> {
     console.log('🔍 Getting verification results...', { verificationId });
 
     const apiKey = this.getApiKey(session);
     const useSandbox = this.shouldUseSandbox();
 
-    const url = new URL(`${API_BASE_URL}/api/verify/results/${verificationId}`);
+    const url = new URL(`${API_BASE_URL}/api/v2/verify/${verificationId}/status`);
     if (useSandbox) {
       url.searchParams.append('sandbox', 'true');
     }

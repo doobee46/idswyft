@@ -10,6 +10,7 @@ import { connectDB, supabase } from './config/database.js';
 import { generateAPIKey } from './middleware/auth.js';
 import { apiActivityLogger } from './middleware/apiLogger.js';
 import verificationRoutes from './routes/verification.js';
+import newVerificationRoutes from './routes/newVerification.js';
 import developerRoutes from './routes/developer.js';
 import adminRoutes from './routes/admin.js';
 import adminThresholdsRoutes from './routes/admin-thresholds.js';
@@ -88,6 +89,7 @@ app.use('/api', apiActivityLogger);
 
 // Mount API routes
 app.use('/api/verify', verificationRoutes);
+app.use('/api/v2/verify', newVerificationRoutes); // New clean verification engine
 app.use('/api/developer', developerRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/thresholds', adminThresholdsRoutes);
