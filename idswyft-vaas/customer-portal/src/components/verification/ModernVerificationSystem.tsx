@@ -4,6 +4,7 @@ import customerPortalAPI from '../../services/api';
 import verificationAPI from '../../services/verificationApi';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import BrandedHeader from '../BrandedHeader';
+import LiveCaptureComponent from '../LiveCaptureComponent';
 import {
   Shield,
   Upload,
@@ -54,6 +55,7 @@ export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> =
   const [documentType, setDocumentType] = useState<string>('drivers_license');
   const [ocrData, setOcrData] = useState<any>(null);
   const [backOfIdUploaded, setBackOfIdUploaded] = useState(false);
+  const [showLiveCapture, setShowLiveCapture] = useState(false);
   const [finalStatus, setFinalStatus] = useState<'pending' | 'processing' | 'completed' | 'verified' | 'failed' | 'manual_review' | null>(null);
   const [verificationResults, setVerificationResults] = useState<any>(null);
   const { branding, organizationName, setBranding, setOrganizationName } = useOrganization();
@@ -159,10 +161,11 @@ export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> =
     }
   };
 
-  const handleLiveCaptureUpload = async (imageData: string) => {
+  const handleLiveCaptureSuccess = async (imageData: string) => {
     if (!session || !verificationId) return;
 
     setUploading(true);
+    setShowLiveCapture(false); // Close the live capture modal
     setError(null);
     simulateUploadProgress('live', 2000);
 
@@ -196,6 +199,10 @@ export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> =
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleLiveCaptureCancel = () => {
+    setShowLiveCapture(false);
   };
 
   const pollForOCRCompletion = async (vId: string) => {
@@ -631,26 +638,11 @@ export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> =
                       Take a Live Selfie
                     </h4>
                     <p className="text-slate-600 mb-6">
-                      Position your face in the center and ensure good lighting
+                      Position your face in the center and ensure good lighting for the best results
                     </p>
 
                     <button
-                      onClick={() => {
-                        // Simulate camera capture
-                        const canvas = document.createElement('canvas');
-                        canvas.width = 640;
-                        canvas.height = 480;
-                        const ctx = canvas.getContext('2d');
-                        if (ctx) {
-                          ctx.fillStyle = '#f0f0f0';
-                          ctx.fillRect(0, 0, canvas.width, canvas.height);
-                          ctx.fillStyle = '#666';
-                          ctx.font = '20px Arial';
-                          ctx.textAlign = 'center';
-                          ctx.fillText('Sample Selfie', canvas.width / 2, canvas.height / 2);
-                          handleLiveCaptureUpload(canvas.toDataURL());
-                        }
-                      }}
+                      onClick={() => setShowLiveCapture(true)}
                       disabled={uploading}
                       className="btn btn-primary px-8 py-4 text-lg hover-lift"
                     >
@@ -662,7 +654,7 @@ export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> =
                       ) : (
                         <>
                           <Camera className="w-5 h-5 mr-2" />
-                          Take Selfie
+                          Open Camera
                         </>
                       )}
                     </button>
@@ -680,6 +672,13 @@ export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> =
                         </p>
                       </div>
                     )}
+
+                    <div className="mt-6 bg-blue-50/80 rounded-xl p-4">
+                      <h5 className="font-semibold text-blue-800 mb-2">Liveness Detection</h5>
+                      <p className="text-sm text-blue-700">
+                        Our system will automatically detect that you're a real person and capture your photo when optimal conditions are met.
+                      </p>
+                    </div>
                   </div>
                 )}
 
@@ -839,6 +838,22 @@ export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> =
                   <h4 className="font-semibold text-red-800 mb-1">Verification Error</h4>
                   <p className="text-red-700 text-sm">{error}</p>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Live Capture Modal */}
+        {showLiveCapture && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen p-4">
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={handleLiveCaptureCancel}></div>
+              <div className="relative bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+                <LiveCaptureComponent
+                  onCapture={handleLiveCaptureSuccess}
+                  onCancel={handleLiveCaptureCancel}
+                  isLoading={uploading}
+                />
               </div>
             </div>
           </div>
