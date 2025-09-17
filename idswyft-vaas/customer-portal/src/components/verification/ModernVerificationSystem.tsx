@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CustomerPortalVerificationEngine, VerificationStatus, VerificationStatusValues } from '../../services/NewVerificationEngine';
 import { VerificationSession } from '../../types';
 import customerPortalAPI from '../../services/api';
+import verificationAPI from '../../services/verificationApi';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import BrandedHeader from '../BrandedHeader';
 import {
@@ -39,15 +39,24 @@ interface VerificationStep {
 
 export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> = ({ sessionToken }) => {
   const [session, setSession] = useState<VerificationSession | null>(null);
-  const [verificationEngine, setVerificationEngine] = useState<CustomerPortalVerificationEngine | null>(null);
-  const [verificationState, setVerificationState] = useState<any>(null);
+  const [verificationId, setVerificationId] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [currentStep, setCurrentStep] = useState(1);
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
-  const { branding, organizationName } = useOrganization();
+  const [documents, setDocuments] = useState<{
+    front?: File;
+    back?: File;
+    selfie?: File;
+  }>({});
+  const [documentType, setDocumentType] = useState<string>('drivers_license');
+  const [ocrData, setOcrData] = useState<any>(null);
+  const [backOfIdUploaded, setBackOfIdUploaded] = useState(false);
+  const [finalStatus, setFinalStatus] = useState<'pending' | 'processing' | 'completed' | 'verified' | 'failed' | 'manual_review' | null>(null);
+  const [verificationResults, setVerificationResults] = useState<any>(null);
+  const { branding, organizationName, setBranding, setOrganizationName } = useOrganization();
 
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
@@ -64,19 +73,16 @@ export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> =
         console.log('✅ Session data retrieved:', sessionData);
         setSession(sessionData);
 
-        // Initialize verification engine
-        const engine = new CustomerPortalVerificationEngine('new_verification_id');
-        setVerificationEngine(engine);
+        // Apply organization branding
+        if (sessionData.organization?.branding) {
+          setBranding(sessionData.organization.branding);
+        }
+        if (sessionData.organization?.name) {
+          setOrganizationName(sessionData.organization.name);
+        }
 
-        // Set up state update callback
-        engine.onStatusUpdate((state) => {
-          console.log('📊 Verification state updated:', state);
-          setVerificationState(state);
-          updateCurrentStep(state?.status);
-        });
-
-        // Initialize verification
-        await engine.initializeVerification();
+        // Ready to start verification
+        console.log('✅ Verification system ready');
 
         setLoading(false);
       } catch (error) {
@@ -91,26 +97,8 @@ export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> =
     }
   }, [sessionToken]);
 
-  const updateCurrentStep = (status: VerificationStatus) => {
-    const stepMapping: { [key: string]: number } = {
-      [VerificationStatusValues.PENDING]: 1,
-      [VerificationStatusValues.FRONT_DOCUMENT_UPLOADED]: 1,
-      [VerificationStatusValues.FRONT_DOCUMENT_PROCESSING]: 1,
-      [VerificationStatusValues.FRONT_DOCUMENT_PROCESSED]: 2,
-      [VerificationStatusValues.BACK_DOCUMENT_UPLOADED]: 2,
-      [VerificationStatusValues.BACK_DOCUMENT_PROCESSING]: 2,
-      [VerificationStatusValues.BACK_DOCUMENT_PROCESSED]: 3,
-      [VerificationStatusValues.CROSS_VALIDATION_PROCESSING]: 3,
-      [VerificationStatusValues.CROSS_VALIDATION_COMPLETED]: 4,
-      [VerificationStatusValues.LIVE_CAPTURE_PROCESSING]: 4,
-      [VerificationStatusValues.LIVE_CAPTURE_COMPLETED]: 5,
-      [VerificationStatusValues.VERIFIED]: 5,
-      [VerificationStatusValues.FAILED]: 5,
-      [VerificationStatusValues.MANUAL_REVIEW]: 5,
-    };
-
-    const newStep = stepMapping[status] || 1;
-    setCurrentStep(newStep);
+  const updateCurrentStep = (step: number) => {
+    setCurrentStep(step);
   };
 
   const simulateUploadProgress = (key: string, duration: number = 2000) => {
@@ -131,7 +119,7 @@ export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> =
   };
 
   const handleFileUpload = async (file: File, type: 'front' | 'back') => {
-    if (!verificationEngine) return;
+    if (!session) return;
 
     setUploading(true);
     setError(null);
@@ -139,13 +127,29 @@ export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> =
 
     try {
       console.log(`📄 Uploading ${type} document...`);
+      setDocuments(prev => ({ ...prev, [type]: file }));
 
       if (type === 'front') {
-        await verificationEngine.uploadFrontDocument(file);
+        // Start verification and upload front document
+        let currentVerificationId = verificationId;
+        if (!currentVerificationId) {
+          currentVerificationId = await verificationAPI.startVerification(session);
+          setVerificationId(currentVerificationId);
+        }
+
+        await verificationAPI.uploadDocument(session, currentVerificationId, file, documentType);
         console.log('✅ Front document uploaded successfully');
+        setCurrentStep(2); // Move to processing step
+
+        // Poll for OCR completion
+        pollForOCRCompletion(currentVerificationId);
       } else {
-        await verificationEngine.uploadBackDocument(file);
+        // Upload back document
+        if (!verificationId) throw new Error('Front document must be uploaded first');
+        await verificationAPI.uploadBackOfId(session, verificationId, file, documentType);
         console.log('✅ Back document uploaded successfully');
+        setBackOfIdUploaded(true);
+        setCurrentStep(4); // Move to live capture
       }
     } catch (error) {
       console.error(`❌ ${type} document upload failed:`, error);
@@ -156,7 +160,7 @@ export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> =
   };
 
   const handleLiveCaptureUpload = async (imageData: string) => {
-    if (!verificationEngine) return;
+    if (!session || !verificationId) return;
 
     setUploading(true);
     setError(null);
@@ -164,14 +168,114 @@ export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> =
 
     try {
       console.log('📸 Uploading live capture...');
-      await verificationEngine.uploadLiveCapture(imageData);
+
+      // Convert data URL to File
+      const dataURItoBlob = (dataURI: string) => {
+        const byteString = atob(dataURI.split(',')[1]);
+        const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i);
+        }
+        return new Blob([ab], { type: mimeString });
+      };
+
+      const blob = dataURItoBlob(imageData);
+      const file = new File([blob], 'selfie.jpg', { type: 'image/jpeg' });
+
+      await verificationAPI.captureSelfie(session, verificationId, file);
       console.log('✅ Live capture uploaded successfully');
+      setCurrentStep(5); // Move to final step
+
+      // Poll for final results
+      pollForFinalResults(verificationId);
     } catch (error) {
       console.error('❌ Live capture upload failed:', error);
       setError(`Failed to upload live capture: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setUploading(false);
     }
+  };
+
+  const pollForOCRCompletion = async (vId: string) => {
+    const maxAttempts = 30;
+    let attempts = 0;
+
+    const poll = async () => {
+      try {
+        attempts++;
+        console.log(`🔄 Polling OCR completion (attempt ${attempts}/${maxAttempts})`);
+
+        const results = await verificationAPI.getResults(session!, vId);
+
+        if (results.ocr_data && Object.keys(results.ocr_data).length > 0) {
+          console.log('✅ OCR completed successfully');
+          setOcrData(results.ocr_data);
+          setCurrentStep(3); // Move to back document upload
+          return;
+        }
+
+        if (results.status === 'failed') {
+          console.log('❌ Verification failed during OCR');
+          setFinalStatus('failed');
+          setVerificationResults(results);
+          setCurrentStep(5);
+          return;
+        }
+
+        if (attempts < maxAttempts) {
+          setTimeout(poll, 3000); // Poll every 3 seconds
+        } else {
+          setError('Document processing is taking longer than expected. Please try again.');
+        }
+      } catch (error) {
+        console.error('OCR polling error:', error);
+        if (attempts < 3) {
+          setTimeout(poll, 5000);
+        } else {
+          setError('Failed to check processing status. Please try again.');
+        }
+      }
+    };
+
+    poll();
+  };
+
+  const pollForFinalResults = async (vId: string) => {
+    const maxAttempts = 24;
+    let attempts = 0;
+
+    const poll = async () => {
+      try {
+        attempts++;
+        console.log(`🔄 Polling final results (attempt ${attempts}/${maxAttempts})`);
+
+        const results = await verificationAPI.getResults(session!, vId);
+
+        if (results.status === 'verified' || results.status === 'failed' || results.status === 'manual_review') {
+          console.log(`✅ Final results received: ${results.status}`);
+          setFinalStatus(results.status);
+          setVerificationResults(results);
+          return;
+        }
+
+        if (attempts < maxAttempts) {
+          setTimeout(poll, 5000); // Poll every 5 seconds
+        } else {
+          setError('Verification is taking longer than expected. Please contact support.');
+        }
+      } catch (error) {
+        console.error('Final results polling error:', error);
+        if (attempts < 3) {
+          setTimeout(poll, 5000);
+        } else {
+          setError('Failed to get verification results. Please contact support.');
+        }
+      }
+    };
+
+    poll();
   };
 
   const handleDragOver = (e: React.DragEvent, type: string) => {
@@ -195,10 +299,10 @@ export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> =
   };
 
   const getSteps = (): VerificationStep[] => {
-    const canUploadFront = verificationState?.status === VerificationStatusValues.PENDING;
-    const canUploadBack = verificationState?.status === VerificationStatusValues.FRONT_DOCUMENT_PROCESSED;
-    const canLiveCapture = verificationState?.status === VerificationStatusValues.CROSS_VALIDATION_COMPLETED;
-    const isComplete = [VerificationStatusValues.VERIFIED, VerificationStatusValues.FAILED, VerificationStatusValues.MANUAL_REVIEW].includes(verificationState?.status);
+    const canUploadFront = currentStep === 1;
+    const canUploadBack = currentStep === 3 && ocrData;
+    const canLiveCapture = currentStep === 4 && backOfIdUploaded;
+    const isComplete = currentStep === 5 && finalStatus;
 
     return [
       {
@@ -580,9 +684,9 @@ export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> =
                 )}
 
                 {/* Completion */}
-                {currentStep === 5 && verificationState && (
+                {currentStep === 5 && finalStatus && (
                   <div className="text-center py-8">
-                    {verificationState.status === VerificationStatusValues.VERIFIED && (
+                    {finalStatus === 'verified' && (
                       <>
                         <div className="icon-container-success mx-auto mb-6">
                           <CheckCircle className="w-8 h-8" />
@@ -601,7 +705,7 @@ export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> =
                       </>
                     )}
 
-                    {verificationState.status === VerificationStatusValues.FAILED && (
+                    {finalStatus === 'failed' && (
                       <>
                         <div className="icon-container-error mx-auto mb-6">
                           <AlertCircle className="w-8 h-8" />
@@ -610,7 +714,7 @@ export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> =
                           Verification Failed
                         </h4>
                         <p className="text-red-700 mb-6">
-                          {verificationState.resultMessage || 'Unable to verify your identity with the provided documents.'}
+                          {verificationResults?.failure_reason || 'Unable to verify your identity with the provided documents.'}
                         </p>
                         <button
                           onClick={() => window.location.reload()}
@@ -622,7 +726,7 @@ export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> =
                       </>
                     )}
 
-                    {verificationState.status === VerificationStatusValues.MANUAL_REVIEW && (
+                    {finalStatus === 'manual_review' && (
                       <>
                         <div className="icon-container-warning mx-auto mb-6">
                           <Eye className="w-8 h-8" />
@@ -694,7 +798,7 @@ export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> =
             </div>
 
             {/* Status Display */}
-            {verificationState && (
+            {session && (
               <div className="card-glass animate-slide-in-up">
                 <div className="flex items-center mb-4">
                   <Zap className="w-6 h-6 text-blue-600 mr-3" />
@@ -704,15 +808,19 @@ export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> =
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-slate-600">Session ID</span>
                     <span className="text-sm font-mono text-slate-800">
-                      {verificationState.verificationId?.slice(-8) || 'N/A'}
+                      {verificationId?.slice(-8) || session.id?.slice(-8) || 'N/A'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-slate-600">Status</span>
-                    <span className={`status-${verificationState.status === 'verified' ? 'verified' :
-                      verificationState.status === 'failed' ? 'failed' :
-                      verificationState.status === 'manual_review' ? 'pending' : 'processing'}`}>
-                      {verificationState.processingMessage || 'In Progress'}
+                    <span className={`status-${finalStatus === 'verified' ? 'verified' :
+                      finalStatus === 'failed' ? 'failed' :
+                      finalStatus === 'manual_review' ? 'pending' : 'processing'}`}>
+                      {finalStatus ?
+                        (finalStatus === 'verified' ? 'Verification Complete' :
+                         finalStatus === 'failed' ? 'Verification Failed' :
+                         finalStatus === 'manual_review' ? 'Manual Review' : 'Processing') :
+                        'In Progress'}
                     </span>
                   </div>
                 </div>
