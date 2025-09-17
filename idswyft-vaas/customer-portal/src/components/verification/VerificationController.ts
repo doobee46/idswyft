@@ -346,14 +346,24 @@ export class VerificationController {
 
         const results = await newVerificationApi.getVerificationResults(this.session!, state.verificationId!);
 
-        // Check if live capture is processed and we have final scores
-        if (results.live_capture_completed &&
-            results.face_match_score !== undefined &&
-            results.liveness_score !== undefined) {
+        // FIXED: Check if verification has reached a final status (verified, failed, or manual_review)
+        // Don't require face_match_score and liveness_score for manual_review cases
+        const isFinalStatus = results.status === 'verified' || results.status === 'failed' || results.status === 'manual_review';
+        const hasRequiredScores = results.face_match_score !== undefined && results.liveness_score !== undefined;
 
-          console.log('✅ Step 8 Complete: Live capture processed');
+        if (results.live_capture_completed && (hasRequiredScores || results.status === 'manual_review')) {
 
-          this.stateManager.setLiveCaptureProcessed(results.face_match_score, results.liveness_score);
+          console.log('✅ Step 8 Complete: Live capture processed', {
+            status: results.status,
+            hasScores: hasRequiredScores,
+            faceMatchScore: results.face_match_score,
+            livenessScore: results.liveness_score
+          });
+
+          // Set scores if available, otherwise use default values for manual review
+          const faceScore = results.face_match_score ?? 0;
+          const livenessScore = results.liveness_score ?? 0;
+          this.stateManager.setLiveCaptureProcessed(faceScore, livenessScore);
 
           // Set final result based on overall status
           if (results.status === 'verified') {
