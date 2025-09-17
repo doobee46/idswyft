@@ -43,7 +43,7 @@ router.post('/initialize',
   catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      throw new ValidationError('Validation failed', errors.array());
+      throw new ValidationError('Validation failed', 'multiple', errors.array());
     }
 
     const { user_id, document_type = 'drivers_license' } = req.body;
@@ -58,7 +58,7 @@ router.post('/initialize',
       // Initialize verification with clean state machine
       const verificationState = await verificationEngine.initializeVerification(user_id);
 
-      logVerificationEvent(verificationState.id, 'verification_initialized', {
+      logVerificationEvent('verification_initialized', verificationState.id, {
         userId: user_id,
         documentType: document_type,
         developerId: (req as any).developer.id
@@ -98,7 +98,7 @@ router.post('/:verification_id/front-document',
   catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      throw new ValidationError('Validation failed', errors.array());
+      throw new ValidationError('Validation failed', 'multiple', errors.array());
     }
 
     if (!req.file) {
@@ -116,10 +116,11 @@ router.post('/:verification_id/front-document',
 
     try {
       // Upload file to storage
-      const documentPath = await storageService.uploadFile(
+      const documentPath = await storageService.storeDocument(
         req.file.buffer,
-        `front_${verification_id}`,
-        req.file.mimetype
+        req.file.originalname || 'front_document.jpg',
+        req.file.mimetype,
+        verification_id
       );
 
       // Process front document with OCR
@@ -128,7 +129,7 @@ router.post('/:verification_id/front-document',
         documentPath
       );
 
-      logVerificationEvent(verification_id, 'front_document_processed', {
+      logVerificationEvent('front_document_processed', verification_id, {
         documentPath,
         status: verificationState.status
       });
@@ -167,7 +168,7 @@ router.post('/:verification_id/back-document',
   catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      throw new ValidationError('Validation failed', errors.array());
+      throw new ValidationError('Validation failed', 'multiple', errors.array());
     }
 
     if (!req.file) {
@@ -183,10 +184,11 @@ router.post('/:verification_id/back-document',
 
     try {
       // Upload file to storage
-      const documentPath = await storageService.uploadFile(
+      const documentPath = await storageService.storeDocument(
         req.file.buffer,
-        `back_${verification_id}`,
-        req.file.mimetype
+        req.file.originalname || 'back_document.jpg',
+        req.file.mimetype,
+        verification_id
       );
 
       // Process back document with barcode scanning
@@ -195,7 +197,7 @@ router.post('/:verification_id/back-document',
         documentPath
       );
 
-      logVerificationEvent(verification_id, 'back_document_processed', {
+      logVerificationEvent('back_document_processed', verification_id, {
         documentPath,
         status: verificationState.status,
         barcodeExtractionFailed: verificationState.barcodeExtractionFailed
@@ -235,7 +237,7 @@ router.post('/:verification_id/cross-validation',
   catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      throw new ValidationError('Validation failed', errors.array());
+      throw new ValidationError('Validation failed', 'multiple', errors.array());
     }
 
     const { verification_id } = req.params;
@@ -248,7 +250,7 @@ router.post('/:verification_id/cross-validation',
       // Perform cross-validation
       const verificationState = await verificationEngine.performCrossValidation(verification_id);
 
-      logVerificationEvent(verification_id, 'cross_validation_completed', {
+      logVerificationEvent('cross_validation_completed', verification_id, {
         status: verificationState.status,
         documentsMatch: verificationState.documentsMatch,
         score: verificationState.crossValidationResults?.score
@@ -301,7 +303,7 @@ router.post('/:verification_id/live-capture',
   catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      throw new ValidationError('Validation failed', errors.array());
+      throw new ValidationError('Validation failed', 'multiple', errors.array());
     }
 
     if (!req.file) {
@@ -317,10 +319,11 @@ router.post('/:verification_id/live-capture',
 
     try {
       // Upload file to storage
-      const selfiePath = await storageService.uploadFile(
+      const selfiePath = await storageService.storeSelfie(
         req.file.buffer,
-        `selfie_${verification_id}`,
-        req.file.mimetype
+        req.file.originalname || 'selfie.jpg',
+        req.file.mimetype,
+        verification_id
       );
 
       // Process live capture with face matching and liveness detection
@@ -329,7 +332,7 @@ router.post('/:verification_id/live-capture',
         selfiePath
       );
 
-      logVerificationEvent(verification_id, 'live_capture_processed', {
+      logVerificationEvent('live_capture_processed', verification_id, {
         selfiePath,
         status: verificationState.status,
         faceMatchPassed: verificationState.faceMatchPassed,
@@ -370,7 +373,7 @@ router.post('/:verification_id/finalize',
   catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      throw new ValidationError('Validation failed', errors.array());
+      throw new ValidationError('Validation failed', 'multiple', errors.array());
     }
 
     const { verification_id } = req.params;
@@ -383,7 +386,7 @@ router.post('/:verification_id/finalize',
       // Make final decision based on all collected data
       const verificationState = await verificationEngine.makeFinalDecision(verification_id);
 
-      logVerificationEvent(verification_id, 'verification_completed', {
+      logVerificationEvent('verification_completed', verification_id, {
         status: verificationState.status,
         finalResult: verificationState.status,
         failureReason: verificationState.failureReason,
@@ -423,7 +426,7 @@ router.get('/:verification_id/status',
   catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      throw new ValidationError('Validation failed', errors.array());
+      throw new ValidationError('Validation failed', 'multiple', errors.array());
     }
 
     const { verification_id } = req.params;

@@ -5,35 +5,43 @@
  * Provides synchronized status tracking and user feedback for each step.
  */
 
-// EXACT SAME ENUMS AS BACKEND
-export enum VerificationStatus {
-  // Initial state
-  PENDING = 'pending',
+// EXACT SAME STATUS VALUES AS BACKEND
+export type VerificationStatus =
+  | 'pending'
+  | 'front_document_uploaded'
+  | 'front_document_processing'
+  | 'front_document_processed'
+  | 'back_document_uploaded'
+  | 'back_document_processing'
+  | 'back_document_processed'
+  | 'cross_validation_processing'
+  | 'cross_validation_completed'
+  | 'live_capture_ready'
+  | 'live_capture_uploaded'
+  | 'live_capture_processing'
+  | 'live_capture_completed'
+  | 'verified'
+  | 'failed'
+  | 'manual_review';
 
-  // Document processing states
-  FRONT_DOCUMENT_UPLOADED = 'front_document_uploaded',
-  FRONT_DOCUMENT_PROCESSING = 'front_document_processing',
-  FRONT_DOCUMENT_PROCESSED = 'front_document_processed',
-
-  BACK_DOCUMENT_UPLOADED = 'back_document_uploaded',
-  BACK_DOCUMENT_PROCESSING = 'back_document_processing',
-  BACK_DOCUMENT_PROCESSED = 'back_document_processed',
-
-  // Cross-validation states
-  CROSS_VALIDATION_PROCESSING = 'cross_validation_processing',
-  CROSS_VALIDATION_COMPLETED = 'cross_validation_completed',
-
-  // Live capture states
-  LIVE_CAPTURE_READY = 'live_capture_ready',
-  LIVE_CAPTURE_UPLOADED = 'live_capture_uploaded',
-  LIVE_CAPTURE_PROCESSING = 'live_capture_processing',
-  LIVE_CAPTURE_COMPLETED = 'live_capture_completed',
-
-  // Final states
-  VERIFIED = 'verified',
-  FAILED = 'failed',
-  MANUAL_REVIEW = 'manual_review'
-}
+export const VerificationStatusValues = {
+  PENDING: 'pending' as const,
+  FRONT_DOCUMENT_UPLOADED: 'front_document_uploaded' as const,
+  FRONT_DOCUMENT_PROCESSING: 'front_document_processing' as const,
+  FRONT_DOCUMENT_PROCESSED: 'front_document_processed' as const,
+  BACK_DOCUMENT_UPLOADED: 'back_document_uploaded' as const,
+  BACK_DOCUMENT_PROCESSING: 'back_document_processing' as const,
+  BACK_DOCUMENT_PROCESSED: 'back_document_processed' as const,
+  CROSS_VALIDATION_PROCESSING: 'cross_validation_processing' as const,
+  CROSS_VALIDATION_COMPLETED: 'cross_validation_completed' as const,
+  LIVE_CAPTURE_READY: 'live_capture_ready' as const,
+  LIVE_CAPTURE_UPLOADED: 'live_capture_uploaded' as const,
+  LIVE_CAPTURE_PROCESSING: 'live_capture_processing' as const,
+  LIVE_CAPTURE_COMPLETED: 'live_capture_completed' as const,
+  VERIFIED: 'verified' as const,
+  FAILED: 'failed' as const,
+  MANUAL_REVIEW: 'manual_review' as const
+};
 
 export interface VerificationState {
   id: string;
@@ -81,7 +89,7 @@ export class CustomerPortalVerificationEngine {
   constructor(verificationId: string) {
     this.state = {
       id: verificationId,
-      status: VerificationStatus.PENDING,
+      status: VerificationStatusValues.PENDING,
       currentStep: 1,
       totalSteps: 6,
 
@@ -127,7 +135,7 @@ export class CustomerPortalVerificationEngine {
    */
   async initializeVerification(): Promise<void> {
     this.updateState({
-      status: VerificationStatus.PENDING,
+      status: VerificationStatusValues.PENDING,
       currentStep: 1,
       processingMessage: 'Verification initialized - ready to upload front document',
       canProceedToNext: true
@@ -139,7 +147,7 @@ export class CustomerPortalVerificationEngine {
    */
   async uploadFrontDocument(file: File): Promise<void> {
     this.updateState({
-      status: VerificationStatus.FRONT_DOCUMENT_UPLOADED,
+      status: VerificationStatusValues.FRONT_DOCUMENT_UPLOADED,
       frontDocumentUploaded: true,
       isProcessing: true,
       canProceedToNext: false,
@@ -152,13 +160,13 @@ export class CustomerPortalVerificationEngine {
 
       // Start processing status
       this.updateState({
-        status: VerificationStatus.FRONT_DOCUMENT_PROCESSING,
+        status: VerificationStatusValues.FRONT_DOCUMENT_PROCESSING,
         currentStep: 2,
         processingMessage: 'Processing front document with OCR...'
       });
 
       // Start polling for OCR completion
-      this.startPollingForStatus(VerificationStatus.FRONT_DOCUMENT_PROCESSED);
+      this.startPollingForStatus(VerificationStatusValues.FRONT_DOCUMENT_PROCESSED);
 
     } catch (error) {
       this.updateState({
@@ -179,7 +187,7 @@ export class CustomerPortalVerificationEngine {
     }
 
     this.updateState({
-      status: VerificationStatus.BACK_DOCUMENT_UPLOADED,
+      status: VerificationStatusValues.BACK_DOCUMENT_UPLOADED,
       backDocumentUploaded: true,
       isProcessing: true,
       canProceedToNext: false,
@@ -192,13 +200,13 @@ export class CustomerPortalVerificationEngine {
 
       // Start processing status
       this.updateState({
-        status: VerificationStatus.BACK_DOCUMENT_PROCESSING,
+        status: VerificationStatusValues.BACK_DOCUMENT_PROCESSING,
         currentStep: 3,
         processingMessage: 'Processing back document with barcode scanning...'
       });
 
       // Start polling for barcode completion
-      this.startPollingForStatus(VerificationStatus.BACK_DOCUMENT_PROCESSED);
+      this.startPollingForStatus(VerificationStatusValues.BACK_DOCUMENT_PROCESSED);
 
     } catch (error) {
       this.updateState({
@@ -215,13 +223,13 @@ export class CustomerPortalVerificationEngine {
    */
   private async performCrossValidation(): Promise<void> {
     this.updateState({
-      status: VerificationStatus.CROSS_VALIDATION_PROCESSING,
+      status: VerificationStatusValues.CROSS_VALIDATION_PROCESSING,
       currentStep: 4,
       processingMessage: 'Cross-validating front and back documents...'
     });
 
     // Poll for cross-validation completion
-    this.startPollingForStatus(VerificationStatus.CROSS_VALIDATION_COMPLETED);
+    this.startPollingForStatus(VerificationStatusValues.CROSS_VALIDATION_COMPLETED);
   }
 
   /**
@@ -233,7 +241,7 @@ export class CustomerPortalVerificationEngine {
     }
 
     this.updateState({
-      status: VerificationStatus.LIVE_CAPTURE_UPLOADED,
+      status: VerificationStatusValues.LIVE_CAPTURE_UPLOADED,
       liveCaptureUploaded: true,
       isProcessing: true,
       canProceedToNext: false,
@@ -246,13 +254,13 @@ export class CustomerPortalVerificationEngine {
 
       // Start processing status
       this.updateState({
-        status: VerificationStatus.LIVE_CAPTURE_PROCESSING,
+        status: VerificationStatusValues.LIVE_CAPTURE_PROCESSING,
         currentStep: 5,
         processingMessage: 'Processing live capture - face matching and liveness detection...'
       });
 
       // Start polling for live capture completion
-      this.startPollingForStatus(VerificationStatus.LIVE_CAPTURE_COMPLETED);
+      this.startPollingForStatus(VerificationStatusValues.LIVE_CAPTURE_COMPLETED);
 
     } catch (error) {
       this.updateState({
@@ -283,9 +291,9 @@ export class CustomerPortalVerificationEngine {
         // Check if we've reached the target status or a final state
         if (
           this.state.status === targetStatus ||
-          this.state.status === VerificationStatus.VERIFIED ||
-          this.state.status === VerificationStatus.FAILED ||
-          this.state.status === VerificationStatus.MANUAL_REVIEW
+          this.state.status === VerificationStatusValues.VERIFIED ||
+          this.state.status === VerificationStatusValues.FAILED ||
+          this.state.status === VerificationStatusValues.MANUAL_REVIEW
         ) {
           this.stopPolling();
           this.handleStatusTransition();
@@ -355,7 +363,7 @@ export class CustomerPortalVerificationEngine {
    */
   private handleStatusTransition(): void {
     switch (this.state.status) {
-      case VerificationStatus.FRONT_DOCUMENT_PROCESSED:
+      case VerificationStatusValues.FRONT_DOCUMENT_PROCESSED:
         this.updateState({
           isProcessing: false,
           canProceedToNext: true,
@@ -363,12 +371,12 @@ export class CustomerPortalVerificationEngine {
         });
         break;
 
-      case VerificationStatus.BACK_DOCUMENT_PROCESSED:
+      case VerificationStatusValues.BACK_DOCUMENT_PROCESSED:
         // Automatically start cross-validation
         this.performCrossValidation();
         break;
 
-      case VerificationStatus.CROSS_VALIDATION_COMPLETED:
+      case VerificationStatusValues.CROSS_VALIDATION_COMPLETED:
         if (this.state.documentsMatch) {
           this.updateState({
             isProcessing: false,
@@ -379,7 +387,7 @@ export class CustomerPortalVerificationEngine {
         } else {
           // Documents don't match - automatic failure
           this.updateState({
-            status: VerificationStatus.FAILED,
+            status: VerificationStatusValues.FAILED,
             isProcessing: false,
             canProceedToNext: false,
             finalResult: 'failed',
@@ -388,12 +396,12 @@ export class CustomerPortalVerificationEngine {
         }
         break;
 
-      case VerificationStatus.LIVE_CAPTURE_COMPLETED:
+      case VerificationStatusValues.LIVE_CAPTURE_COMPLETED:
         // Automatically determine final result
         this.determineFinalResult();
         break;
 
-      case VerificationStatus.VERIFIED:
+      case VerificationStatusValues.VERIFIED:
         this.updateState({
           isProcessing: false,
           canProceedToNext: false,
@@ -403,7 +411,7 @@ export class CustomerPortalVerificationEngine {
         });
         break;
 
-      case VerificationStatus.FAILED:
+      case VerificationStatusValues.FAILED:
         this.updateState({
           isProcessing: false,
           canProceedToNext: false,
@@ -413,7 +421,7 @@ export class CustomerPortalVerificationEngine {
         });
         break;
 
-      case VerificationStatus.MANUAL_REVIEW:
+      case VerificationStatusValues.MANUAL_REVIEW:
         this.updateState({
           isProcessing: false,
           canProceedToNext: false,
@@ -431,22 +439,22 @@ export class CustomerPortalVerificationEngine {
   private determineFinalResult(): void {
     if (this.state.barcodeExtractionFailed) {
       this.updateState({
-        status: VerificationStatus.MANUAL_REVIEW,
+        status: VerificationStatusValues.MANUAL_REVIEW,
         resultMessage: 'Barcode extraction failed - manual review required'
       });
     } else if (!this.state.faceMatchPassed) {
       this.updateState({
-        status: VerificationStatus.FAILED,
+        status: VerificationStatusValues.FAILED,
         resultMessage: 'Face matching failed - selfie does not match document photo'
       });
     } else if (!this.state.livenessPassed) {
       this.updateState({
-        status: VerificationStatus.FAILED,
+        status: VerificationStatusValues.FAILED,
         resultMessage: 'Liveness detection failed - live person not detected'
       });
     } else {
       this.updateState({
-        status: VerificationStatus.VERIFIED,
+        status: VerificationStatusValues.VERIFIED,
         resultMessage: 'All verification checks passed successfully'
       });
     }
