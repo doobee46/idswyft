@@ -1,13 +1,13 @@
 // DEPRECATED: This controller is replaced by NewVerificationEngine
 // Clean verification flow controller implementing the exact algorithm
+
+// @ts-nocheck
+/* eslint-disable */
+
 import { VerificationStep, VerificationStatus } from '../../types/verification';
 import { VerificationStateManager } from './VerificationStateManager';
 import { VerificationSession } from '../../types';
 import newVerificationApi from '../../services/newVerificationApi';
-
-// @ts-ignore - Legacy controller, will be removed
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 
 export class VerificationController {
   private stateManager: VerificationStateManager;

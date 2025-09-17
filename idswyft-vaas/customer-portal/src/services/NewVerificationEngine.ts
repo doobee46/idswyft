@@ -84,7 +84,7 @@ export interface VerificationState {
 export class CustomerPortalVerificationEngine {
   private state: VerificationState;
   private statusUpdateCallback?: (state: VerificationState) => void;
-  private pollingInterval?: NodeJS.Timeout;
+  private pollingInterval?: ReturnType<typeof setInterval>;
 
   constructor(verificationId: string) {
     this.state = {
