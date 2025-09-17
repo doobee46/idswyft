@@ -1289,7 +1289,7 @@ router.post('/live-capture',
     logVerificationEvent('live_capture_started', verification_id, {
       userId: verificationRequest.user_id,
       challengeProvided: !!challenge_response,
-      dataSize: live_image_data.length
+      dataSize: live_image_data?.length || 0
     });
     
     try {
