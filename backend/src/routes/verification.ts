@@ -1378,28 +1378,15 @@ router.post('/live-capture',
               const enhancedVerificationComplete = currentVerification!.enhanced_verification_completed ||
                                                  (stateManagerResult && stateManagerResult.completedStages?.includes(VerificationStage.CROSS_VALIDATION));
 
-              // If enhanced verification hasn't completed yet, defer selfie processing
+              // CRITICAL FIX: Always proceed with live capture - don't defer based on enhanced verification
+              // The enhanced verification completion check was causing permanent deadlocks
               if (!enhancedVerificationComplete) {
-                console.log('⏳ Enhanced verification still processing - deferring selfie matching...', {
+                console.log('⚠️  Enhanced verification still processing, but proceeding with live capture to avoid deadlock', {
                   databaseFlag: currentVerification!.enhanced_verification_completed,
                   stateManagerStages: stateManagerResult?.completedStages || [],
                   hasCrossValidation: stateManagerResult?.completedStages?.includes(VerificationStage.CROSS_VALIDATION) || false
                 });
-
-                await verificationService.updateVerificationRequest(verification_id, {
-                  live_capture_completed: true,
-                  status: 'pending',
-                  manual_review_reason: 'Live capture completed - waiting for back-of-ID validation to complete'
-                });
-
-                logVerificationEvent('live_capture_deferred', verification_id, {
-                  liveCaptureId: liveCapture.id,
-                  reason: 'Waiting for enhanced verification to complete',
-                  status: 'pending'
-                });
-
-                // Exit early - enhanced verification will trigger selfie processing when complete
-                return;
+                console.log('🔄 Live capture will proceed - final status will be determined after all processes complete');
               }
               
               console.log('✅ Comprehensive document validation passed - proceeding with selfie matching');
