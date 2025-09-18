@@ -250,7 +250,7 @@ class VerificationAPI {
       },
       body: JSON.stringify({
         verification_id: verificationId,
-        image_data: base64,
+        live_image_data: base64,
         user_id: this.getUserId(session)
       }),
     });
