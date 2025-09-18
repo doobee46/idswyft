@@ -22,7 +22,7 @@ export class SessionExpirationService {
         .from('vaas_verification_sessions')
         .select('id, session_token, organization_id')
         .lt('expires_at', now)
-        .not('status', 'in', ['expired', 'terminated']);
+        .not('status', 'in', '(expired,terminated)');
         
       if (findError) {
         console.error('[SessionExpiration] Error finding expired sessions:', findError);
@@ -135,7 +135,7 @@ export class SessionExpirationService {
         .select('id')
         .gt('expires_at', nowISO)
         .lt('expires_at', oneHourFromNow)
-        .not('status', 'in', ['expired', 'terminated']);
+        .not('status', 'in', '(expired,terminated)');
 
       if (expiringSoonError) {
         throw expiringSoonError;
