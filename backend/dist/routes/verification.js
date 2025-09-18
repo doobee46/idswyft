@@ -1041,8 +1041,12 @@ router.post('/live-capture', authenticateAPIKey, checkSandboxMode, verificationR
     logVerificationEvent('live_capture_started', verification_id, {
         userId: verificationRequest.user_id,
         challengeProvided: !!challenge_response,
-        dataSize: live_image_data.length
+        dataSize: live_image_data?.length || 0
     });
+    // Validate live_image_data exists and is not empty
+    if (!live_image_data || typeof live_image_data !== 'string' || live_image_data.trim() === '') {
+        throw new ValidationError('Live image data is required and must be a non-empty string', 'live_image_data', live_image_data);
+    }
     try {
         // Convert base64 to buffer
         const imageBuffer = Buffer.from(live_image_data, 'base64');
