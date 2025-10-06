@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/api';
-import { Organization as OrgType, OrganizationSettings, OrganizationBranding } from '../types.js';
+import { Organization as OrgType, OrganizationSettings, OrganizationBranding, ApiResponse } from '../types.js';
+import type { AxiosResponse } from 'axios';
 import { Building2, Settings, CreditCard, Palette, Users, Save, AlertCircle, UserCog, Key, Database } from 'lucide-react';
 import AdminManagement from '../components/organization/AdminManagement';
 import UsageDashboard from '../components/organization/UsageDashboard';
@@ -250,10 +251,10 @@ function MainAPIKeysManagement({ organizationId, canManageKeys }: MainAPIKeysMan
     try {
       setIsLoading(true);
       setError(null);
-      const response = await apiClient.get('/organizations/main-api-keys');
-      
+      const response: AxiosResponse<ApiResponse<{api_keys: any[]}>> = await apiClient.get('/organizations/main-api-keys');
+
       if (response.data.success) {
-        setApiKeys(response.data.data.api_keys || []);
+        setApiKeys(response.data.data?.api_keys || []);
       } else {
         throw new Error(response.data.error?.message || 'Failed to fetch API keys');
       }
@@ -273,13 +274,13 @@ function MainAPIKeysManagement({ organizationId, canManageKeys }: MainAPIKeysMan
     setError(null);
 
     try {
-      const response = await apiClient.post('/organizations/main-api-keys', {
+      const response: AxiosResponse<ApiResponse<{api_key: string}>> = await apiClient.post('/organizations/main-api-keys', {
         key_name: newKeyName.trim(),
         is_sandbox: isSandbox
       });
 
       if (response.data.success) {
-        setCreatedKey(response.data.data.api_key);
+        setCreatedKey(response.data.data?.api_key || '');
         setNewKeyName('');
         setShowCreateForm(false);
         await fetchAPIKeys(); // Refresh the list
@@ -301,8 +302,8 @@ function MainAPIKeysManagement({ organizationId, canManageKeys }: MainAPIKeysMan
 
     try {
       setError(null);
-      const response = await apiClient.delete(`/organizations/main-api-keys/${keyId}`);
-      
+      const response: AxiosResponse<ApiResponse> = await apiClient.delete(`/organizations/main-api-keys/${keyId}`);
+
       if (response.data.success) {
         await fetchAPIKeys(); // Refresh the list
       } else {
@@ -900,8 +901,8 @@ function StorageSettings({ organizationId, canManageStorage }: StorageSettingsPr
     try {
       setIsLoading(true);
       setError(null);
-      const response = await apiClient.get(`/organizations/${organizationId}/storage-config`);
-      
+      const response: AxiosResponse<ApiResponse<any>> = await apiClient.get(`/organizations/${organizationId}/storage-config`);
+
       if (response.data.success) {
         const data = response.data.data;
         setStorageConfig(data);
@@ -933,8 +934,8 @@ function StorageSettings({ organizationId, canManageStorage }: StorageSettingsPr
         config: storageType === 'default' ? {} : config
       };
 
-      const response = await apiClient.post(`/organizations/${organizationId}/storage-config`, payload);
-      
+      const response: AxiosResponse<ApiResponse> = await apiClient.post(`/organizations/${organizationId}/storage-config`, payload);
+
       if (response.data.success) {
         setSuccess('Storage configuration updated successfully');
         await fetchStorageConfig();
