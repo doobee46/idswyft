@@ -1,0 +1,20 @@
+node_modules
+npm-debug.log
+.env
+.env.*
+!.env.example
+
+# Model binaries are downloaded at build time — don't send them to the Docker daemon
+models/*.bin
+models/*.json
+models/*.shard*
+
+# Development artefacts
+src/**/*.test.ts
+src/**/*.spec.ts
+coverage/
+dist/
+
+# Temp / upload directories (managed via named volumes at runtime)
+temp/
+uploads/

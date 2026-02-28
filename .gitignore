@@ -77,8 +77,6 @@ selfies/
 # Local development
 .local/
 
-# Docker — only ignore .dockerignore files, not the Dockerfiles themselves
-*.dockerignore
 
 # Python (for OCR tools)
 __pycache__/
@@ -93,6 +91,12 @@ venv/
 models/*.pb
 models/*.h5
 models/*.pkl
+
+# face-api.js model weights — downloaded at Docker build time via download-models.js
+backend/models/*.bin
+backend/models/*.json
+backend/models/*.shard*
+!backend/models/.gitkeep
 
 # Backup files
 *.backup

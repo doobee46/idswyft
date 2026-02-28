@@ -15,6 +15,10 @@ RUN apk add --no-cache \
 COPY package*.json ./
 RUN npm ci --include=optional
 
+# Download face-api.js model weights at build time (not committed to repo)
+COPY download-models.js ./
+RUN node download-models.js
+
 COPY . .
 RUN npm run build
 
