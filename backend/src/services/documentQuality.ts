@@ -1,6 +1,7 @@
 import Jimp from 'jimp';
-import { statSync } from 'fs';
+import { statSync, readFileSync } from 'fs';
 import sizeOf from 'image-size';
+import { SharpTamperDetector } from '@/providers/tampering/SharpTamperDetector.js';
 
 export interface DocumentQualityResult {
   isBlurry: boolean;
@@ -19,6 +20,10 @@ export interface DocumentQualityResult {
   overallQuality: 'excellent' | 'good' | 'fair' | 'poor';
   issues: string[];
   recommendations: string[];
+  // Authenticity / tamper detection
+  authenticityScore: number;
+  tamperFlags: string[];
+  isAuthentic: boolean;
 }
 
 export class DocumentQualityService {
@@ -37,16 +42,16 @@ export class DocumentQualityService {
 
       // Get image dimensions using image-size (faster than loading full image)
       const dimensions = sizeOf(filePath);
-      
+
       // Load image with Jimp for analysis
       const image = await Jimp.read(filePath);
-      
+
       // Calculate basic image statistics
       const imageStats = this.calculateImageStats(image);
-      
+
       // Calculate blur detection (simplified approach)
       const blurScore = this.calculateBlurScore(image);
-      
+
       // Calculate brightness and contrast
       const brightness = imageStats.brightness;
       const contrast = imageStats.contrast;
@@ -63,6 +68,11 @@ export class DocumentQualityService {
         bytes: fileSize,
         isReasonableSize: fileSize >= this.MIN_FILE_SIZE && fileSize <= this.MAX_FILE_SIZE
       };
+
+      // Run tamper detection using Sharp ELA analysis
+      const imageBuffer = readFileSync(filePath);
+      const tamperDetector = new SharpTamperDetector();
+      const tamperResult = await tamperDetector.analyze(imageBuffer);
 
       // Determine quality issues and recommendations
       const issues: string[] = [];
@@ -96,6 +106,11 @@ export class DocumentQualityService {
         }
       }
 
+      if (!tamperResult.isAuthentic) {
+        issues.push(`Document may have been tampered with (flags: ${tamperResult.flags.join(', ')})`);
+        recommendations.push('Please provide an original, unedited document photograph');
+      }
+
       // Determine overall quality
       const overallQuality = this.determineOverallQuality(
         blurScore >= this.BLUR_THRESHOLD,
@@ -114,7 +129,10 @@ export class DocumentQualityService {
         fileSize: fileSizeAnalysis,
         overallQuality,
         issues,
-        recommendations
+        recommendations,
+        authenticityScore: tamperResult.score,
+        tamperFlags: tamperResult.flags,
+        isAuthentic: tamperResult.isAuthentic,
       };
     } catch (error) {
       console.error('Error analyzing document quality:', error);
@@ -125,8 +143,7 @@ export class DocumentQualityService {
   private static calculateImageStats(image: Jimp): { brightness: number; contrast: number } {
     const width = image.getWidth();
     const height = image.getHeight();
-    const totalPixels = width * height;
-    
+
     let totalBrightness = 0;
     let pixelValues: number[] = [];
 
@@ -161,10 +178,10 @@ export class DocumentQualityService {
       // Simple edge detection for blur measurement
       const width = image.getWidth();
       const height = image.getHeight();
-      
+
       // Convert to grayscale for edge detection
       const grayImage = image.clone().greyscale();
-      
+
       let edgeStrength = 0;
       let pixelCount = 0;
 
