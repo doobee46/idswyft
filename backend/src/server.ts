@@ -237,6 +237,32 @@ const startServer = async () => {
       setInterval(async () => {
         await tempCleaner.cleanup({ maxAgeMs: 60 * 60 * 1000 });
       }, 15 * 60 * 1000);
+
+      // Data retention cron — enforces DATA_RETENTION_DAYS in production
+      if (config.nodeEnv === 'production' && config.compliance.dataRetentionDays > 0) {
+        const cron = await import('node-cron');
+        const { DataRetentionService } = await import('@/services/dataRetention.js');
+        const retentionService = new DataRetentionService();
+
+        cron.schedule('0 2 * * *', async () => {
+          logger.info('Running data retention cleanup', {
+            retentionDays: config.compliance.dataRetentionDays,
+          });
+          try {
+            const count = await retentionService.runRetentionCleanup(
+              config.compliance.dataRetentionDays
+            );
+            logger.info(`Data retention cleanup complete: ${count} users cleaned`);
+          } catch (err) {
+            logger.error('Data retention cleanup failed', { error: err });
+          }
+        });
+
+        logger.info('Data retention scheduler started', {
+          retentionDays: config.compliance.dataRetentionDays,
+          schedule: '0 2 * * * (daily at 2 AM UTC)',
+        });
+      }
     });
 
     // Graceful shutdown
