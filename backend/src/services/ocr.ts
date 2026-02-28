@@ -54,7 +54,16 @@ export class OCRService {
       
       if (this.useAiOcr) {
         console.log('🤖 Using AI-powered OCR (OpenAI GPT-4 Vision)...');
-        ocrData = await this.processWithAI(fileBuffer, documentType);
+        try {
+          ocrData = await this.processWithAI(fileBuffer, documentType);
+        } catch (aiError) {
+          logger.warn('AI OCR failed, falling back to Tesseract', {
+            documentId,
+            error: aiError instanceof Error ? aiError.message : 'Unknown AI error',
+          });
+          ocrData = await this.processWithTesseract(fileBuffer, documentType);
+          ocrData.confidence_scores = { ...ocrData.confidence_scores, fallback_used: 1 };
+        }
       } else {
         console.log('🔍 Using traditional OCR (Tesseract.js)...');
         ocrData = await this.processWithTesseract(fileBuffer, documentType);
