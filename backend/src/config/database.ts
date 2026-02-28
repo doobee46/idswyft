@@ -22,16 +22,12 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
 // Database connection helper
 export const connectDB = async () => {
   try {
-    console.log('🔗 Testing Supabase connection...');
-    console.log('URL:', supabaseUrl);
-    console.log('Key exists:', !!supabaseKey);
-    
-    // Simple health check
+    // Simple health check — do NOT log the URL (leaks infrastructure details)
     const { data, error } = await supabase.auth.getUser();
-    console.log('✅ Connected to Supabase successfully');
+    console.log('✅ Connected to Supabase');
     return true;
   } catch (error) {
-    console.error('❌ Failed to connect to Supabase:', error);
+    console.error('❌ Failed to connect to Supabase:', error instanceof Error ? error.message : 'Unknown error');
     return false;
   }
 };

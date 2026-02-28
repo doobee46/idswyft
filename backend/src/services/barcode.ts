@@ -138,23 +138,12 @@ export class BarcodeService {
         ...manualParsed
       };
       
-      console.log('📄 Combined parsing results:', {
-        manualFields: Object.keys(manualParsed).length,
-        parseUsdlFields: parsedData ? Object.keys(parsedData).length - Object.keys(manualParsed).length : 0,
-        totalFields: Object.keys(parsedData).length,
-        licenseNumber: parsedData.licenseNumber || 'NOT_FOUND'
-      });
+      // (PII fields deliberately not logged)
       
       if (!parsedData) {
         throw new Error('PDF417 parsing returned null - invalid barcode format');
       }
       
-      console.log('✅ PDF417 parsing successful:', {
-        firstName: parsedData.firstName || 'N/A',
-        lastName: parsedData.lastName || 'N/A',
-        licenseNumber: parsedData.licenseNumber || 'N/A',
-        state: parsedData.state || 'N/A'
-      });
       
       // Calculate confidence based on how many fields were successfully parsed
       const totalFields = Object.keys(parsedData).length;
@@ -204,14 +193,6 @@ export class BarcodeService {
         validation_status
       };
       
-      console.log('📄 Final PDF417 parsed data:', {
-        licenseNumber: result.parsed_data.licenseNumber,
-        height: result.parsed_data.height,
-        lastName: result.parsed_data.lastName,
-        dateOfBirth: result.parsed_data.dateOfBirth,
-        confidence: result.confidence,
-        validation_status: result.validation_status
-      });
       
       logger.info('PDF417 parsing completed', {
         validation_status,
@@ -223,7 +204,6 @@ export class BarcodeService {
       return result;
       
     } catch (error) {
-      console.error('📄 PDF417 parsing failed:', error);
       logger.error('PDF417 parsing failed', {
         error: error instanceof Error ? error.message : 'Unknown error',
         dataLength: rawBarcodeData.length

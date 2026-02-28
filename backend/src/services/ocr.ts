@@ -17,11 +17,7 @@ export class OCRService {
     // Use AI OCR if OpenAI API key is available, fallback to Tesseract
     this.useAiOcr = !!process.env.OPENAI_API_KEY;
     
-    if (this.useAiOcr) {
-      console.log('🤖 AI-powered OCR enabled (OpenAI GPT-4 Vision)');
-    } else {
-      console.log('🔍 Traditional OCR enabled (Tesseract.js)');
-    }
+    logger.info('OCR provider initialised', { provider: this.useAiOcr ? 'openai' : 'tesseract' });
   }
   
   async processDocument(
@@ -29,12 +25,6 @@ export class OCRService {
     filePath: string,
     documentType: string
   ): Promise<OCRData> {
-    console.log('🔍 Starting OCR processing...', {
-      documentId,
-      filePath,
-      documentType
-    });
-    
     logger.info('Starting OCR processing', {
       documentId,
       filePath,
@@ -43,17 +33,11 @@ export class OCRService {
     
     try {
       // Download the file
-      console.log('🔍 Downloading file for OCR...', { filePath });
       const fileBuffer = await this.storageService.downloadFile(filePath);
-      console.log('🔍 File downloaded successfully', { 
-        bufferSize: fileBuffer.length,
-        bufferType: Buffer.isBuffer(fileBuffer) ? 'Buffer' : typeof fileBuffer
-      });
       
       let ocrData: OCRData;
       
       if (this.useAiOcr) {
-        console.log('🤖 Using AI-powered OCR (OpenAI GPT-4 Vision)...');
         try {
           ocrData = await this.processWithAI(fileBuffer, documentType);
         } catch (aiError) {
@@ -65,12 +49,10 @@ export class OCRService {
           ocrData.confidence_scores = { ...ocrData.confidence_scores, fallback_used: 1 };
         }
       } else {
-        console.log('🔍 Using traditional OCR (Tesseract.js)...');
         ocrData = await this.processWithTesseract(fileBuffer, documentType);
       }
-      
+
       // Update document record
-      console.log('🔍 Updating document record...');
       await this.verificationService.updateDocument(documentId, {
         ocr_extracted: true,
         quality_score: this.useAiOcr ? 0.92 : 0.5 // AI OCR typically has higher quality
@@ -82,17 +64,8 @@ export class OCRService {
         extractedFields: Object.keys(ocrData).length
       });
       
-      console.log('✅ OCR processing completed successfully');
       return ocrData;
     } catch (error) {
-      console.error('🚨 OCR processing failed:', error);
-      console.error('🚨 OCR Error details:', {
-        documentId,
-        filePath,
-        errorMessage: error instanceof Error ? error.message : 'Unknown error',
-        errorStack: error instanceof Error ? error.stack : 'No stack trace',
-        errorType: error instanceof Error ? error.constructor.name : typeof error
-      });
       
       logger.error('OCR processing failed', {
         documentId,
@@ -110,20 +83,12 @@ export class OCRService {
   
   private async preprocessImage(imageBuffer: Buffer): Promise<Buffer> {
     try {
-      console.log('🔧 Starting image preprocessing with Jimp...');
-      
       // Load image with Jimp
       const image = await Jimp.read(imageBuffer);
-      console.log('🔧 Image metadata:', {
-        width: image.getWidth(),
-        height: image.getHeight(),
-        mime: image.getMIME()
-      });
-      
+
       // Resize if image is too large (OCR works better on moderately sized images)
       const maxDimension = 2000;
       if (image.getWidth() > maxDimension || image.getHeight() > maxDimension) {
-        console.log('🔧 Resizing large image...');
         image.scaleToFit(maxDimension, maxDimension);
       }
       
@@ -148,15 +113,8 @@ export class OCRService {
       // Convert back to buffer
       const enhancedBuffer = await enhancedImage.getBufferAsync(Jimp.MIME_PNG);
       
-      console.log('🔧 Image preprocessing completed with Jimp', {
-        originalSize: imageBuffer.length,
-        processedSize: enhancedBuffer.length,
-        dimensions: `${image.getWidth()}x${image.getHeight()}`
-      });
-      
       return enhancedBuffer;
     } catch (error) {
-      console.warn('🔧 Image preprocessing failed, using original:', error);
       logger.warn('Image preprocessing failed', {
         error: error instanceof Error ? error.message : 'Unknown error'
       });
@@ -236,8 +194,6 @@ export class OCRService {
   }
   
   private extractDriversLicenseData(text: string, ocrData: OCRData): void {
-    // Enhanced patterns for driver's license data extraction
-    console.log('🔧 Extracting driver\'s license data from:', text.substring(0, 200));
     
     // Extract name - multiple patterns for different license formats
     const namePatterns = [
@@ -251,7 +207,6 @@ export class OCRService {
       if (nameMatch && nameMatch[1].length > 3) {
         ocrData.name = nameMatch[1].trim().replace(/\s+/g, ' ');
         ocrData.confidence_scores!.name = 0.8;
-        console.log('🔧 Name extracted:', ocrData.name);
         break;
       }
     }
@@ -274,7 +229,6 @@ export class OCRService {
           if (date.getFullYear() > 1900 && date.getFullYear() < new Date().getFullYear() - 16) {
             ocrData.date_of_birth = standardized;
             ocrData.confidence_scores!.date_of_birth = 0.9;
-            console.log('🔧 DOB extracted:', ocrData.date_of_birth);
             break;
           }
         }
@@ -297,7 +251,6 @@ export class OCRService {
         if (!/\d{2}[\/\-\.]\d{2}/.test(licenseMatch[1])) {
           ocrData.document_number = licenseMatch[1].replace(/\s+/g, '');
           ocrData.confidence_scores!.document_number = 0.85;
-          console.log('🔧 License number extracted:', ocrData.document_number);
           break;
         }
       }
@@ -320,7 +273,6 @@ export class OCRService {
           if (date > new Date()) {
             ocrData.expiration_date = standardized;
             ocrData.confidence_scores!.expiration_date = 0.9;
-            console.log('🔧 Expiration date extracted:', ocrData.expiration_date);
             break;
           }
         }
@@ -340,7 +292,6 @@ export class OCRService {
       if (addressMatch && addressMatch[1] && addressMatch[1].length > 5) {
         ocrData.address = addressMatch[1].trim().replace(/\s+/g, ' ');
         ocrData.confidence_scores!.address = 0.6;
-        console.log('🔧 Address extracted:', ocrData.address);
         break;
       }
     }
@@ -350,7 +301,6 @@ export class OCRService {
     if (sexMatch) {
       ocrData.sex = sexMatch[1].toUpperCase();
       ocrData.confidence_scores!.sex = 0.8;
-      console.log('🔧 Sex extracted:', ocrData.sex);
     }
     
     // Extract height
@@ -358,7 +308,6 @@ export class OCRService {
     if (heightMatch) {
       ocrData.height = heightMatch[1].trim();
       ocrData.confidence_scores!.height = 0.7;
-      console.log('🔧 Height extracted:', ocrData.height);
     }
     
     // Extract eyes color
@@ -366,7 +315,6 @@ export class OCRService {
     if (eyesMatch) {
       ocrData.eye_color = eyesMatch[1].toUpperCase();
       ocrData.confidence_scores!.eye_color = 0.7;
-      console.log('🔧 Eye color extracted:', ocrData.eye_color);
     }
   }
   
@@ -532,16 +480,12 @@ export class OCRService {
   
   private async processWithAI(imageBuffer: Buffer, documentType: string): Promise<OCRData> {
     try {
-      console.log('🤖 Starting AI OCR processing...');
-      
       // Convert image to base64
       const base64Image = imageBuffer.toString('base64');
       const mimeType = this.detectMimeType(imageBuffer);
-      
+
       // Create prompt based on document type
       const prompt = this.createAIPrompt(documentType);
-      
-      console.log('🤖 Sending request to OpenAI GPT-4 Vision...');
       
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -582,41 +526,23 @@ export class OCRService {
       const result = await response.json();
       const extractedText = result.choices[0].message.content;
       
-      console.log('🤖 AI OCR completed', {
-        textLength: extractedText.length,
-        textPreview: extractedText.substring(0, 200) + '...'
-      });
-      
       // Parse the AI response into structured data
       return this.parseAIResponse(extractedText, documentType);
-      
+
     } catch (error) {
-      console.error('🤖 AI OCR failed:', error);
       logger.error('AI OCR processing failed', {
         error: error instanceof Error ? error.message : 'Unknown error'
       });
-      
-      // Fallback to Tesseract
-      console.log('🔍 Falling back to Tesseract OCR...');
       return await this.processWithTesseract(imageBuffer, documentType);
     }
   }
   
   private async processWithTesseract(imageBuffer: Buffer, documentType: string): Promise<OCRData> {
     // Preprocess image for better OCR results using Jimp
-    console.log('🔍 Preprocessing image for OCR...');
     const preprocessedBuffer = await this.preprocessImage(imageBuffer);
-    console.log('🔍 Image preprocessing completed');
-    
+
     // Initialize Tesseract worker with enhanced configuration
-    console.log('🔍 Creating Tesseract worker...');
-    const worker = await Tesseract.createWorker('eng', 1, {
-      logger: m => {
-        if (m.status === 'recognizing text') {
-          console.log(`🔍 OCR Progress: ${Math.round(m.progress * 100)}%`);
-        }
-      }
-    });
+    const worker = await Tesseract.createWorker('eng', 1, {});
     
     // Configure Tesseract for better document recognition
     await worker.setParameters({
@@ -625,25 +551,12 @@ export class OCRService {
       preserve_interword_spaces: '1'
     });
     
-    console.log('🔍 Tesseract worker created, starting recognition...');
     // Perform OCR with preprocessed image
     const { data } = await worker.recognize(preprocessedBuffer);
-    console.log('🔍 OCR recognition completed', {
-      textLength: data.text.length,
-      confidence: data.confidence,
-      textPreview: data.text.substring(0, 100) + '...'
-    });
-    
     await worker.terminate();
-    console.log('🔍 Tesseract worker terminated');
-    
+
     // Extract structured data based on document type
-    console.log('🔍 Extracting structured data from OCR text...');
     const ocrData = this.extractStructuredData(data.text, documentType);
-    console.log('🔍 Structured data extracted', {
-      extractedFields: Object.keys(ocrData),
-      ocrData
-    });
     
     return ocrData;
   }
@@ -708,8 +621,8 @@ Important:
       try {
         parsed = JSON.parse(cleanResponse);
       } catch (jsonError) {
-        // If JSON parsing fails, try to extract structured data from text
-        console.warn('🤖 AI response not valid JSON, parsing as text:', jsonError);
+        // If JSON parsing fails, extract structured data from text
+        logger.warn('AI response not valid JSON, falling back to text extraction');
         return this.extractFromAIText(aiResponse, documentType);
       }
       
@@ -730,14 +643,10 @@ Important:
         }
       });
       
-      console.log('🤖 AI response parsed successfully:', {
-        extractedFields: Object.keys(ocrData).filter(k => k !== 'raw_text' && k !== 'confidence_scores')
-      });
-      
       return ocrData;
-      
+
     } catch (error) {
-      console.error('🤖 Failed to parse AI response:', error);
+      logger.error('Failed to parse AI response', { error: error instanceof Error ? error.message : 'Unknown' });
       // Fallback to basic text extraction
       return this.extractFromAIText(aiResponse, documentType);
     }

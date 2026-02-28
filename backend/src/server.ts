@@ -56,12 +56,10 @@ app.use(cors({
     if (origin.match(/^https:\/\/.*\.up\.railway\.app$/)) {
       // Only allow customer portal related Railway domains
       if (origin.match(/customer|portal|vaas/i)) {
-        console.log(`✅ CORS: Allowing Railway customer portal origin: ${origin}`);
         return callback(null, true);
       }
     }
     
-    console.log(`❌ CORS: Rejecting origin: ${origin}`);
     return callback(new Error('Not allowed by CORS'), false);
   },
   credentials: true,
@@ -211,7 +209,7 @@ const startServer = async () => {
       console.log(`🚀 Idswyft API server running on port ${config.port}`);
       console.log(`📚 API Documentation: http://localhost:${config.port}/api/docs`);
       console.log(`💻 Environment: ${config.nodeEnv}`);
-      console.log(`🔒 CORS Origins: ${config.corsOrigins.join(', ')}`);
+      console.log(`🔒 CORS: ${config.corsOrigins.length} origin(s) configured`);
       
       if (config.sandbox.enabled) {
         console.log('🧪 Sandbox mode enabled');
