@@ -8,6 +8,7 @@ import { StorageService } from '@/services/storage.js';
 import { supabase } from '@/config/database.js';
 import { logger } from '@/utils/logger.js';
 import { DataRetentionService } from '@/services/dataRetention.js';
+import { ProviderMetricsService } from '@/services/providerMetrics.js';
 
 const router = express.Router();
 const verificationService = new VerificationService();
@@ -428,6 +429,21 @@ async function getAnalytics(period: string, developerId?: string): Promise<any> 
     }
   };
 }
+
+// GET /api/admin/provider-metrics?provider=tesseract&days=30
+router.get('/provider-metrics',
+  authenticateJWT,
+  requireAdminRole(['admin']),
+  catchAsync(async (req: Request, res: Response) => {
+    const { provider, days = '30' } = req.query;
+    if (!provider || typeof provider !== 'string') {
+      return res.status(400).json({ error: 'provider query param is required' });
+    }
+    const metrics = new ProviderMetricsService();
+    const summary = await metrics.getProviderSummary(provider, parseInt(days as string, 10));
+    res.json(summary);
+  })
+);
 
 // GDPR / Right-to-erasure endpoint
 router.delete('/user/:userId/data',

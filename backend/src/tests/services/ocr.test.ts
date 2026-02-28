@@ -50,6 +50,13 @@ vi.mock('@/config/index.js', () => ({
   default: { nodeEnv: 'test', ocr: { tesseractPath: '/usr/bin/tesseract' } },
 }));
 
+vi.mock('../../services/providerMetrics.js', () => ({
+  ProviderMetricsService: class {
+    record = vi.fn().mockResolvedValue(undefined);
+    getProviderSummary = vi.fn().mockResolvedValue({ totalRequests: 0, successRate: 0, avgLatencyMs: 0, avgConfidence: 0 });
+  },
+}));
+
 describe('OCRService provider delegation', () => {
   afterEach(() => {
     delete process.env.OPENAI_API_KEY;

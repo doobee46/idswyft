@@ -1,6 +1,7 @@
 import { logger } from '@/utils/logger.js';
 import { StorageService } from './storage.js';
 import { VerificationService } from './verification.js';
+import { ProviderMetricsService } from './providerMetrics.js';
 import { OCRData } from '@/types/index.js';
 import { createOCRProvider } from '@/providers/ocr/index.js';
 import { TesseractProvider } from '@/providers/ocr/TesseractProvider.js';
@@ -9,11 +10,13 @@ import type { OCRProvider } from '@/providers/types.js';
 export class OCRService {
   private storageService: StorageService;
   private verificationService: VerificationService;
+  private metricsService: ProviderMetricsService;
   private provider: OCRProvider;
 
   constructor() {
     this.storageService = new StorageService();
     this.verificationService = new VerificationService();
+    this.metricsService = new ProviderMetricsService();
     this.provider = createOCRProvider();
     logger.info('OCR provider initialised', { provider: this.provider.name });
   }
@@ -29,9 +32,31 @@ export class OCRService {
       const fileBuffer = await this.storageService.downloadFile(filePath);
 
       let ocrData: OCRData;
+      const start = Date.now();
+
       try {
         ocrData = await this.provider.processDocument(fileBuffer, documentType);
+        const scores = Object.values(ocrData.confidence_scores || {});
+        const avgConfidence = scores.length > 0 ? scores.reduce((s, v) => s + v, 0) / scores.length : undefined;
+
+        await this.metricsService.record({
+          providerName: this.provider.name,
+          providerType: 'ocr',
+          verificationId: documentId,
+          latencyMs: Date.now() - start,
+          success: true,
+          confidenceScore: avgConfidence,
+        });
       } catch (providerError) {
+        await this.metricsService.record({
+          providerName: this.provider.name,
+          providerType: 'ocr',
+          verificationId: documentId,
+          latencyMs: Date.now() - start,
+          success: false,
+          errorType: providerError instanceof Error ? providerError.constructor.name : 'Unknown',
+        });
+
         if (this.provider.name !== 'tesseract') {
           logger.warn('Primary OCR provider failed, falling back to Tesseract', {
             documentId,
