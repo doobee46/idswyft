@@ -248,10 +248,7 @@ export class WebhookService {
   }
   
   private generateSignature(payload: string, secret: string): string {
-    return `sha256=${crypto
-      .createHmac('sha256', secret)
-      .update(payload)
-      .digest('hex')}`;
+    return createWebhookSignature(payload, secret);
   }
   
   private truncateResponse(response: string, maxLength: number = 1000): string {
@@ -397,4 +394,32 @@ export class WebhookService {
     
     return stats;
   }
+}
+
+/**
+ * Creates an HMAC-SHA256 signature for a webhook payload.
+ * Format: "sha256=<64-char hex digest>"
+ */
+export function createWebhookSignature(payload: string, secret: string): string {
+  return `sha256=${crypto
+    .createHmac('sha256', secret)
+    .update(payload, 'utf8')
+    .digest('hex')}`;
+}
+
+/**
+ * Verifies an HMAC-SHA256 webhook signature using timing-safe comparison
+ * to prevent timing-based side-channel attacks.
+ */
+export function verifyWebhookSignature(
+  payload: string,
+  signature: string,
+  secret: string
+): boolean {
+  const expected = createWebhookSignature(payload, secret);
+  const expectedBuf = Buffer.from(expected);
+  const actualBuf = Buffer.from(signature);
+  // Length must match before timingSafeEqual (it requires equal-length buffers)
+  if (expectedBuf.length !== actualBuf.length) return false;
+  return crypto.timingSafeEqual(expectedBuf, actualBuf);
 }
