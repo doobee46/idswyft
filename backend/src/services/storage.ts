@@ -125,29 +125,28 @@ export class StorageService {
     folder: string,
     mimeType: string
   ): Promise<string> {
-    // This would require AWS SDK implementation
-    // For now, throwing an error to indicate it's not implemented
-    throw new Error('S3 storage provider not implemented yet');
-    
-    // Implementation would look like:
-    /*
-    const AWS = require('aws-sdk');
-    const s3 = new AWS.S3({
-      accessKeyId: config.storage.awsAccessKey,
-      secretAccessKey: config.storage.awsSecretKey,
-      region: config.storage.awsRegion
+    const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
+
+    const client = new S3Client({
+      region: config.storage.awsRegion ?? 'us-east-1',
+      credentials: {
+        accessKeyId: config.storage.awsAccessKey!,
+        secretAccessKey: config.storage.awsSecretKey!,
+      },
     });
-    
-    const params = {
+
+    const key = `${folder}/${fileName}`;
+
+    await client.send(new PutObjectCommand({
       Bucket: config.storage.awsS3Bucket!,
-      Key: `${folder}/${fileName}`,
+      Key: key,
       Body: buffer,
-      ContentType: mimeType
-    };
-    
-    const result = await s3.upload(params).promise();
-    return result.Location;
-    */
+      ContentType: mimeType,
+      ServerSideEncryption: 'AES256', // Encrypt at rest
+    }));
+
+    logger.info('File stored in S3', { bucket: config.storage.awsS3Bucket, key });
+    return key;
   }
   
   async getFileUrl(filePath: string, expiresIn: number = 3600): Promise<string> {
@@ -167,8 +166,22 @@ export class StorageService {
         // In production, this should be served through a secure endpoint
         return `/files/${filePath}`;
       } else if (config.storage.provider === 's3') {
-        // S3 signed URL implementation would go here
-        throw new Error('S3 signed URLs not implemented yet');
+        const { S3Client, GetObjectCommand } = await import('@aws-sdk/client-s3');
+        const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner');
+
+        const client = new S3Client({
+          region: config.storage.awsRegion ?? 'us-east-1',
+          credentials: {
+            accessKeyId: config.storage.awsAccessKey!,
+            secretAccessKey: config.storage.awsSecretKey!,
+          },
+        });
+
+        return await getSignedUrl(
+          client,
+          new GetObjectCommand({ Bucket: config.storage.awsS3Bucket!, Key: filePath }),
+          { expiresIn }
+        );
       } else {
         throw new Error(`Unsupported storage provider: ${config.storage.provider}`);
       }

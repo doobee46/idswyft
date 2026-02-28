@@ -16,6 +16,8 @@
     "railway:start": "npm run start"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.750.0",
+    "@aws-sdk/s3-request-presigner": "^3.750.0",
     "@supabase/supabase-js": "^2.39.0",
     "@tensorflow-models/face-landmarks-detection": "^1.0.6",
     "@zxing/browser": "^0.1.5",
