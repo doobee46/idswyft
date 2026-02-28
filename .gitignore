@@ -119,3 +119,10 @@ brand-strategy/
 brand-assets/
 *.brand
 brand-guidelines/
+
+# Audit & Internal Reports
+AUDIT_REPORT.md
+*_AUDIT_*.md
+
+# Git worktrees
+.worktrees/
