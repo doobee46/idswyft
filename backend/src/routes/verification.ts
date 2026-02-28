@@ -28,6 +28,7 @@ import {
   VerificationErrorClassifier
 } from '@/types/verificationTypes.js';
 import { supabase } from '@/config/database.js';
+import { validateFileType } from '@/middleware/fileValidation.js';
 
 const router = express.Router();
 
@@ -216,11 +217,17 @@ router.post('/document',
     
     const { verification_id, document_type } = req.body;
     const file = req.file;
-    
+
     if (!file) {
       throw new FileUploadError('Document file is required');
     }
-    
+
+    // Validate actual file bytes — rejects MIME-type spoofing (e.g. EXE renamed to JPG)
+    const fileTypeCheck = await validateFileType(file.buffer);
+    if (!fileTypeCheck.valid) {
+      throw new FileUploadError(fileTypeCheck.reason || 'Invalid file type');
+    }
+
     // Get verification request
     const verificationRequest = await verificationService.getVerificationRequest(verification_id);
     if (!verificationRequest) {
@@ -388,11 +395,17 @@ router.post('/selfie',
     
     const { verification_id } = req.body;
     const file = req.file;
-    
+
     if (!file) {
       throw new FileUploadError('Selfie file is required');
     }
-    
+
+    // Selfies must be image files — no PDFs
+    const selfieTypeCheck = await validateFileType(file.buffer, ['image/jpeg', 'image/png']);
+    if (!selfieTypeCheck.valid) {
+      throw new FileUploadError(selfieTypeCheck.reason || 'Selfie must be a JPEG or PNG image');
+    }
+
     // Get verification request
     const verificationRequest = await verificationService.getVerificationRequest(verification_id);
     if (!verificationRequest) {
@@ -1885,11 +1898,17 @@ router.post('/reupload-document/:verification_id',
     const { verification_id } = req.params;
     const { document_type, document_side, replace_existing = true } = req.body;
     const file = req.file;
-    
+
     if (!file) {
       throw new FileUploadError('Document file is required');
     }
-    
+
+    // Validate actual file bytes — rejects MIME-type spoofing
+    const backIdTypeCheck = await validateFileType(file.buffer);
+    if (!backIdTypeCheck.valid) {
+      throw new FileUploadError(backIdTypeCheck.reason || 'Invalid file type');
+    }
+
     // Get verification request
     const verificationRequest = await verificationService.getVerificationRequest(verification_id);
     if (!verificationRequest) {
