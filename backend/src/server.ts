@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import { buildCorsOptions } from './middleware/cors.js';
 import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
@@ -32,39 +33,8 @@ app.use(helmet({
   contentSecurityPolicy: false
 }));
 
-// CORS configuration
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    // Allow all localhost origins and local network IPs in development
-    if (config.nodeEnv === 'development') {
-      if (origin.startsWith('http://localhost:') || 
-          origin.startsWith('http://127.0.0.1:') ||
-          origin.match(/^http:\/\/192\.168\.\d{1,3}\.\d{1,3}:\d+$/)) {
-        return callback(null, true);
-      }
-    }
-    
-    // Check against configured origins
-    if (config.corsOrigins.indexOf(origin) !== -1) {
-      return callback(null, true);
-    }
-    
-    // Allow Railway-generated domains for customer portals
-    if (origin.match(/^https:\/\/.*\.up\.railway\.app$/)) {
-      // Only allow customer portal related Railway domains
-      if (origin.match(/customer|portal|vaas/i)) {
-        return callback(null, true);
-      }
-    }
-    
-    return callback(new Error('Not allowed by CORS'), false);
-  },
-  credentials: true,
-  optionsSuccessStatus: 200
-}));
+// CORS — explicit allowlist only, no wildcard pattern matching
+app.use(cors(buildCorsOptions(config)));
 
 // Basic middleware
 app.use(compression());

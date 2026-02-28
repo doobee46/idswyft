@@ -232,6 +232,7 @@ export interface AppConfig {
   port: number;
   nodeEnv: string;
   corsOrigins: string[];
+  railwayAllowedOrigins: string[];
   jwtSecret: string;
   apiKeySecret: string;
   serviceToken: string;
