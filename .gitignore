@@ -77,9 +77,8 @@ selfies/
 # Local development
 .local/
 
-# Docker
+# Docker — only ignore .dockerignore files, not the Dockerfiles themselves
 *.dockerignore
-Dockerfile*
 
 # Python (for OCR tools)
 __pycache__/
