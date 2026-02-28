@@ -30,7 +30,36 @@ if (config.nodeEnv === 'production') {
 // Security middleware
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
-  contentSecurityPolicy: false
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: [
+        "'self'",
+        // Allow inline scripts only in development (for Vite HMR)
+        ...(config.nodeEnv === 'development' ? ["'unsafe-inline'", "'unsafe-eval'"] : []),
+      ],
+      styleSrc: ["'self'", "'unsafe-inline'"], // inline styles used by Tailwind/Recharts
+      imgSrc: ["'self'", "data:", "blob:"],    // blob: for canvas face detection
+      connectSrc: [
+        "'self'",
+        // Allow Supabase storage and configured frontend origins
+        ...[config.supabase.url, ...config.corsOrigins].filter(Boolean),
+      ],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'", "blob:"],           // blob: for live capture video
+      frameSrc: ["'none'"],
+      workerSrc: ["'self'", "blob:"],          // Web workers for TF.js
+      ...(config.nodeEnv === 'production' ? { upgradeInsecureRequests: [] } : {}),
+    },
+    // Report-only in staging so we can observe violations before enforcing
+    reportOnly: config.nodeEnv !== 'production',
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+  },
 }));
 
 // CORS — explicit allowlist only, no wildcard pattern matching
