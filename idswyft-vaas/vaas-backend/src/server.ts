@@ -109,6 +109,35 @@ if (config.nodeEnv === 'development') {
   });
 }
 
+// Stripe webhook — must be registered BEFORE express.json() so we receive the raw Buffer
+// for HMAC signature verification (express.json() would parse the body and break the sig check)
+app.post('/api/stripe/webhook',
+  express.raw({ type: 'application/json' }),
+  async (req, res) => {
+    try {
+      const { BillingService } = await import('./services/billingService.js');
+      const billing = new BillingService();
+      const event = await billing.handleWebhook(req.body as Buffer, req.headers['stripe-signature'] as string);
+
+      switch (event.type) {
+        case 'customer.subscription.updated':
+        case 'customer.subscription.deleted': {
+          // Update org subscription status in DB (handled by webhookService)
+          break;
+        }
+        case 'invoice.payment_succeeded': {
+          // Record successful payment (can extend to increment usage credits)
+          break;
+        }
+      }
+
+      res.json({ received: true });
+    } catch (err) {
+      res.status(400).send(`Webhook Error: ${err instanceof Error ? err.message : 'Unknown'}`);
+    }
+  }
+);
+
 // Basic middleware
 app.use(compression());
 app.use(morgan('combined'));
