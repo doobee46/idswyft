@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import { buildCorsOptions } from './middleware/cors.js';
 import { csrfProtection } from './middleware/csrf.js';
+import { serveLocalFile } from './middleware/fileServing.js';
 import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
@@ -97,6 +98,12 @@ app.use('/api/auth', authRoutes);
 app.use('/api/health', healthRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/vaas', vaasRoutes);
+
+// Local file serving — only registered when using local storage provider
+// Requires API key auth; path traversal is blocked in serveLocalFile
+if (config.storage.provider === 'local') {
+  app.get('/api/files/*', serveLocalFile);
+}
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
