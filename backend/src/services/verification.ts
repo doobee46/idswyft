@@ -1,13 +1,14 @@
 import { supabase } from '@/config/database.js';
 import { logger } from '@/utils/logger.js';
-import { 
-  VerificationRequest, 
-  Document, 
-  Selfie, 
+import {
+  VerificationRequest,
+  Document,
+  Selfie,
   OCRData,
-  VerificationStatus 
+  VerificationStatus
 } from '@/types/index.js';
 import { DocumentQualityService, DocumentQualityResult } from './documentQuality.js';
+import config from '@/config/index.js';
 
 export class VerificationService {
   async createVerificationRequest(data: {
@@ -433,7 +434,42 @@ export class VerificationService {
     verifications.forEach(v => {
       stats[v.status as keyof typeof stats]++;
     });
-    
+
     return stats;
+  }
+
+  /**
+   * Escalates a borderline or failed verification to a paid external provider
+   * (Persona or Onfido) when self-hosted confidence is too low.
+   */
+  async handleFallbackVerification(verificationId: string, userId: string): Promise<void> {
+    if (config.externalApis.persona?.apiKey) {
+      const { PersonaProvider } = await import('@/providers/fallback/PersonaProvider.js');
+      const persona = new PersonaProvider();
+      const { inquiryId } = await persona.createInquiry(userId);
+
+      await this.updateVerificationRequest(verificationId, {
+        status: 'manual_review' as VerificationStatus,
+        manual_review_reason: `Escalated to Persona: inquiry ${inquiryId}`,
+      });
+
+      logger.info('Verification escalated to Persona', { verificationId, userId, inquiryId });
+    } else if (config.externalApis.onfido?.apiKey) {
+      const { OnfidoProvider } = await import('@/providers/fallback/OnfidoProvider.js');
+      const onfido = new OnfidoProvider();
+      const { applicantId } = await onfido.createApplicant(userId, 'Unknown', 'Unknown');
+
+      await this.updateVerificationRequest(verificationId, {
+        status: 'manual_review' as VerificationStatus,
+        manual_review_reason: `Escalated to Onfido: applicant ${applicantId}`,
+      });
+
+      logger.info('Verification escalated to Onfido', { verificationId, userId, applicantId });
+    } else {
+      logger.warn('No external fallback provider configured; keeping manual_review status', {
+        verificationId,
+        userId,
+      });
+    }
   }
 }
