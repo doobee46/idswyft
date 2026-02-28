@@ -11,47 +11,43 @@
 [![Stars](https://img.shields.io/github/stars/doobee46/idswyft.svg)](https://github.com/doobee46/idswyft/stargazers)
 [![Repo Size](https://img.shields.io/github/repo-size/doobee46/idswyft.svg)](https://github.com/doobee46/idswyft)
 
-A developer-friendly, production-ready identity verification platform with document OCR, face recognition, secure API key management, webhooks, and an admin + developer portal. Built for engineering teams who need a self-hostable, privacy-conscious KYC/identity solution.
-
-What it provides:
-- Document OCR + authenticity checks (Tesseract)
-- Selfie ↔ document photo face matching
-- API key management and rate limiting for developer access
-- Webhooks with retry logic for real-time events
-- Admin dashboard + developer portal for onboarding and keys
-- GDPR/CCPA-friendly data controls and encrypted storage
+A developer-friendly, production-ready identity verification platform built for engineering teams who need a self-hostable, privacy-conscious KYC / identity solution. Idswyft provides document OCR, face matching, secure API key management, webhooks, and admin + developer portals — designed to be run locally or in your cloud environment.
 
 ---
 
-## Table of Contents
-- [Features](#features-✨)
-- [Architecture](#architecture-🏗️)
-- [Quick Start / Installation](#quick-start--installation-⚙️)
-- [Usage / API Reference](#usage--api-reference-🧭)
-- [Configuration](#configuration-🔧)
-- [Documentation](#documentation-📚)
-- [Contributing](#contributing-🤝)
-- [Tests](#tests-🧪)
-- [Deployment](#deployment-🚀)
-- [Built With](#built-with-🛠️)
-- [Authors](#authors-✍️)
-- [License](#license-📄)
-- [Roadmap](#roadmap-🗺️)
-- [FAQ](#faq-❓)
-- [Contact](#contact-📬)
+Table of contents
+- Features
+- Architecture
+- Quick Start / Installation
+- Usage & API Reference
+- Configuration
+- Contributing
+- Tests
+- Deployment
+- Built With
+- Authors
+- License
+- Roadmap
+- FAQ
+- Contact
 
 ---
 
 ## Features ✨
 
-- 🧾 Document Verification: OCR extraction and authenticity checks for government IDs.
-- 🧑‍🤝‍🧑 Face Recognition: Selfie matching with document photos (face-api.js).
-- 🔑 API Key Management: Secure developer authentication with rate limiting.
-- 🔔 Webhooks: Real-time notifications with retry and delivery status.
-- 🛡️ Privacy-first: Tools for GDPR / CCPA compliance and data deletion.
-- 🧰 Admin Dashboard: Manage users, verifications, analytics, and settings.
-- 🧪 Sandbox Mode: Safe test environment for integration and development.
-- ☁️ Cloud & Local Ready: Works with Supabase, AWS S3 or local storage.
+- 🧾 Document OCR & authenticity checks (Tesseract)
+- 🤳 Selfie ↔ document face matching (face-api.js)
+- 🔐 API key management with rate limiting for developer access
+- 🔁 Webhooks with retry logic and delivery status
+- 🛠 Admin dashboard + Developer portal for onboarding and key management
+- 🔒 Privacy-first: encryption at rest, GDPR/CCPA-friendly controls
+- 🧪 Sandbox mode for safe testing and integration
+- ☁️ Flexible storage: Supabase / S3 or local filesystem
+
+What makes Idswyft unique:
+- Built to be self-hostable with developer ergonomics in mind
+- Focus on privacy: configurable retention and encryption keys
+- Extensible verification thresholds and dynamic configuration
 
 ---
 
@@ -59,127 +55,113 @@ What it provides:
 
 - Backend: Node.js + TypeScript, Express.js
   - Routes: auth, developer, admin, verification, health
-  - Middleware: auth, rate limiting, error handling
-  - Integrations: Supabase (Postgres), Tesseract OCR, face-api.js
+  - Middleware: authentication, rate limiting, error handling, logging
+  - Integrations: Supabase/Postgres, Tesseract OCR, face-api.js
 - Frontend: React + TypeScript (Vite) — Admin dashboard & Developer portal
-- Database: Supabase / PostgreSQL (CREATE_TABLES.sql included)
-- File storage: Configurable (S3, Supabase Storage, local)
-- Security: Encrypted file storage, HTTPS-only in production, secure API-key hashing
+- Database: Supabase / PostgreSQL (schema/migrations may be present in repo)
+- File storage: Configurable (S3, Supabase Storage, or local)
+- Security: Encrypted storage for sensitive files, API-key hashing, JWT for admin/developer access
 
-Key repo files:
-- backend/src/config/* — configuration loading
-- backend/src/middleware/* — auth, rate limiting, error handling
-- backend/src/routes/* — API endpoints
-- sql/CREATE_TABLES.sql — DB schema for Supabase / Postgres
-- docs/ — comprehensive documentation
-- supabase/migrations/ — database migrations
+Key backend files (examples present in repo):
+- backend/src/config*.ts — configuration loaders (database, verification thresholds, dynamic thresholds)
+- backend/src/database.ts — DB connection utilities
+- backend/src/middleware/* — auth, rate limit, error handling, api logger
+- backend/src/models/ApiActivity.ts
+- backend/src/routes/admin-thresholds.ts
 
 ---
 
 ## Quick Start / Installation ⚙️
 
 Prerequisites
-- Node.js 18+
-- PostgreSQL (or Supabase project)
-- Tesseract OCR installed and available in PATH
-- Optional: Docker & Docker Compose
+- Node.js 18+ (or the project Node version)
+- PostgreSQL (or a Supabase project)
+- Tesseract OCR installed and available in PATH (for OCR)
+- Optional: Docker & Docker Compose for quick local deployment
 
-1) Clone
+1) Clone the repo
 ```bash
 git clone https://github.com/doobee46/idswyft.git
 cd idswyft
 ```
 
-2) Install dependencies (backend + frontend)
-(If the project uses npm/yarn/pnpm — run the relevant install. Common patterns:)
+2) Install dependencies
+- If the repo uses a workspace or separate backend/frontend directories, run from the appropriate folder(s).
 ```bash
-# from repo root or backend/ and frontend/ if separated
+# example
+cd backend
 npm install
-# or
-pnpm install
+# and if frontend exists
+cd ../frontend
+npm install
 ```
 
 3) Environment
-Copy the example env and update values:
+Copy example environment file (if provided) and edit:
 ```bash
 cp .env.example .env
 ```
-Edit `.env` with your environment-specific values (see Configuration section below).
+Populate values described in the Configuration section below.
 
 4) Database
-Create the required tables in your Postgres/Supabase. You can use the provided SQL:
-- Open `sql/CREATE_TABLES.sql` and paste it into your Supabase SQL editor or run against your DB.
-- Apply migrations from `supabase/migrations/` in order
-
-Example (psql):
-```bash
-psql $DATABASE_URL -f sql/CREATE_TABLES.sql
-psql $DATABASE_URL -f supabase/migrations/01_initial_schema.sql
-psql $DATABASE_URL -f supabase/migrations/02_add_missing_document_columns.sql
-psql $DATABASE_URL -f supabase/migrations/03_add_missing_verification_columns.sql
-```
+- Create the required database and schema. If SQL schema/migrations are included in your clone (e.g., `sql/` or `supabase/migrations/`), apply them to your Postgres/Supabase instance.
+- Otherwise run the migrations or create tables according to your environment.
 
 5) Start in development
 ```bash
-# common scripts
-npm run setup      # (optional) project-specific setup steps
-npm run db:setup   # runs migrations / seeds (if available)
-npm run dev        # starts backend + frontend in dev mode
+# backend (example)
+cd backend
+npm run dev
+
+# frontend (example)
+cd ../frontend
+npm run dev
 ```
 
-Default local ports (typical):
-- Backend API: http://localhost:3001
-- Frontend / Dashboard: http://localhost:5173
-- Developer portal: http://localhost:5173/developer
-- Admin dashboard: http://localhost:5173/admin
-
-6) Docker (recommended for quick local deploy)
+6) Docker (optional)
+If a Docker Compose file exists in the repository:
 ```bash
 docker-compose up -d
 ```
-(See docker-compose.yml in repo if present; adjust env files and volumes as needed.)
+Adjust volumes and .env files as necessary.
+
+Notes
+- Default local ports are typical but may vary:
+  - Backend API: http://localhost:3001
+  - Frontend / Dashboards: http://localhost:5173
 
 ---
 
-## Usage / API Reference 🧭
+## Usage & API Reference 🧭
 
 Authentication
-- Most API requests require an API key in the header:
+- Most API requests require an API key in header:
   - Header: `X-API-Key: your-api-key`
+- Admin/developer UIs likely use JWT session cookies or Authorization headers (see config).
 
-Core Endpoints (examples; check backend routes for full details)
+Core endpoints (examples — check your running backend routes for exact paths):
 
-1) Document Verification
-```http
+1) Document verification
 POST /api/verify/document
-Content-Type: multipart/form-data
+- Content-Type: multipart/form-data
+- Fields:
+  - user_id: string
+  - document_type: passport|id_card|driver_license
+  - document: file
 
-Fields:
-- user_id: string
-- document_type: passport|id_card|driver_license
-- document: file
-```
-
-2) Selfie Upload (face matching)
-```http
+2) Selfie upload (face matching)
 POST /api/verify/selfie
-Content-Type: multipart/form-data
+- Content-Type: multipart/form-data
+- Fields:
+  - verification_id: string
+  - selfie: file
 
-Fields:
-- verification_id: string
-- selfie: file
-```
+3) Check verification status
+GET /api/verify/status/:verification_id
 
-3) Check Status
-```http
-GET /api/verify/status/:user_id
-```
-
-4) Developer Portal (create API key, manage webhooks)
-- Visit: /developer (UI)
-- Register / Sign in, then create API keys and configure webhook endpoints.
-
-Webhooks (example payload)
+Webhooks
+- Configure webhook endpoints in the Developer portal (or DB).
+- Example payload:
 ```json
 {
   "user_id": "user-123",
@@ -187,38 +169,44 @@ Webhooks (example payload)
   "status": "verified",
   "timestamp": "2024-01-01T00:00:00Z",
   "data": {
-    "ocr_data": { "...": "..." },
+    "ocr_data": { "name": "Jane Doe", "dob": "1990-01-01" },
     "face_match_score": 0.95
   }
 }
 ```
 
 Admin Dashboard
-- Default local credentials (change in production):
+- Typically located under `/admin` on the frontend.
+- Default local credentials (if seeded — change in production):
   - Email: admin@idswyft.com
   - Password: admin123
-- Visit: http://localhost:5173/admin
 
 ---
 
 ## Configuration 🔧
 
-Primary configuration files:
-- backend/src/config.ts, backend/src/config/database.ts, backend/src/config/index.ts
+Configuration files found in the repo:
+- backend/src/config.ts
+- backend/src/config/database.ts
+- backend/src/config/index.ts
+- backend/src/config/dynamicThresholds.ts
+- backend/src/config/verificationThresholds.ts
 
-Important environment variables (example values)
-- SUPABASE_URL - Your Supabase project URL
-- SUPABASE_SERVICE_ROLE_KEY - Supabase service role key (backend only)
-- DATABASE_URL - Postgres connection string (postgresql://user:pass@host:port/db)
-- JWT_SECRET - Secret for admin/developer JWT tokens
-- ENCRYPTION_KEY - 32-character key for file encryption at rest
-- TESSERACT_PATH - Optional path to Tesseract binary
-- PERSONA_API_KEY - (optional) Persona integration
-- ONFIDO_API_KEY - (optional) Onfido integration
-- WEBHOOK_RETRY_ATTEMPTS - Default: 3
-- RATE_LIMIT_MAX_REQUESTS_PER_USER - Default: 5 (daily)
+Important environment variables
+- NODE_ENV — development | production
+- PORT — backend port (default: 3001)
+- DATABASE_URL — Postgres connection string (postgresql://user:pass@host:port/db)
+- SUPABASE_URL — optional Supabase URL
+- SUPABASE_SERVICE_ROLE_KEY — Supabase service role (backend-only)
+- JWT_SECRET — secret for admin/developer JWT tokens
+- ENCRYPTION_KEY — 32-character key for file encryption at rest
+- TESSERACT_PATH — optional path to Tesseract binary (e.g., /usr/bin/tesseract)
+- PERSONA_API_KEY — (optional) Persona integration
+- ONFIDO_API_KEY — (optional) Onfido integration
+- WEBHOOK_RETRY_ATTEMPTS — default retry attempts for webhooks
+- RATE_LIMIT_MAX_REQUESTS_PER_USER — throttle per-user default
 
-Example .env (trimmed)
+Example .env snippet
 ```env
 NODE_ENV=development
 PORT=3001
@@ -231,84 +219,79 @@ TESSERACT_PATH=/usr/bin/tesseract
 ```
 
 Security notes
-- Keep service role keys and API keys out of VCS.
-- Use HTTPS in production.
-- Rotate keys regularly and enforce least privilege.
+- Never commit secrets to version control.
+- Use a secrets manager in production.
+- Rotate keys periodically and enforce least privilege.
 
----
-
-## Documentation 📚
-
-Comprehensive documentation is available in the `/docs/` directory:
-
-- **[Technical Architecture](docs/VERIFICATION_SYSTEM_ARCHITECTURE.md)** - Complete system architecture and inner workings
-- **[Project Structure](docs/PROJECT_STRUCTURE.md)** - Detailed codebase organization guide  
-- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions
-- **[SDK Documentation](docs/SDK_IMPLEMENTATION_SUMMARY.md)** - JavaScript and Python SDK usage
-- **[Product Requirements](docs/Specs/Prd.md)** - Original product specification
-- **[Technical Requirements](docs/Specs/requirements.md)** - Implementation requirements
-- **[Development Tasks](docs/Specs/tasks.md)** - Development checklist
+Verification thresholds
+- Thresholds and dynamic threshold config files allow tuning face-match and OCR acceptance sensitivity. See backend/src/config/verificationThresholds.ts and dynamicThresholds for adjustable behaviour.
 
 ---
 
 ## Contributing 🤝
 
-We welcome contributions! Please follow these steps:
+Contributions are welcome! Whether it’s a bug fix, new feature, or documentation improvement — thank you.
 
+How to contribute
 1. Fork the repository
-2. Create a feature branch: `git checkout -b feat/my-feature`
+2. Create a branch: `git checkout -b feat/my-feature`
 3. Commit changes with clear messages
-4. Add tests where appropriate
+4. Run tests and linters
 5. Open a Pull Request targeting `main`
 
 Guidelines
-- Code style: TypeScript + consistent linting (ESLint/Prettier recommended)
-- Tests: add unit/integration tests for new features
-- Run linters and tests before submitting PRs
-- Use conventional commits if possible
+- Follow TypeScript best practices and keep code consistent with existing style (use ESLint/Prettier)
+- Add unit / integration tests for new features
+- Use conventional commits when possible
+- Open an issue for large features before coding to discuss design
 
-If you plan a large change, open an issue first to discuss the design.
-
-See also: CONTRIBUTING.md (create one if missing) and CLAUDE.md (project-specific notes included in repo).
+See also: add a CONTRIBUTING.md in the repo for project-specific instructions.
 
 ---
 
 ## Tests 🧪
 
 Testing strategy
-- Unit tests for business logic
-- Integration tests for API endpoints (connect to test DB)
-- End-to-end tests for critical flows (optional)
+- Unit tests for business logic (services, utils)
+- Integration tests for API routes (use a test DB)
+- E2E tests for critical flows (optional)
 
-Typical commands (if scripts exist)
+Typical commands (if defined in package.json)
 ```bash
+# run unit tests
 npm run test
+
+# run tests and report coverage
 npm run test:ci
+
+# linting
 npm run lint
 ```
 
-If test scripts are not present, add them to package.json and follow repo conventions.
+If test scripts are missing, create test scripts in package.json and follow existing conventions.
 
 ---
 
 ## Deployment 🚀
 
-Options:
-- Docker Compose (recommended for quick deployments)
-- Deploy backend to any Node host (Heroku, DigitalOcean, AWS ECS, etc.)
-- Frontend to static hosting (Netlify, Vercel, S3 + CloudFront)
-- Use Supabase for DB + storage, or connect to your Postgres and S3-compatible storage
+Options
+- Docker Compose — easiest for local/quick deployments (if docker files are included)
+- Deploy backend to Node hosting: Docker, ECS, Heroku, DigitalOcean, etc.
+- Frontend to static hosts: Vercel, Netlify, S3 + CloudFront
+- Use Supabase for DB + storage or connect to managed Postgres + S3-compatible storage
 
-Production checklist:
-- Set NODE_ENV=production
-- Use a secure secrets store for DB and API keys
-- Configure SSL/HTTPS and reverse proxy (nginx)
-- Set up monitoring and health checks (e.g. /health endpoint)
+Production checklist
+- NODE_ENV=production
+- Use a secure secrets store for DB credentials and API keys
+- Configure HTTPS and reverse proxy (e.g. nginx)
+- Enable monitoring and health checks (e.g. /health)
 - Back up DB and storage
-- Configure rate limiting and alerts
+- Configure rate limiting, alerts, and log retention
+- Ensure ENCRYPTION_KEY is securely stored and rotated
 
-Example: Docker
+Example (Docker)
 ```bash
+# if docker-compose.prod.yml exists
 docker-compose -f docker-compose.prod.yml up -d
 ```
 
@@ -318,15 +301,15 @@ docker-compose -f docker-compose.prod.yml up -d
 
 - Node.js + TypeScript
 - Express.js
-- React + Vite + Tailwind CSS
+- React + Vite + Tailwind CSS (frontend)
 - PostgreSQL / Supabase
 - Tesseract OCR
 - face-api.js (face recognition)
-- Optional: Persona, Onfido integrations
+- Optional integrations: Persona, Onfido
 
 ---
 
-## Authors ✍️
+## Authors 👩‍💻👨‍💻
 
 - Maintainer: doobee46 — https://github.com/doobee46
 - Contributors: Welcome! See the repository contributors list.
@@ -341,13 +324,13 @@ This project is licensed under the MIT License — see the [LICENSE](./LICENSE) 
 
 ## Roadmap 🗺️
 
-Planned improvements:
-- [ ] Additional document type support (regional IDs)
+Planned improvements
+- [ ] Additional regional document types
 - [ ] Liveness detection for selfie flows
 - [ ] Multi-language OCR improvements
 - [ ] Official Mobile SDK (React Native)
 - [ ] Expanded storage provider integrations (GCS, Azure)
-- [ ] Enterprise features: SSO, audit logs, role-based access
+- [ ] Enterprise features: SSO, audit logs, RBAC
 
 Want a feature? Open an issue and tag it as a request.
 
@@ -356,13 +339,35 @@ Want a feature? Open an issue and tag it as a request.
 ## FAQ ❓
 
 Q: Can I self-host this in production?
-A: Yes — the project is designed for self-hosting with Postgres/Supabase and configurable storage. Ensure you follow the security checklist.
+A: Yes — the project is designed for self-hosting. Follow the production checklist and secure your secrets.
 
-Q: Is the OCR accurate for non-Latin scripts?
-A: OCR quality depends on the Tesseract language data you configure. Multi-language support is on the roadmap.
+Q: Is OCR accurate for non-Latin scripts?
+A: OCR accuracy depends on Tesseract language packs configured. Multi-language support requires appropriate Tesseract data files.
 
 Q: How are personal files stored?
-A: Files are encrypted at rest using the ENCRYPTION_KEY. Additional security measures (access control, retention policies) should be configured in production.
+A: Files are intended to be encrypted at rest using ENCRYPTION_KEY. Configure retention policies and access controls in production.
+
+Q: Where are the DB schema and migrations?
+A: If present, look for `sql/`, `supabase/migrations/` or similar directories in the repo. If absent, create/seed the DB schema using provided docs or scripts.
+
+---
+
+## Changelog 📝
+
+See the repository Releases (if used) or tags for versioned changelogs. If you maintain a CHANGELOG.md, follow Semantic Versioning and note breaking changes under a separate header.
+
+Example format for future releases:
+- v0.1.0 — 2024-01-01
+  - Initial public alpha: document OCR, face matching, API key management
+
+---
+
+## Acknowledgments 🙏
+
+- Tesseract OCR
+- face-api.js
+- Supabase community
+- Open-source developer contributors and maintainers
 
 ---
 
@@ -370,10 +375,9 @@ A: Files are encrypted at rest using the ENCRYPTION_KEY. Additional security mea
 
 - Issues: https://github.com/doobee46/idswyft/issues
 - Discussions: https://github.com/doobee46/idswyft/discussions
-- For urgent or enterprise inquiries, open an issue and tag it "enterprise" or contact the maintainer via GitHub.
+- For enterprise or urgent inquiries, open an issue and tag it "enterprise" or contact the maintainer via GitHub.
 
 ---
 
-Thank you for checking out Idswyft ❤️
-If you use or contribute to the project, please star the repo and join the discussion!
+Thank you for checking out Idswyft! If you use or contribute to the project, please star the repo ⭐ and join the discussion.
 
