@@ -228,8 +228,11 @@ router.post('/document',
       throw new FileUploadError(fileTypeCheck.reason || 'Invalid file type');
     }
 
-    // Get verification request
-    const verificationRequest = await verificationService.getVerificationRequest(verification_id);
+    // Scope lookup to this developer — prevents IDOR (one developer accessing another's verification)
+    const verificationRequest = await verificationService.getVerificationRequestForDeveloper(
+      verification_id,
+      (req as any).developer.id
+    );
     if (!verificationRequest) {
       throw new ValidationError('Verification request not found', 'verification_id', verification_id);
     }
@@ -406,8 +409,11 @@ router.post('/selfie',
       throw new FileUploadError(selfieTypeCheck.reason || 'Selfie must be a JPEG or PNG image');
     }
 
-    // Get verification request
-    const verificationRequest = await verificationService.getVerificationRequest(verification_id);
+    // Scope lookup to this developer — prevents IDOR
+    const verificationRequest = await verificationService.getVerificationRequestForDeveloper(
+      verification_id,
+      (req as any).developer.id
+    );
     if (!verificationRequest) {
       throw new ValidationError('Verification request not found', 'verification_id', verification_id);
     }
@@ -537,9 +543,18 @@ router.post('/back-of-id',
     if (!file) {
       throw new FileUploadError('Back-of-ID file is required');
     }
-    
-    // Get verification request
-    const verificationRequest = await verificationService.getVerificationRequest(verification_id);
+
+    // Validate actual file bytes — rejects MIME-type spoofing
+    const backIdTypeCheck = await validateFileType(file.buffer);
+    if (!backIdTypeCheck.valid) {
+      throw new FileUploadError(backIdTypeCheck.reason || 'Invalid file type');
+    }
+
+    // Scope lookup to this developer — prevents IDOR
+    const verificationRequest = await verificationService.getVerificationRequestForDeveloper(
+      verification_id,
+      (req as any).developer.id
+    );
     if (!verificationRequest) {
       throw new ValidationError('Verification request not found', 'verification_id', verification_id);
     }

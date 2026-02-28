@@ -39,7 +39,7 @@ export class VerificationService {
       .select('*')
       .eq('id', id)
       .single();
-    
+
     if (error) {
       if (error.code === 'PGRST116') {
         return null;
@@ -47,7 +47,34 @@ export class VerificationService {
       logger.error('Failed to get verification request:', error);
       throw new Error('Failed to get verification request');
     }
-    
+
+    return verification as VerificationRequest;
+  }
+
+  /**
+   * Like getVerificationRequest but scoped to a specific developer.
+   * Returns null if the verification exists but belongs to a different developer.
+   * Use this on all developer-authenticated endpoints to prevent IDOR attacks.
+   */
+  async getVerificationRequestForDeveloper(
+    id: string,
+    developerId: string
+  ): Promise<VerificationRequest | null> {
+    const { data: verification, error } = await supabase
+      .from('verification_requests')
+      .select('*')
+      .eq('id', id)
+      .eq('developer_id', developerId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null; // Not found or belongs to a different developer
+      }
+      logger.error('Failed to get scoped verification request:', error);
+      throw new Error('Failed to get verification request');
+    }
+
     return verification as VerificationRequest;
   }
   
