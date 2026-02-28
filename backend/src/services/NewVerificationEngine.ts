@@ -74,6 +74,7 @@ import { VerificationService } from './verification.js';
 import { FaceRecognitionService } from './faceRecognition.js';
 import { VerificationConsistencyService } from './verificationConsistency.js';
 import { logger } from '@/utils/logger.js';
+import { supabase } from '@/config/database.js';
 
 export class NewVerificationEngine {
   private ocrService: OCRService;
@@ -138,6 +139,11 @@ export class NewVerificationEngine {
       state.status = VerificationStatus.FRONT_DOCUMENT_PROCESSED;
       state.updatedAt = new Date();
       await this.saveVerificationState(state);
+      await this.persistState(verificationId, {
+        status: state.status,
+        frontDocumentId: state.frontDocumentId,
+        frontOcrData: ocrData,
+      });
 
       console.log('✅ Step 2/6: Front document processed successfully');
       return state;
@@ -181,6 +187,11 @@ export class NewVerificationEngine {
       state.status = VerificationStatus.BACK_DOCUMENT_PROCESSED;
       state.updatedAt = new Date();
       await this.saveVerificationState(state);
+      await this.persistState(verificationId, {
+        status: state.status,
+        backDocumentId: state.backDocumentId,
+        backBarcodeData: barcodeData,
+      });
 
       console.log('✅ Step 3/6: Back document processed', {
         barcodeSuccess: !state.barcodeExtractionFailed
@@ -295,6 +306,12 @@ export class NewVerificationEngine {
       state.status = VerificationStatus.LIVE_CAPTURE_COMPLETED;
       state.updatedAt = new Date();
       await this.saveVerificationState(state);
+      await this.persistState(verificationId, {
+        status: state.status,
+        liveCaptureId: state.liveCaptureId,
+        faceMatchResults,
+        livenessResults,
+      });
 
       console.log('✅ Step 5/6: Live capture processing completed', {
         faceMatch: state.faceMatchPassed,
@@ -358,6 +375,11 @@ export class NewVerificationEngine {
     }
 
     await this.saveVerificationState(state);
+    await this.persistState(verificationId, {
+      status: state.status,
+      finalScore: state.finalScore,
+      failureReason: state.failureReason,
+    });
     console.log('🎉 Step 6/6: Verification algorithm completed');
 
     return state;
@@ -366,6 +388,40 @@ export class NewVerificationEngine {
   // Helper methods (to be implemented)
   private generateVerificationId(): string {
     return `ver_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
+   * Persists a partial state update directly to the DB.
+   * saveVerificationState() only writes the basic status/score fields; this
+   * method covers the additional columns (OCR data, document IDs, final score,
+   * failure reason) so state survives a server restart at any pipeline step.
+   */
+  private async persistState(
+    verificationId: string,
+    partial: Partial<VerificationState>
+  ): Promise<void> {
+    const { error } = await supabase
+      .from('verification_requests')
+      .update({
+        status: partial.status ?? undefined,
+        front_document_id: partial.frontDocumentId ?? undefined,
+        back_document_id: partial.backDocumentId ?? undefined,
+        live_capture_id: partial.liveCaptureId ?? undefined,
+        ocr_data: partial.frontOcrData ?? undefined,
+        barcode_data: partial.backBarcodeData ?? undefined,
+        face_match_score: partial.faceMatchResults?.score ?? undefined,
+        liveness_score: partial.livenessResults?.score ?? undefined,
+        cross_validation_score: partial.crossValidationResults?.score ?? undefined,
+        confidence_score: partial.finalScore ?? undefined,
+        failure_reason: partial.failureReason ?? undefined,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', verificationId);
+
+    if (error) {
+      logger.error('Failed to persist verification state', { verificationId, error });
+      throw new Error(`State persistence failed: ${error.message}`);
+    }
   }
 
   private async saveVerificationState(state: VerificationState): Promise<void> {
