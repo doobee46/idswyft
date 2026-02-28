@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { buildCorsOptions } from './middleware/cors.js';
+import { csrfProtection } from './middleware/csrf.js';
 import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
@@ -88,6 +89,8 @@ app.use('/api', apiActivityLogger);
 app.use('/api/verify', verificationRoutes);
 app.use('/api/v2/verify', newVerificationRoutes); // New clean verification engine
 app.use('/api/developer', developerRoutes);
+// CSRF protection for state-changing admin endpoints (cookie-based session auth)
+app.use('/api/admin', csrfProtection);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/thresholds', adminThresholdsRoutes);
 app.use('/api/auth', authRoutes);

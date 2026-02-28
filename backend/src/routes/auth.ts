@@ -6,8 +6,15 @@ import { supabase } from '@/config/database.js';
 import { generateAdminToken, generateDeveloperToken } from '@/middleware/auth.js';
 import { catchAsync, ValidationError, AuthenticationError } from '@/middleware/errorHandler.js';
 import { logger } from '@/utils/logger.js';
+import { generateToken } from '@/middleware/csrf.js';
 
 const router = express.Router();
+
+// GET /api/auth/csrf-token — frontend calls this before any admin mutation
+router.get('/csrf-token', (req: Request, res: Response) => {
+  const token = generateToken(req, res);
+  res.json({ csrfToken: token });
+});
 
 // Admin login
 router.post('/admin/login',
