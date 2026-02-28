@@ -5,6 +5,7 @@ import { body, param, validationResult } from 'express-validator';
 import { authenticateAPIKey, authenticateUser, checkSandboxMode } from '@/middleware/auth.js';
 import { verificationRateLimit } from '@/middleware/rateLimit.js';
 import { catchAsync, ValidationError, FileUploadError } from '@/middleware/errorHandler.js';
+import { idempotencyMiddleware } from '@/middleware/idempotency.js';
 import { VerificationService } from '@/services/verification.js';
 import { StorageService } from '@/services/storage.js';
 import { OCRService } from '@/services/ocr.js';
@@ -128,6 +129,7 @@ const thresholdManager = DynamicThresholdManager.getInstance();
 // Route: POST /api/verify/start - Start a new verification session
 router.post('/start',
   authenticateAPIKey,
+  idempotencyMiddleware,
   checkSandboxMode,
   verificationRateLimit,
   [
