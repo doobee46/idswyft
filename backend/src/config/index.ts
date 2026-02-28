@@ -64,6 +64,14 @@ export const config: AppConfig = {
     enabled: process.env.SANDBOX_MODE === 'true',
     mockVerification: process.env.ENABLE_MOCK_VERIFICATION === 'true',
     mockDelayMs: parseInt(process.env.MOCK_VERIFICATION_DELAY_MS || '2000')
+  },
+
+  providers: {
+    ocr: (process.env.OCR_PROVIDER ?? 'auto') as 'tesseract' | 'openai' | 'azure' | 'aws-textract' | 'auto',
+    face: (process.env.FACE_PROVIDER ?? 'tensorflow') as 'tensorflow' | 'aws-rekognition' | 'custom',
+    liveness: (process.env.LIVENESS_PROVIDER ?? 'heuristic') as 'heuristic' | 'custom',
+    customOcrEndpoint: process.env.CUSTOM_OCR_ENDPOINT,
+    customFaceEndpoint: process.env.CUSTOM_FACE_ENDPOINT,
   }
 };
 

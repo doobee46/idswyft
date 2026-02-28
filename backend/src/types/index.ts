@@ -284,6 +284,13 @@ export interface AppConfig {
     mockVerification: boolean;
     mockDelayMs: number;
   };
+  providers: {
+    ocr: 'tesseract' | 'openai' | 'azure' | 'aws-textract' | 'auto';
+    face: 'tensorflow' | 'aws-rekognition' | 'custom';
+    liveness: 'heuristic' | 'custom';
+    customOcrEndpoint?: string;
+    customFaceEndpoint?: string;
+  };
 }
 
 // Error Types
