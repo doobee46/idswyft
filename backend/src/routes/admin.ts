@@ -7,6 +7,7 @@ import { WebhookService } from '@/services/webhook.js';
 import { StorageService } from '@/services/storage.js';
 import { supabase } from '@/config/database.js';
 import { logger } from '@/utils/logger.js';
+import { DataRetentionService } from '@/services/dataRetention.js';
 
 const router = express.Router();
 const verificationService = new VerificationService();
@@ -427,5 +428,20 @@ async function getAnalytics(period: string, developerId?: string): Promise<any> 
     }
   };
 }
+
+// GDPR / Right-to-erasure endpoint
+router.delete('/user/:userId/data',
+  authenticateJWT,
+  requireAdminRole(['admin']),
+  catchAsync(async (req: Request, res: Response) => {
+    const { userId } = req.params;
+    const { reason = 'admin-requested' } = req.body;
+
+    const retentionService = new DataRetentionService();
+    await retentionService.deleteUserData(userId, reason);
+
+    res.json({ success: true, message: `User data for ${userId} has been deleted` });
+  })
+);
 
 export default router;
