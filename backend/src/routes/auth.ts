@@ -3,8 +3,9 @@ import bcrypt from 'bcryptjs';
 import { body, validationResult } from 'express-validator';
 import validator from 'validator';
 import { supabase } from '@/config/database.js';
-import { generateAdminToken, generateDeveloperToken } from '@/middleware/auth.js';
+import { generateAdminToken, generateDeveloperToken, authenticateJWT } from '@/middleware/auth.js';
 import { catchAsync, ValidationError, AuthenticationError } from '@/middleware/errorHandler.js';
+import { TotpService } from '@/services/totpService.js';
 import { logger } from '@/utils/logger.js';
 import { generateToken } from '@/middleware/csrf.js';
 
@@ -56,15 +57,28 @@ router.post('/admin/login',
       throw new AuthenticationError('Invalid credentials');
     }
     
+    // If TOTP is enabled, require a TOTP token in the same request
+    if (adminUser.totp_enabled) {
+      const { totp_token } = req.body;
+      if (!totp_token) {
+        // Return 200 so the client knows to prompt for a TOTP code
+        return res.status(200).json({ requires_totp: true });
+      }
+      const totp = new TotpService();
+      if (!totp.verifyToken(totp_token, adminUser.totp_secret)) {
+        throw new AuthenticationError('Invalid 2FA token');
+      }
+    }
+
     // Generate token
     const token = generateAdminToken(adminUser);
-    
+
     logger.info('Admin user logged in', {
       adminId: adminUser.id,
       email: adminUser.email,
       role: adminUser.role
     });
-    
+
     res.json({
       token,
       user: {
@@ -147,6 +161,53 @@ router.post('/developer/login',
         created_at: developer.created_at
       }
     });
+  })
+);
+
+// POST /api/auth/totp/setup — generate and store TOTP secret, return QR code
+router.post('/totp/setup',
+  authenticateJWT,
+  catchAsync(async (req: Request, res: Response) => {
+    const user = (req as any).user;
+    const totp = new TotpService();
+    const secret = totp.generateSecret();
+    const qrCode = await totp.generateQrCode(user.email, secret);
+
+    // Store the unverified secret; totp_enabled stays false until /totp/verify succeeds
+    await supabase.from('admin_users')
+      .update({ totp_secret: secret, totp_enabled: false })
+      .eq('id', user.id);
+
+    res.json({ qrCode, secret });
+  })
+);
+
+// POST /api/auth/totp/verify — verify first token, enable TOTP for this account
+router.post('/totp/verify',
+  authenticateJWT,
+  catchAsync(async (req: Request, res: Response) => {
+    const { token } = req.body;
+    const user = (req as any).user;
+
+    const { data: admin } = await supabase.from('admin_users')
+      .select('totp_secret')
+      .eq('id', user.id)
+      .single();
+
+    if (!admin?.totp_secret) {
+      throw new ValidationError('TOTP setup not started', 'token', token);
+    }
+
+    const totp = new TotpService();
+    if (!totp.verifyToken(token, admin.totp_secret)) {
+      throw new ValidationError('Invalid TOTP token', 'token', token);
+    }
+
+    await supabase.from('admin_users')
+      .update({ totp_enabled: true, totp_verified_at: new Date().toISOString() })
+      .eq('id', user.id);
+
+    res.json({ message: '2FA enabled successfully' });
   })
 );
 
