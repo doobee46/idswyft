@@ -223,6 +223,13 @@ const startServer = async () => {
         consistencyMonitor.start(300000); // 5 minute intervals
         console.log('🔍 Verification consistency monitor started');
       }
+
+      // Temp file cleanup — runs every 15 minutes, deletes files older than 1 hour
+      const { TempCleanupService } = await import('./services/tempCleanup.js');
+      const tempCleaner = new TempCleanupService();
+      setInterval(async () => {
+        await tempCleaner.cleanup({ maxAgeMs: 60 * 60 * 1000 });
+      }, 15 * 60 * 1000);
     });
 
     // Graceful shutdown
