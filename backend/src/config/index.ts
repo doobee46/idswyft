@@ -67,3 +67,15 @@ export const config: AppConfig = {
 };
 
 export default config;
+
+// Validate secrets at startup — throws in production if placeholder values are present
+import { validateSecrets } from './validateSecrets.js';
+
+if (process.env.NODE_ENV === 'production') {
+  validateSecrets({
+    jwtSecret: config.jwtSecret,
+    apiKeySecret: config.apiKeySecret,
+    encryptionKey: config.encryptionKey,
+    serviceToken: config.serviceToken,
+  });
+}
