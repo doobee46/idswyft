@@ -589,4 +589,64 @@ router.get('/activity',
   })
 );
 
+// POST /api/developer/api-key/:id/rotate
+// Creates a new key with the same settings and gives the old key a grace period
+// (default 7 days) before it expires, so integrations have time to update.
+router.post('/api-key/:id/rotate',
+  authenticateDeveloperJWT,
+  catchAsync(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { gracePeriodHours = 168 } = req.body; // default: 7 days
+
+    // Verify the key belongs to this developer and is currently active
+    const { data: oldKey, error } = await supabase
+      .from('api_keys')
+      .select('*')
+      .eq('id', id)
+      .eq('developer_id', (req as any).developer!.id)
+      .eq('is_active', true)
+      .single();
+
+    if (error || !oldKey) throw new NotFoundError('API key not found');
+
+    // Generate a fresh key
+    const { key, hash, prefix } = generateAPIKey();
+
+    const { data: newKey } = await supabase
+      .from('api_keys')
+      .insert({
+        developer_id: (req as any).developer!.id,
+        key_hash: hash,
+        key_prefix: prefix,
+        name: `${oldKey.name} (rotated)`,
+        is_sandbox: oldKey.is_sandbox,
+        is_active: true,
+      })
+      .select()
+      .single();
+
+    // Mark the old key to expire after the grace period (still usable until then)
+    const expiresAt = new Date(Date.now() + gracePeriodHours * 60 * 60 * 1000);
+    await supabase
+      .from('api_keys')
+      .update({ expires_at: expiresAt.toISOString() })
+      .eq('id', id);
+
+    logger.info('API key rotated', {
+      developerId: (req as any).developer!.id,
+      oldKeyId: id,
+      newKeyId: newKey?.id,
+      gracePeriodHours,
+    });
+
+    res.status(201).json({
+      new_key: key,                              // shown once — store securely
+      new_key_id: newKey?.id,
+      old_key_expires_at: expiresAt.toISOString(),
+      grace_period_hours: gracePeriodHours,
+      message: `Old key will remain active until ${expiresAt.toISOString()}. Update your integration before then.`,
+    });
+  })
+);
+
 export default router;
