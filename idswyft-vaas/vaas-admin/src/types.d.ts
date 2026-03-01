@@ -187,6 +187,8 @@ export interface Webhook {
   last_success_at?: string;
   last_failure_at?: string;
   failure_count: number;
+  max_retries?: number;
+  retry_backoff_minutes?: number;
   created_at: string;
   updated_at: string;
 }
@@ -212,6 +214,8 @@ export interface WebhookFormData {
   url: string;
   events: string[];
   secret_key?: string;
+  max_retries?: number;
+  retry_backoff_minutes?: number;
 }
 
 export interface UsageStats {

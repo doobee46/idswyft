@@ -353,6 +353,14 @@ class ApiClient {
     };
   }
 
+  async getWebhookSecret(webhookId: string): Promise<string> {
+    const response: AxiosResponse<ApiResponse<{ secret: string }>> = await this.client.get(`/webhooks/${webhookId}/secret`);
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to fetch webhook secret');
+    }
+    return response.data.data!.secret;
+  }
+
   // End Users
   async listEndUsers(params?: {
     status?: string;
