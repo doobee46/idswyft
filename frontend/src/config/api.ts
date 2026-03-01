@@ -28,5 +28,7 @@ export const getDocumentationApiUrl = () => {
   return API_BASE_URL;
 };
 
-console.log('🔧 API Base URL:', API_BASE_URL);
-console.log('🔧 Sandbox Mode:', shouldUseSandbox());
+if (import.meta.env.DEV) {
+  console.log('🔧 API Base URL:', API_BASE_URL);
+  console.log('🔧 Sandbox Mode:', shouldUseSandbox());
+}
