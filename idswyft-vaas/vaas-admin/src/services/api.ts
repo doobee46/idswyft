@@ -119,11 +119,32 @@ class ApiClient {
     }
 
     const loginData = response.data.data!;
+    if ((loginData as any).mfa_required) {
+      return loginData; // MFA step — no JWT yet, don't store anything
+    }
     this.token = loginData.token;
     localStorage.setItem('vaas_admin_token', this.token);
     this.setAuthHeader(this.token);
-    
+
     return loginData;
+  }
+
+  async verifyTotp(tempToken: string, totpCode: string): Promise<{ token: string }> {
+    const response: AxiosResponse<ApiResponse<{ token: string }>> = await this.client.post('/auth/totp/verify', {
+      temp_token: tempToken,
+      totp_code: totpCode,
+    });
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'TOTP verification failed');
+    }
+    const data = response.data.data!;
+    if (!data.token || typeof data.token !== 'string') {
+      throw new Error('TOTP verification returned an invalid token');
+    }
+    this.token = data.token;
+    localStorage.setItem('vaas_admin_token', this.token);
+    this.setAuthHeader(this.token);
+    return data;
   }
 
   async logout(): Promise<void> {
