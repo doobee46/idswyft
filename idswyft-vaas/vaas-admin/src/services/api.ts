@@ -1,5 +1,5 @@
-import axios from 'axios';
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import { createApiClient, RetryAfterError, type ApiError } from '../lib/apiClient';
 import {
   ApiResponse,
   LoginRequest,
@@ -47,21 +47,12 @@ class ApiClient {
   private token: string | null = null;
 
   constructor() {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002/api';
-    console.log('[API Client] Initializing with baseURL:', apiUrl);
-    console.log('[API Client] Environment check:', {
-      VITE_API_URL: import.meta.env.VITE_API_URL,
-      NODE_ENV: import.meta.env.NODE_ENV,
-      MODE: import.meta.env.MODE
-    });
-    
-    this.client = axios.create({
-      baseURL: apiUrl,
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    const BASE_URL = import.meta.env.VITE_API_URL
+      ? `${import.meta.env.VITE_API_URL}/api/v1`
+      : 'http://localhost:3002/api/v1';
+    console.log('[API Client] Initializing with baseURL:', BASE_URL);
+
+    this.client = createApiClient(BASE_URL);
 
     // Load token from localStorage
     this.token = localStorage.getItem('vaas_admin_token');
@@ -84,21 +75,26 @@ class ApiClient {
       }
     );
 
-    // Response interceptor
+    // Response interceptor — 401 redirect only
+    // Error normalisation (429, CSRF, shape) is handled by the createApiClient factory.
     this.client.interceptors.response.use(
-      (response) => {
-        console.log(`[API] ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url}`);
-        return response;
-      },
+      (response) => response,
       (error) => {
-        console.error(`[API] ${error.response?.status || 'NETWORK'} ${error.config?.method?.toUpperCase()} ${error.config?.url}`);
-        
-        // Handle authentication errors
-        if (error.response?.status === 401) {
+        if (error instanceof RetryAfterError) {
+          console.warn(`[API] Rate limited. Retry after ${error.retryAfter} seconds.`);
+          throw error;
+        }
+        const apiError = error as ApiError;
+        const msg = apiError.correlationId
+          ? `[API] Error [${apiError.correlationId}]: ${apiError.message}`
+          : `[API] Error: ${apiError.message ?? 'Unknown error'}`;
+        console.error(msg);
+        // Redirect to login on 401 (session expired / unauthenticated)
+        if ((error as ApiError)?.status === 401) {
           this.clearToken();
           window.location.href = '/login';
+          return new Promise(() => {}); // intentionally never resolves — page is navigating away
         }
-        
         return Promise.reject(error);
       }
     );

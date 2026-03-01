@@ -9,9 +9,11 @@ export interface ApiError {
 }
 
 export class RetryAfterError extends Error {
-  constructor(public retryAfter: number) {
+  retryAfter: number;
+  constructor(retryAfter: number) {
     super(`Rate limited. Retry after ${retryAfter} seconds.`);
     this.name = 'RetryAfterError';
+    this.retryAfter = retryAfter;
   }
 }
 

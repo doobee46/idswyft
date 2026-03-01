@@ -105,6 +105,7 @@ describe('createApiClient', () => {
       message: 'Validation failed',
       fields: [{ field: 'email', message: 'Invalid email' }],
       correlationId: 'abc-123',
+      status: 400,
     });
   });
 
@@ -113,5 +114,26 @@ describe('createApiClient', () => {
     expect(err).toBeInstanceOf(Error);
     expect(err.retryAfter).toBe(30);
     expect(err.name).toBe('RetryAfterError');
+  });
+
+  it('resets csrfFetch cache on CSRF fetch failure so next request retries', async () => {
+    const getSpy = vi.spyOn(axios, 'get')
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockResolvedValueOnce({ data: { token: 'retry-token' } });
+
+    const client = createApiClient('http://localhost:3001/api/v1');
+    // @ts-ignore
+    const requestHandler = client.interceptors.request.handlers[0]?.fulfilled;
+
+    const config1: any = { method: 'post', headers: {} };
+    const config2: any = { method: 'post', headers: {} };
+
+    // First request — CSRF fetch fails
+    await expect(requestHandler(config1)).rejects.toThrow('Network error');
+
+    // Second request — cache was reset, so it retries and succeeds
+    const result = await requestHandler(config2);
+    expect(result.headers['X-CSRF-Token']).toBe('retry-token');
+    expect(getSpy).toHaveBeenCalledTimes(2);
   });
 });
