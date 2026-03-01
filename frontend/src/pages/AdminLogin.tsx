@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { adminApi } from '../lib/adminApiInstance';
 import type { ApiError } from '../lib/apiClient';
+import { TotpModal } from '../components/auth/TotpModal';
 
 export const AdminLogin: React.FC = () => {
   const navigate = useNavigate();
@@ -150,6 +151,21 @@ export const AdminLogin: React.FC = () => {
           </div>
         </div>
       </div>
+      {showTotpModal && tempToken && (
+        <TotpModal
+          tempToken={tempToken}
+          onSuccess={(token) => {
+            setTempToken(null);
+            setShowTotpModal(false);
+            localStorage.setItem('adminToken', token);
+            navigate('/admin');
+          }}
+          onCancel={() => {
+            setShowTotpModal(false);
+            setTempToken(null);
+          }}
+        />
+      )}
     </div>
   );
 };
