@@ -44,8 +44,8 @@ export class AuthenticationError extends APIError {
 }
 
 export class AuthorizationError extends APIError {
-  constructor(message: string = 'Insufficient permissions') {
-    super(message, 403, 'AUTHORIZATION_ERROR');
+  constructor(message: string = 'Not authorized to access this resource') {
+    super(message, 403, 'FORBIDDEN');
     this.name = 'AuthorizationError';
   }
 }

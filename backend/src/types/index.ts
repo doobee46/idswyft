@@ -14,6 +14,7 @@ export interface User {
 export interface VerificationRequest {
   id: string;
   user_id: string;
+  developer_id: string;
   status: VerificationStatus;
   document_id?: string;
   selfie_id?: string;
