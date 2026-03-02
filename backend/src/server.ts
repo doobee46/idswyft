@@ -12,6 +12,7 @@ import config from './config.js';
 import { connectDB, supabase } from './config/database.js';
 import { generateAPIKey } from './middleware/auth.js';
 import { apiActivityLogger } from './middleware/apiLogger.js';
+import { errorHandler } from './middleware/errorHandler.js';
 import verificationRoutes from './routes/verification.js';
 import newVerificationRoutes from './routes/newVerification.js';
 import developerRoutes from './routes/developer.js';
@@ -198,14 +199,8 @@ app.use('*', (req, res) => {
   });
 });
 
-// Error handling middleware
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error:', err);
-  res.status(500).json({
-    error: 'Internal Server Error',
-    message: config.nodeEnv === 'development' ? err.message : 'Something went wrong'
-  });
-});
+// Error handling middleware — delegates to full handler in middleware/errorHandler.ts
+app.use(errorHandler);
 
 // Start server
 const startServer = async () => {

@@ -7,6 +7,8 @@ export default {
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // Stub packages that are not installed in the sparse worktree node_modules
+      'winston': path.resolve(__dirname, './__mocks__/winston.js'),
     },
   },
   test: {
