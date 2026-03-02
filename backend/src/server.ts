@@ -10,7 +10,7 @@ import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import config from './config.js';
 import { connectDB, supabase } from './config/database.js';
-import { generateAPIKey } from './middleware/auth.js';
+import { generateAPIKey, authenticateAPIKey } from './middleware/auth.js';
 import { apiActivityLogger } from './middleware/apiLogger.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { logger } from './utils/logger.js';
@@ -101,10 +101,9 @@ app.use('/api/health', healthRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/vaas', vaasRoutes);
 
-// Local file serving — only registered when using local storage provider
-// Requires API key auth; path traversal is blocked in serveLocalFile
+// Local file serving — authenticated with API key, path traversal blocked in serveLocalFile
 if (config.storage.provider === 'local') {
-  app.get('/api/files/*', serveLocalFile);
+  app.get('/api/files/*', authenticateAPIKey, serveLocalFile);
 }
 
 // Health check endpoint
