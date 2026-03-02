@@ -62,6 +62,9 @@ export interface VerificationState {
     status: 'verified' | 'failed' | 'manual_review';
     reason?: string;
     completedAt: Date;
+    isAuthentic?: boolean;
+    authenticityScore?: number;
+    tamperFlags?: string[];
   };
   error?: string;
 }
