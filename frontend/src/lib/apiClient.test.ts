@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import axios from 'axios';
-import { createApiClient, RetryAfterError, type ApiError } from './apiClient';
+import { createApiClient, RetryAfterError } from './apiClient';
 
 // We need to test the interceptor logic. The cleanest approach without
 // axios-mock-adapter is to test the interceptor handler functions directly
