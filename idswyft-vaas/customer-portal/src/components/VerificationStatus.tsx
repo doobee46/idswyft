@@ -28,6 +28,9 @@ interface VerificationStatusData {
   expires_at?: string;
   failure_reason?: string;
   confidence_score?: number;
+  isAuthentic?: boolean;
+  authenticityScore?: number;
+  tamperFlags?: string[];
   documents_uploaded: number;
   estimated_completion?: string;
 }
@@ -61,7 +64,7 @@ const VerificationStatus: React.FC<VerificationStatusProps> = ({ sessionToken })
   const loadStatus = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
-      setRefreshing(!silent);
+      setRefreshing(silent);
       
       const statusData = await customerPortalAPI.getVerificationStatus(sessionToken);
       setStatus(statusData as any); // Type compatibility for now
@@ -235,12 +238,43 @@ const VerificationStatus: React.FC<VerificationStatusProps> = ({ sessionToken })
               </p>
             )}
 
-            {status.confidence_score && (
+            {status.confidence_score !== undefined && (
               <p className="text-gray-600 text-sm mb-4">
                 Confidence Score: {Math.round(status.confidence_score * 100)}%
               </p>
             )}
 
+            {status.isAuthentic !== undefined && (
+              <div className="card p-4 mb-4 text-left">
+                <div className="flex items-center mb-3">
+                  <Shield className="w-5 h-5 text-gray-400 mr-2" />
+                  <p className="text-sm font-medium text-gray-900">Document Authenticity</p>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center">
+                    {status.isAuthentic ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                        Authentic
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+                        Suspicious
+                      </span>
+                    )}
+                  </div>
+                  {status.authenticityScore !== undefined && (
+                    <p className="text-sm text-gray-600">
+                      Score: {Math.min(100, Math.max(0, Math.round(status.authenticityScore * 100)))}%
+                    </p>
+                  )}
+                  <p className="text-sm text-gray-600">
+                    {status.tamperFlags && status.tamperFlags.length > 0
+                      ? status.tamperFlags.join(', ')
+                      : 'No tamper flags detected.'}
+                  </p>
+                </div>
+              </div>
+            )}
             {/* Auto-refresh indicator */}
             {(status.status === 'pending' || status.status === 'processing' || status.status === 'manual_review') && (
               <div className="flex items-center justify-center text-xs text-gray-500 mb-4">

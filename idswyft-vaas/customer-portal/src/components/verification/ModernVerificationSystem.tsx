@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { VerificationSession } from '../../types';
-import customerPortalAPI from '../../services/api';
+import customerPortalAPI, { type ApiError } from '../../services/api';
 import verificationAPI from '../../services/verificationApi';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import BrandedHeader from '../BrandedHeader';
@@ -58,6 +58,7 @@ export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> =
   const [showLiveCapture, setShowLiveCapture] = useState(false);
   const [finalStatus, setFinalStatus] = useState<'pending' | 'processing' | 'completed' | 'verified' | 'failed' | 'manual_review' | null>(null);
   const [verificationResults, setVerificationResults] = useState<any>(null);
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
   const { branding, organizationName, setBranding, setOrganizationName } = useOrganization();
 
   const frontInputRef = useRef<HTMLInputElement>(null);
@@ -199,6 +200,9 @@ export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> =
       console.log('✅ Live capture uploaded successfully');
       setCurrentStep(5); // Move to final step
 
+      // Submit verification with idempotency key
+      await handleSubmitVerification();
+
       // Poll for final results
       pollForFinalResults(verificationId);
     } catch (error) {
@@ -206,6 +210,19 @@ export const ModernVerificationSystem: React.FC<ModernVerificationSystemProps> =
       setError(`Failed to upload live capture: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleSubmitVerification = async () => {
+    if (!session) return;
+    try {
+      await customerPortalAPI.submitVerification(sessionToken, idempotencyKey);
+    } catch (err: any) {
+      if (err?.status === 409) {
+        setError('This verification was already submitted. Please check your status.');
+      } else {
+        setError((err as ApiError)?.message ?? 'Submission failed. Please try again.');
+      }
     }
   };
 

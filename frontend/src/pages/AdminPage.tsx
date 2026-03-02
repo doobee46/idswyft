@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { API_BASE_URL } from '../config/api';
+import { exportUserData, deleteUserData } from '../lib/adminApiInstance';
 
 interface VerificationRequest {
   id: string;
@@ -22,6 +23,8 @@ export const AdminPage: React.FC = () => {
     failed: 0,
     manual_review: 0
   });
+
+  const [deletingData, setDeletingData] = useState<string | null>(null);
 
   useEffect(() => {
     // Check if user is authenticated
@@ -274,22 +277,56 @@ export const AdminPage: React.FC = () => {
                     {new Date(verification.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {verification.status === 'pending' && (
-                      <div className="flex space-x-2">
+                    <div className="flex flex-col gap-2">
+                      {verification.status === "pending" && (
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleStatusUpdate(verification.id, "verified")}
+                            className="text-green-600 hover:text-green-800"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleStatusUpdate(verification.id, "failed")}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      )}
+                      <div className="flex gap-2 mt-1">
                         <button
-                          onClick={() => handleStatusUpdate(verification.id, 'verified')}
-                          className="text-green-600 hover:text-green-800"
+                          onClick={() => {
+                            exportUserData(verification.user_id).catch((err: unknown) => {
+                              alert('Export failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+                            });
+                          }}
+                          className="px-3 py-1 text-xs border rounded-lg hover:bg-gray-50"
                         >
-                          Approve
+                          Export Data
                         </button>
                         <button
-                          onClick={() => handleStatusUpdate(verification.id, 'failed')}
-                          className="text-red-600 hover:text-red-800"
+                          onClick={async () => {
+                            if (!window.confirm("This permanently deletes all personal data for this user and cannot be undone.")) return;
+                            setDeletingData(verification.user_id);
+                            try {
+                              await deleteUserData(verification.user_id);
+                              // Remove all rows for this user — the GDPR delete wipes all their personal data
+                              setVerifications(prev => prev.filter(v => v.user_id !== verification.user_id));
+                              alert("User data deleted successfully.");
+                            } catch (err: unknown) {
+                              alert("Failed to delete: " + (err instanceof Error ? err.message : "Unknown error"));
+                            } finally {
+                              setDeletingData(null);
+                            }
+                          }}
+                          disabled={deletingData === verification.user_id}
+                          className="px-3 py-1 text-xs border border-red-200 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50"
                         >
-                          Reject
+                          {deletingData === verification.user_id ? "Deleting..." : "Delete All Data"}
                         </button>
                       </div>
-                    )}
+                    </div>
                   </td>
                 </tr>
               ))}
