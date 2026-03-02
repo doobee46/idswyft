@@ -98,9 +98,10 @@ router.post('/developer/login',
       .normalizeEmail()
       .withMessage('Valid email is required'),
     body('password')
-      .optional()
-      .isLength({ min: 6 })
-      .withMessage('Password must be at least 6 characters')
+      .notEmpty()
+      .withMessage('Password is required')
+      .isLength({ min: 8 })
+      .withMessage('Password must be at least 8 characters')
   ],
   catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
@@ -123,23 +124,20 @@ router.post('/developer/login',
       throw new AuthenticationError('Invalid credentials or developer account not found');
     }
     
-    // For MVP, we'll implement simple email-based auth
-    // In production, you should add password hashing to the developers table
-    if (password && developer.password_hash) {
-      // If password is provided and developer has a password hash, verify it
-      const isValidPassword = await bcrypt.compare(password, developer.password_hash);
-      if (!isValidPassword) {
-        logger.warn('Developer login attempt with invalid password', { 
-          email,
-          developerId: developer.id 
-        });
-        throw new AuthenticationError('Invalid credentials');
-      }
-    } else if (password && !developer.password_hash) {
-      // If password provided but no hash stored, reject
+    // Password is always required (enforced by express-validator above).
+    // Reject if the developer account has no password hash set.
+    if (!developer.password_hash) {
+      logger.warn('Developer login attempt but account has no password set', { email });
       throw new AuthenticationError('Invalid credentials');
     }
-    // If no password provided and no hash stored, allow email-only login for MVP
+    const isValidPassword = await bcrypt.compare(password, developer.password_hash);
+    if (!isValidPassword) {
+      logger.warn('Developer login attempt with invalid password', {
+        email,
+        developerId: developer.id,
+      });
+      throw new AuthenticationError('Invalid credentials');
+    }
     
     // Generate token
     const token = generateDeveloperToken(developer);
