@@ -39,7 +39,8 @@ import {
   AdminUserFilters,
   AdminUserResponse,
   RolePermissionUpdate,
-  AdminUserPasswordReset
+  AdminUserPasswordReset,
+  ActiveSession
 } from '../types.js';
 
 class ApiClient {
@@ -928,6 +929,28 @@ class ApiClient {
     }
 
     return response.data.data!;
+  }
+
+
+  // Session management
+  async getSessions(): Promise<ActiveSession[]> {
+    const response: AxiosResponse<ApiResponse<{ sessions: ActiveSession[] } | ActiveSession[]>> =
+      await this.client.get('/auth/sessions');
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to load sessions');
+    }
+    const data = response.data.data!;
+    if (Array.isArray(data)) return data;
+    if (data && 'sessions' in data) return (data as { sessions: ActiveSession[] }).sessions;
+    throw new Error('Unexpected response shape from /auth/sessions');
+  }
+
+  async revokeSession(sessionId: string): Promise<void> {
+    const response: AxiosResponse<ApiResponse<void>> =
+      await this.client.delete(`/auth/sessions/${sessionId}`);
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to revoke session');
+    }
   }
 
   // Utility methods

@@ -692,3 +692,11 @@ export interface AdminUserPasswordReset {
   require_password_change: boolean;
   send_email: boolean;
 }
+
+export interface ActiveSession {
+  id: string;
+  ip: string;
+  userAgent: string;
+  lastActiveAt: string;
+  isCurrent: boolean;
+}

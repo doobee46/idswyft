@@ -16,6 +16,7 @@ import ApiKeys from './pages/ApiKeys';
 import Billing from './pages/Billing';
 import AuditLogs from './pages/AuditLogs';
 import AdminUserManagement from './pages/AdminUserManagement';
+import Sessions from './pages/Sessions';
 import DebugInfo from './components/debug/DebugInfo';
 
 // Development route for debugging
@@ -53,6 +54,7 @@ function App() {
               <Route path="api-keys" element={<ApiKeys />} />
               <Route path="audit-logs" element={<AuditLogs />} />
               <Route path="team" element={<AdminUserManagement />} />
+              <Route path="sessions" element={<Sessions />} />
               <Route path="settings" element={<Settings />} />
             </Route>
             
