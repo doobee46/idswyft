@@ -11,9 +11,7 @@ describe('errorHandler export', () => {
     expect(errorHandler.length).toBe(4);
   });
 
-  it('calls next when error is not an operational error (passes through)', () => {
-    // When err.isOperational is falsy and we are in production, sendErrorProd should run.
-    // Here we test the handler does not throw when invoked.
+  it('does not throw when invoked with an operational error', () => {
     const mockErr = { message: 'test error', statusCode: 400, status: 'fail', isOperational: true };
     const mockReq = { originalUrl: '/test', method: 'GET', ip: '127.0.0.1', headers: {} } as any;
     const mockRes = {
@@ -21,7 +19,6 @@ describe('errorHandler export', () => {
       statusCode: 200,
     } as any;
     const mockNext = () => {};
-    // Should not throw
     expect(() => errorHandler(mockErr, mockReq, mockRes, mockNext)).not.toThrow();
   });
 });

@@ -13,6 +13,7 @@ import { connectDB, supabase } from './config/database.js';
 import { generateAPIKey } from './middleware/auth.js';
 import { apiActivityLogger } from './middleware/apiLogger.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { logger } from './utils/logger.js';
 import verificationRoutes from './routes/verification.js';
 import newVerificationRoutes from './routes/newVerification.js';
 import developerRoutes from './routes/developer.js';
