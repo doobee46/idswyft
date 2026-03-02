@@ -700,3 +700,13 @@ export interface ActiveSession {
   lastActiveAt: string;
   isCurrent: boolean;
 }
+
+export interface ProviderSummary {
+  totalRequests: number;
+  successRate: number;    // 0.0 – 1.0
+  avgLatencyMs: number;
+  avgConfidence: number;  // 0.0 – 1.0
+  providerName: string;
+}
+
+export type ProviderType = 'ocr' | 'face' | 'liveness';

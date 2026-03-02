@@ -86,6 +86,12 @@ const navigationItems = [
     current: false,
   },
   {
+    name: 'Provider Metrics',
+    href: '/provider-metrics',
+    icon: BarChart3,
+    current: false,
+  },
+  {
     name: 'Team',
     href: '/team',
     icon: UserCog,

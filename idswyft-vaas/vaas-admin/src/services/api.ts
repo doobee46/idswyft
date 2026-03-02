@@ -40,7 +40,9 @@ import {
   AdminUserResponse,
   RolePermissionUpdate,
   AdminUserPasswordReset,
-  ActiveSession
+  ActiveSession,
+  ProviderSummary,
+  ProviderType
 } from '../types.js';
 
 class ApiClient {
@@ -951,6 +953,23 @@ class ApiClient {
     if (!response.data.success) {
       throw new Error(response.data.error?.message || 'Failed to revoke session');
     }
+  }
+
+  // Provider metrics
+  async getProviderMetrics(
+    providerType: ProviderType,
+    days: number = 7,
+  ): Promise<ProviderSummary> {
+    const response: AxiosResponse<ApiResponse<ProviderSummary>> =
+      await this.client.get(`/admin/provider-metrics?provider=${providerType}&days=${days}`);
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to load provider metrics');
+    }
+    const data = response.data.data;
+    if (!data) {
+      throw new Error('Provider metrics response missing data payload');
+    }
+    return data;
   }
 
   // Utility methods
