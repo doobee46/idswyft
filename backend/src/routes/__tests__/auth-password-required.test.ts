@@ -1,156 +1,122 @@
 /**
  * Test: POST /api/auth/developer/login — password always required
  *
- * These tests verify the validation and authentication behaviour of the developer
- * login endpoint defined in auth.ts.
+ * Imports developerLoginValidation directly from auth.ts and runs the real
+ * express-validator middleware chain against mock request objects.
+ * No HTTP server or database connection is needed.
  *
- * Because the worktree environment has a sparse node_modules (the real packages
- * live in the main repo's backend/node_modules, outside Node's resolution chain),
- * we test the invariants directly by mirroring the validator and auth logic inline.
- *
- * Two test suites:
- *   1. "BROKEN" — documents the current bugs in auth.ts before the fix.
- *   2. "FIXED"  — asserts the correct post-fix behaviour.
- *
- * The "BROKEN" suite tests PASS (confirming the bugs exist).
- * The "FIXED" suite tests also PASS (confirming the desired invariants).
+ * Because the worktree's backend/node_modules is sparse (packages live in
+ * the main repo's backend/node_modules), we satisfy the 'express-validator'
+ * import that auth.ts performs by registering a vi.mock factory that loads
+ * the real package via createRequire from its absolute location.
+ * All other auth.ts dependencies are mocked with minimal stubs.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
-// ── Inline mirror of express-validator behaviour ─────────────────────────────
-//
-// express-validator's .optional() skips validation only when value is undefined.
-// An empty string '' is still subject to .isLength() checks.
-//
-// The auth bypass in auth.ts is therefore in the LOGIC block, not the validator:
-//   if (password && developer.password_hash) { ... }  <- bypassed when password=''
-//   else if (password && !developer.password_hash) { ... }  <- bypassed when password=''
-//   // email-only login allowed when password is falsy   <- the bug
+// ── Module stubs ─────────────────────────────────────────────────────────────
+// These must appear before any imports from auth.ts.
+// vi.mock calls are hoisted by vitest's transformer to the top of the file.
 
-// ── Helper: simulate BROKEN validator (current auth.ts) ─────────────────────
-
-function brokenValidate(body: Record<string, unknown>): string[] {
-  const errors: string[] = [];
-  if (typeof body.email !== 'string' || !/\S+@\S+\.\S+/.test(body.email)) {
-    errors.push('email: Valid email is required');
-  }
-  // .optional() — skips when undefined, still validates when empty string
-  if (body.password !== undefined) {
-    if (typeof body.password !== 'string' || body.password.length < 6) {
-      errors.push('password: Password must be at least 6 characters');
-    }
-  }
-  return errors;
-}
-
-// ── Helper: simulate BROKEN auth logic (current auth.ts lines 128-142) ───────
-//
-// Returns true if the user would be allowed to log in (auth bypass).
-// developer.password_hash is null to simulate an account without a password set.
-
-function brokenAuthLogicWouldAllow(password: string | undefined): boolean {
-  const developerPasswordHash: string | null = null; // simulate no hash set
-  if (password && developerPasswordHash) {
-    // branch 1: verify password — not reached when password is falsy
-    return true; // would verify bcrypt here
-  } else if (password && !developerPasswordHash) {
-    // branch 2: reject — password provided but no hash
-    return false;
-  }
-  // branch 3: no password + no hash → email-only login (the bypass!)
-  return true;
-}
-
-// ── Helper: simulate FIXED validator ────────────────────────────────────────
-
-function fixedValidate(body: Record<string, unknown>): string[] {
-  const errors: string[] = [];
-  if (typeof body.email !== 'string' || !/\S+@\S+\.\S+/.test(body.email)) {
-    errors.push('email: Valid email is required');
-  }
-  // .notEmpty() — rejects undefined, null, and empty string
-  const pw = body.password;
-  if (pw === undefined || pw === null || pw === '') {
-    errors.push('password: Password is required');
-  } else if (typeof pw !== 'string' || pw.length < 8) {
-    errors.push('password: Password must be at least 8 characters');
-  }
-  return errors;
-}
-
-// ── Helper: simulate FIXED auth logic ───────────────────────────────────────
-
-function fixedAuthLogicWouldAllow(
-  password: string,
-  developerPasswordHash: string | null,
-): boolean {
-  // Fixed: password is always required (enforced by validator above)
-  if (!developerPasswordHash) {
-    return false; // reject: account has no password set
-  }
-  // Would call bcrypt.compare here — simulate as password === hash for tests
-  return password === developerPasswordHash;
-}
-
-// ── Suite 1: Prove the BROKEN behaviour (before fix) ─────────────────────────
-
-describe('developerLoginValidation — BROKEN (current: password is optional)', () => {
-  it('BUG — validator allows login with no password field (undefined)', () => {
-    const errors = brokenValidate({ email: 'test@example.com' });
-    // With .optional(), a missing (undefined) password produces NO validation error.
-    expect(errors).toHaveLength(0);
-  });
-
-  it('BUG — auth logic allows email-only login when no password provided', () => {
-    // Even if the validator passed, the auth logic in auth.ts lines 128-142
-    // falls through to the email-only branch when password is undefined/falsy.
-    const wouldAllow = brokenAuthLogicWouldAllow(undefined);
-    expect(wouldAllow).toBe(true); // BUG: user is authenticated with no password
-  });
-
-  it('BUG — auth logic allows login with empty string password', () => {
-    // An empty string is falsy in JS: !'' === true
-    // So branch 1 (password && hash) is skipped, branch 2 (password && !hash)
-    // is skipped, and the user reaches the email-only bypass.
-    const wouldAllow = brokenAuthLogicWouldAllow('');
-    expect(wouldAllow).toBe(true); // BUG: empty password bypasses auth
-  });
+// Load the real express-validator from the main repo's node_modules and expose
+// it under the 'express-validator' module ID so auth.ts can import it normally.
+vi.mock('express-validator', async () => {
+  const { createRequire } = await import('module');
+  const req = createRequire('D:/code_repo/Idswyft/backend/package.json');
+  return req('express-validator');
 });
 
-// ── Suite 2: Assert the FIXED behaviour (after fix) ──────────────────────────
+// Minimal stubs for every other auth.ts dependency
+vi.mock('express', () => {
+  const mockRouter = { post: vi.fn(), get: vi.fn() };
+  return { default: { Router: () => mockRouter }, Router: () => mockRouter };
+});
 
-describe('POST /api/auth/developer/login — password always required (fixed)', () => {
-  it('rejects login with no password field', () => {
-    const errors = fixedValidate({ email: 'test@example.com' });
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors.some((e) => e.includes('password'))).toBe(true);
+vi.mock('bcryptjs', () => ({
+  default: { compare: vi.fn(), hash: vi.fn(), genSalt: vi.fn() },
+}));
+
+vi.mock('validator', () => ({ default: {} }));
+
+vi.mock('@/config/database.js', () => ({
+  supabase: { from: vi.fn() },
+  connectDB: vi.fn(),
+}));
+
+vi.mock('@/middleware/auth.js', () => ({
+  generateAdminToken: vi.fn(),
+  generateDeveloperToken: vi.fn(),
+  authenticateJWT: vi.fn((_req: any, _res: any, next: any) => next()),
+}));
+
+vi.mock('@/middleware/errorHandler.js', () => ({
+  catchAsync: vi.fn((fn: any) => fn),
+  ValidationError: class ValidationError extends Error {
+    constructor(msg: string) { super(msg); }
+  },
+  AuthenticationError: class AuthenticationError extends Error {
+    constructor(msg: string) { super(msg); }
+  },
+}));
+
+vi.mock('@/services/totpService.js', () => ({
+  TotpService: class TotpService {
+    generateSecret() { return 'secret'; }
+    generateQrCode() { return Promise.resolve('qr'); }
+    verifyToken() { return false; }
+  },
+}));
+
+vi.mock('@/utils/logger.js', () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+  logVerificationEvent: vi.fn(),
+}));
+
+vi.mock('@/middleware/csrf.js', () => ({
+  generateToken: vi.fn(() => 'csrf-token'),
+}));
+
+// ── Import the real production validator array ────────────────────────────────
+
+import { developerLoginValidation } from '../auth.js';
+
+// Import validationResult by absolute path (avoids the module-not-found issue
+// when importing by package name from within the sparse worktree node_modules).
+import { validationResult } from 'D:/code_repo/Idswyft/backend/node_modules/express-validator/lib/index.js';
+
+// ── Helper ───────────────────────────────────────────────────────────────────
+
+async function validate(body: Record<string, unknown>) {
+  const req = { body } as any;
+  const res = {} as any;
+  for (const middleware of developerLoginValidation) {
+    await new Promise<void>((resolve) => middleware(req, res, resolve));
+  }
+  return validationResult(req);
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+describe('developerLoginValidation', () => {
+  it('rejects missing password', async () => {
+    const result = await validate({ email: 'test@example.com' });
+    expect(result.isEmpty()).toBe(false);
+    expect(result.array().some((e: any) => e.path === 'password')).toBe(true);
   });
 
-  it('rejects login with empty password', () => {
-    const errors = fixedValidate({ email: 'test@example.com', password: '' });
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors.some((e) => e.includes('password'))).toBe(true);
+  it('rejects empty password', async () => {
+    const result = await validate({ email: 'test@example.com', password: '' });
+    expect(result.isEmpty()).toBe(false);
+    expect(result.array().some((e: any) => e.path === 'password')).toBe(true);
   });
 
-  it('rejects login with password shorter than 8 characters', () => {
-    const errors = fixedValidate({ email: 'test@example.com', password: 'short' });
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors.some((e) => e.includes('password'))).toBe(true);
+  it('rejects password shorter than 8 characters', async () => {
+    const result = await validate({ email: 'test@example.com', password: 'short' });
+    expect(result.isEmpty()).toBe(false);
+    expect(result.array().some((e: any) => e.path === 'password')).toBe(true);
   });
 
-  it('passes validation with a valid email and sufficient password', () => {
-    const errors = fixedValidate({ email: 'test@example.com', password: 'securepassword123' });
-    expect(errors).toHaveLength(0);
-  });
-
-  it('rejects login when account has no password hash set', () => {
-    const wouldAllow = fixedAuthLogicWouldAllow('anypassword', null);
-    expect(wouldAllow).toBe(false); // no email-only bypass
-  });
-
-  it('allows login only when password matches the stored hash', () => {
-    const storedHash = 'correct-hash';
-    expect(fixedAuthLogicWouldAllow('correct-hash', storedHash)).toBe(true);
-    expect(fixedAuthLogicWouldAllow('wrong-password', storedHash)).toBe(false);
+  it('passes with valid email and password >= 8 characters', async () => {
+    const result = await validate({ email: 'test@example.com', password: 'longpassword' });
+    expect(result.isEmpty()).toBe(true);
   });
 });

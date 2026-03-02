@@ -24,8 +24,10 @@ router.post('/admin/login',
       .isEmail()
       .withMessage('Valid email is required'),
     body('password')
-      .isLength({ min: 6 })
-      .withMessage('Password must be at least 6 characters')
+      .notEmpty()
+      .withMessage('Password is required')
+      .isLength({ min: 8 })
+      .withMessage('Password must be at least 8 characters'),
   ],
   catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
@@ -61,8 +63,10 @@ router.post('/admin/login',
     if (adminUser.totp_enabled) {
       const { totp_token } = req.body;
       if (!totp_token) {
-        // Return 200 so the client knows to prompt for a TOTP code
-        return res.status(200).json({ requires_totp: true });
+        // Return 401 so the client knows to prompt for a TOTP code.
+        // Using 401 (not 200) avoids leaking that the password was correct
+        // before the second factor is verified.
+        return res.status(401).json({ requires_totp: true });
       }
       const totp = new TotpService();
       if (!totp.verifyToken(totp_token, adminUser.totp_secret)) {
@@ -90,19 +94,22 @@ router.post('/admin/login',
   })
 );
 
+// Exported so tests can import and run validators directly without booting Express.
+export const developerLoginValidation = [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Valid email is required'),
+  body('password')
+    .notEmpty()
+    .withMessage('Password is required')
+    .isLength({ min: 8 })
+    .withMessage('Password must be at least 8 characters'),
+];
+
 // Developer login
 router.post('/developer/login',
-  [
-    body('email')
-      .isEmail()
-      .normalizeEmail()
-      .withMessage('Valid email is required'),
-    body('password')
-      .notEmpty()
-      .withMessage('Password is required')
-      .isLength({ min: 8 })
-      .withMessage('Password must be at least 8 characters')
-  ],
+  developerLoginValidation,
   catchAsync(async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
