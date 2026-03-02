@@ -51,7 +51,7 @@ vi.mock('./errorHandler.js', () => ({
 
 vi.mock('@/middleware/errorHandler.js', () => ({
   catchAsync: (fn: any) => (req: any, res: any, next: any) => {
-    return fn(req, res, next);
+    return Promise.resolve(fn(req, res, next)).catch(next);
   },
   AuthenticationError: class AuthenticationError extends Error {
     constructor(msg: string) { super(msg); }
@@ -80,5 +80,18 @@ describe('file-serving route authentication', () => {
   it('authenticateAPIKey has arity 3 — standard Express middleware signature', () => {
     // Express middleware must have (req, res, next) — arity 3
     expect(authenticateAPIKey.length).toBe(3);
+  });
+
+  it('rejects requests with no X-API-Key header — calls next with an error', async () => {
+    const errors: any[] = [];
+    const mockReq = { headers: {}, body: {} } as any;
+    const mockRes = {} as any;
+    const mockNext = (err?: any) => { if (err) errors.push(err); };
+
+    // Call the middleware — it should call next(AuthenticationError)
+    await authenticateAPIKey(mockReq, mockRes, mockNext);
+
+    expect(errors.length).toBe(1);
+    expect(errors[0]).toBeTruthy(); // An error was passed to next
   });
 });

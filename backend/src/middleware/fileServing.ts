@@ -10,7 +10,7 @@ const UPLOADS_BASE = path.resolve(process.cwd(), 'uploads');
  */
 export function isPathSafe(filePath: string): boolean {
   // Reject absolute paths immediately
-  if (filePath.startsWith('/')) return false;
+  if (path.isAbsolute(filePath)) return false;
 
   // Decode percent-encoded characters before resolving
   let decoded: string;
