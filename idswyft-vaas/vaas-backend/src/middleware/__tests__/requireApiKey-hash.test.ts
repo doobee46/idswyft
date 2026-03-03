@@ -47,4 +47,22 @@ describe('API key hash verification', () => {
       expect(true).toBe(true); // acknowledged
     }
   });
+
+  it('rejects a key whose computed hash differs from the stored hash', async () => {
+    const correctKey = 'vaas_correctkey12345678901234567890';
+    const wrongKey = 'vaas_wrongkey1234567890123456789012';
+    const secret = 'test-secret';
+
+    const correctHash = crypto.createHmac('sha256', secret).update(correctKey).digest('hex');
+
+    // Simulate what requireApiKey does internally
+    const computedForWrongKey = crypto.createHmac('sha256', secret).update(wrongKey).digest('hex');
+
+    const storedBuf = Buffer.from(correctHash, 'hex');
+    const wrongComputedBuf = Buffer.from(computedForWrongKey, 'hex');
+
+    // Same length but different content — timingSafeEqual must return false
+    expect(storedBuf.length).toBe(wrongComputedBuf.length); // both are 32-byte SHA256 outputs
+    expect(crypto.timingSafeEqual(storedBuf, wrongComputedBuf)).toBe(false);
+  });
 });

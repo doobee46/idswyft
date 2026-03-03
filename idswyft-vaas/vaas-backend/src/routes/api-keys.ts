@@ -3,6 +3,7 @@ import { body, param, validationResult } from 'express-validator';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth.js';
 import { VaasApiResponse } from '../types/index.js';
 import { vaasSupabase } from '../config/database.js';
+import config from '../config/index.js';
 import crypto from 'crypto';
 
 const router = Router();
@@ -130,7 +131,7 @@ router.post('/migrate', async (req, res) => {
 const generateVaasAPIKey = (): { key: string; hash: string; prefix: string } => {
   const key = `vaas_${crypto.randomBytes(32).toString('hex')}`;
   const hash = crypto
-    .createHmac('sha256', process.env.API_KEY_SECRET || 'fallback-secret')
+    .createHmac('sha256', config.apiKeySecret)
     .update(key)
     .digest('hex');
   const prefix = key.substring(0, 12);
