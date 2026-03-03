@@ -478,6 +478,9 @@ export default function Webhooks() {
                           <div className="text-xs text-gray-500">
                             ID: {webhook.id.substring(0, 8)}...
                           </div>
+                          <span className="text-xs text-gray-400">
+                            {webhook.max_retries ?? 3} retries · {webhook.retry_backoff_minutes ?? 5} min backoff
+                          </span>
                         </div>
                       </div>
                     </td>
@@ -645,18 +648,29 @@ function WebhookFormModal({ webhook, onClose, onSuccess }: WebhookFormModalProps
   const [formData, setFormData] = useState<WebhookFormData>({
     url: webhook?.url || '',
     events: webhook?.events || [],
-    secret_key: webhook?.secret_key || ''
+    secret_key: webhook?.secret_key || '',
+    max_retries: webhook?.max_retries ?? 3,
+    retry_backoff_minutes: webhook?.retry_backoff_minutes ?? 5
   });
   const [loading, setLoading] = useState(false);
   const [showSecretKey, setShowSecretKey] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [webhookSecret, setWebhookSecret] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (webhook?.id) {
+      apiClient.getWebhookSecret(webhook.id)
+        .then(setWebhookSecret)
+        .catch(() => setWebhookSecret(null));
+    } else {
+      setWebhookSecret(null);
+    }
+  }, [webhook?.id]);
 
   const generateSecretKey = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    for (let i = 0; i < 32; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
+    const bytes = crypto.getRandomValues(new Uint8Array(32));
+    const result = Array.from(bytes).map((b) => chars[b % chars.length]).join('');
     setFormData(prev => ({ ...prev, secret_key: result }));
   };
 
@@ -803,7 +817,9 @@ function WebhookFormModal({ webhook, onClose, onSuccess }: WebhookFormModalProps
             </div>
             <div className="flex justify-between items-center mt-1">
               <p className="text-sm text-gray-500">
-                Used to verify webhook authenticity (HMAC-SHA256)
+                {webhook?.id
+                  ? 'Leave blank to keep the existing secret. Enter a new value to rotate it.'
+                  : 'Used to verify webhook authenticity (HMAC-SHA256)'}
               </p>
               <button
                 type="button"
@@ -834,6 +850,69 @@ function WebhookFormModal({ webhook, onClose, onSuccess }: WebhookFormModalProps
                   </label>
                 </div>
               ))}
+            </div>
+          </div>
+
+          {webhookSecret && formData.url.startsWith('https://') && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Signing Secret
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={webhookSecret}
+                  className="flex-1 font-mono text-xs border rounded-lg px-3 py-2 bg-gray-50"
+                />
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText(webhookSecret)}
+                  className="px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
+                >
+                  Copy
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">
+                Compute <code>HMAC-SHA256(secret, rawBody)</code> and compare to the{' '}
+                <code>X-Webhook-Signature</code> header to verify payloads.
+              </p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Max Retries
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={10}
+                value={formData.max_retries ?? 3}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  if (!isNaN(v)) setFormData((f) => ({ ...f, max_retries: v }));
+                }}
+                }
+                className="w-full border rounded-lg px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Retry Backoff (minutes)
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={60}
+                value={formData.retry_backoff_minutes ?? 5}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  if (!isNaN(v)) setFormData((f) => ({ ...f, retry_backoff_minutes: v }));
+                }}
+                className="w-full border rounded-lg px-3 py-2"
+              />
             </div>
           </div>
 

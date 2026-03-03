@@ -20,6 +20,9 @@ export interface VerificationResult {
   confidence_score?: number;
   face_match_score?: number;
   liveness_score?: number;
+  isAuthentic?: boolean;
+  authenticityScore?: number;   // 0.0 – 1.0
+  tamperFlags?: string[];
 }
 
 interface Document {
@@ -43,6 +46,9 @@ interface VerificationRequest {
   face_match_score?: number;
   liveness_score?: number;
   confidence_score?: number;
+  isAuthentic?: boolean;
+  authenticityScore?: number;   // 0.0 – 1.0
+  tamperFlags?: string[];
 }
 
 const EndUserVerification: React.FC<VerificationProps> = ({
@@ -242,7 +248,10 @@ const EndUserVerification: React.FC<VerificationProps> = ({
             user_id: data.user_id,
             confidence_score: data.confidence_score,
             face_match_score: data.face_match_score,
-            liveness_score: data.liveness_score
+            liveness_score: data.liveness_score,
+            isAuthentic: data.isAuthentic,
+            authenticityScore: data.authenticityScore,
+            tamperFlags: data.tamperFlags
           });
         }
 
@@ -517,6 +526,37 @@ const EndUserVerification: React.FC<VerificationProps> = ({
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+
+            {verificationRequest && verificationRequest.isAuthentic !== undefined && (
+              <div className={`mt-4 ${styles.cardBg} ${styles.border} border rounded-lg p-4`}>
+                <h4 className={`text-sm font-semibold mb-2 ${styles.text}`}>
+                  Document Authenticity
+                </h4>
+                <div className="flex items-center gap-2 mb-1">
+                  {verificationRequest.isAuthentic ? (
+                    <span className="inline-flex items-center gap-1 text-green-700 bg-green-50 px-2 py-0.5 rounded-full text-xs font-medium">
+                      ✅ Authentic
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full text-xs font-medium">
+                      ⚠️ Suspicious
+                    </span>
+                  )}
+                  {verificationRequest.authenticityScore !== undefined && (
+                    <span className={`text-sm ${styles.textSecondary}`}>
+                      Score: {Math.min(100, Math.round(verificationRequest.authenticityScore * 100))}%
+                    </span>
+                  )}
+                </div>
+                {verificationRequest.tamperFlags && verificationRequest.tamperFlags.length > 0 ? (
+                  <p className={`text-xs ${styles.textSecondary}`}>
+                    Flags: {verificationRequest.tamperFlags.join(', ')}
+                  </p>
+                ) : (
+                  <p className={`text-xs ${styles.textSecondary}`}>No tamper flags detected.</p>
+                )}
               </div>
             )}
 

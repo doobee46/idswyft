@@ -52,6 +52,10 @@ export class VerificationService {
     return verification as VerificationRequest;
   }
 
+  async deleteVerificationRequest(id: string): Promise<void> {
+    await supabase.from('verification_requests').delete().eq('id', id);
+  }
+
   /**
    * Like getVerificationRequest but scoped to a specific developer.
    * Returns null if the verification exists but belongs to a different developer.

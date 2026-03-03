@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ShieldCheckIcon } from '@heroicons/react/24/outline';
-import { API_BASE_URL } from '../config/api';
+import { adminApi } from '../lib/adminApiInstance';
+import type { ApiError } from '../lib/apiClient';
+import { TotpModal } from '../components/auth/TotpModal';
 
 export const AdminLogin: React.FC = () => {
+  const navigate = useNavigate();
   const [credentials, setCredentials] = useState({
     email: '',
     password: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [tempToken, setTempToken] = useState<string | null>(null);
+  const [showTotpModal, setShowTotpModal] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,26 +22,37 @@ export const AdminLogin: React.FC = () => {
     setError('');
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/admin/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(credentials),
+      const { data } = await adminApi.post('/auth/admin/login', {
+        email: credentials.email,
+        password: credentials.password,
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        // Store the token and redirect to admin dashboard
-        localStorage.setItem('adminToken', data.token);
-        window.location.href = '/admin';
-      } else {
-        setError(data.message || 'Login failed');
+      if (data.mfa_required) {
+        if (!data.temp_token || typeof data.temp_token !== 'string') {
+          setError('Login failed: invalid MFA response from server');
+          return;
+        }
+        setTempToken(data.temp_token);
+        setShowTotpModal(true);
+        return;
       }
-    } catch (error) {
-      setError('Login request failed. Please try again.');
-      console.error('Login error:', error);
+
+      if (!data.token || typeof data.token !== 'string') {
+        setError('Login failed: invalid response from server');
+        return;
+      }
+      localStorage.setItem('adminToken', data.token);
+      navigate('/admin');
+    } catch (err) {
+      const apiError = err as ApiError;
+      if (apiError.fields?.length) {
+        setError(apiError.fields.map((f) => f.message).join(', '));
+      } else {
+        setError(apiError.message ?? 'Login failed');
+      }
+      if (apiError.correlationId) {
+        console.error('Error ID:', apiError.correlationId);
+      }
     } finally {
       setLoading(false);
     }
@@ -114,17 +131,18 @@ export const AdminLogin: React.FC = () => {
             </button>
           </form>
 
-          {/* Development Info */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-md">
-            <h3 className="font-semibold text-gray-900 mb-2">Development Access</h3>
-            <p className="text-sm text-gray-600 mb-2">
-              For testing purposes, you can use:
-            </p>
-            <div className="text-sm text-gray-700">
-              <p><strong>Email:</strong> admin@idswyft.com</p>
-              <p><strong>Password:</strong> admin123</p>
+          {import.meta.env.DEV && (
+            <div className="mt-6 p-4 bg-gray-50 rounded-md">
+              <h3 className="font-semibold text-gray-900 mb-2">Development Access</h3>
+              <p className="text-sm text-gray-600 mb-2">
+                For testing purposes, you can use:
+              </p>
+              <div className="text-sm text-gray-700">
+                <p><strong>Email:</strong> admin@idswyft.com</p>
+                <p><strong>Password:</strong> admin123</p>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="mt-6 text-center">
             <a href="/" className="text-sm text-blue-600 hover:text-blue-800">
@@ -133,6 +151,21 @@ export const AdminLogin: React.FC = () => {
           </div>
         </div>
       </div>
+      {showTotpModal && tempToken && (
+        <TotpModal
+          tempToken={tempToken}
+          onSuccess={(token) => {
+            setTempToken(null);
+            setShowTotpModal(false);
+            localStorage.setItem('adminToken', token);
+            navigate('/admin');
+          }}
+          onCancel={() => {
+            setShowTotpModal(false);
+            setTempToken(null);
+          }}
+        />
+      )}
     </div>
   );
 };

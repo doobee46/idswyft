@@ -12,6 +12,7 @@ import {
   Building,
   LogOut,
   Shield,
+  Monitor,
   Bell,
   User,
   ChevronDown,
@@ -76,6 +77,18 @@ const navigationItems = [
     name: 'Audit Logs',
     href: '/audit-logs',
     icon: Shield,
+    current: false,
+  },
+  {
+    name: 'Sessions',
+    href: '/sessions',
+    icon: Monitor,
+    current: false,
+  },
+  {
+    name: 'Provider Metrics',
+    href: '/provider-metrics',
+    icon: BarChart3,
     current: false,
   },
   {

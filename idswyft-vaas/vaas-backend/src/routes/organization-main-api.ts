@@ -3,6 +3,7 @@ import { body, param, validationResult } from 'express-validator';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth.js';
 import { VaasApiResponse } from '../types/index.js';
 import { vaasSupabase, mainApiSupabase } from '../config/database.js';
+import config from '../config/index.js';
 import crypto from 'crypto';
 import axios from 'axios';
 
@@ -132,11 +133,8 @@ router.post('/main-api-keys/test', async (req, res) => {
 // Generate API key in the same format as main API
 const generateMainAPIKey = (): { key: string; hash: string; prefix: string } => {
   const key = `ik_${crypto.randomBytes(32).toString('hex')}`;
-  const apiKeySecret = process.env.API_KEY_SECRET || 'your-api-key-encryption-secret';
-  
-  
   const hash = crypto
-    .createHmac('sha256', apiKeySecret)
+    .createHmac('sha256', config.apiKeySecret)
     .update(key)
     .digest('hex');
   const prefix = key.substring(0, 8);

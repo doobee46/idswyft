@@ -14,7 +14,7 @@ try {
     .filter(line => line && !line.startsWith('#') && line.includes('='))
     .forEach(line => {
       const [key, ...valueParts] = line.split('=');
-      if (key && valueParts.length > 0) {
+      if (key && valueParts.length > 0 && !process.env[key.trim()]) {
         const value = valueParts.join('=').trim();
         process.env[key.trim()] = value;
       }
@@ -52,9 +52,25 @@ export const config = {
     timeout: parseInt(process.env.IDSWYFT_API_TIMEOUT || '30000')
   },
   
-  // Security
-  jwtSecret: process.env.VAAS_JWT_SECRET || 'vaas-super-secret-jwt-key',
-  apiKeySecret: process.env.VAAS_API_KEY_SECRET || 'vaas-api-key-encryption-secret',
+  // Security secrets — MUST be set in production; throw at startup if missing
+  jwtSecret: (() => {
+    const secret = process.env.VAAS_JWT_SECRET;
+    if (!secret && process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'VAAS_JWT_SECRET environment variable must be set in production'
+      );
+    }
+    return secret || 'vaas-super-secret-jwt-key';
+  })(),
+  apiKeySecret: (() => {
+    const secret = process.env.VAAS_API_KEY_SECRET;
+    if (!secret && process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'VAAS_API_KEY_SECRET environment variable must be set in production'
+      );
+    }
+    return secret || 'vaas-api-key-encryption-secret';
+  })(),
   superAdminEmails: process.env.VAAS_SUPER_ADMIN_EMAILS || '',
   
   // Frontend URLs

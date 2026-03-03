@@ -1,5 +1,5 @@
-import axios from 'axios';
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import { createApiClient, RetryAfterError, type ApiError } from '../lib/apiClient';
 import {
   ApiResponse,
   LoginRequest,
@@ -39,7 +39,10 @@ import {
   AdminUserFilters,
   AdminUserResponse,
   RolePermissionUpdate,
-  AdminUserPasswordReset
+  AdminUserPasswordReset,
+  ActiveSession,
+  ProviderSummary,
+  ProviderType
 } from '../types.js';
 
 class ApiClient {
@@ -47,21 +50,12 @@ class ApiClient {
   private token: string | null = null;
 
   constructor() {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002/api';
-    console.log('[API Client] Initializing with baseURL:', apiUrl);
-    console.log('[API Client] Environment check:', {
-      VITE_API_URL: import.meta.env.VITE_API_URL,
-      NODE_ENV: import.meta.env.NODE_ENV,
-      MODE: import.meta.env.MODE
-    });
-    
-    this.client = axios.create({
-      baseURL: apiUrl,
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    const BASE_URL = import.meta.env.VITE_API_URL
+      ? `${import.meta.env.VITE_API_URL}/api/v1`
+      : 'http://localhost:3002/api/v1';
+    console.log('[API Client] Initializing with baseURL:', BASE_URL);
+
+    this.client = createApiClient(BASE_URL);
 
     // Load token from localStorage
     this.token = localStorage.getItem('vaas_admin_token');
@@ -84,21 +78,26 @@ class ApiClient {
       }
     );
 
-    // Response interceptor
+    // Response interceptor — 401 redirect only
+    // Error normalisation (429, CSRF, shape) is handled by the createApiClient factory.
     this.client.interceptors.response.use(
-      (response) => {
-        console.log(`[API] ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url}`);
-        return response;
-      },
+      (response) => response,
       (error) => {
-        console.error(`[API] ${error.response?.status || 'NETWORK'} ${error.config?.method?.toUpperCase()} ${error.config?.url}`);
-        
-        // Handle authentication errors
-        if (error.response?.status === 401) {
+        if (error instanceof RetryAfterError) {
+          console.warn(`[API] Rate limited. Retry after ${error.retryAfter} seconds.`);
+          throw error;
+        }
+        const apiError = error as ApiError;
+        const msg = apiError.correlationId
+          ? `[API] Error [${apiError.correlationId}]: ${apiError.message}`
+          : `[API] Error: ${apiError.message ?? 'Unknown error'}`;
+        console.error(msg);
+        // Redirect to login on 401 (session expired / unauthenticated)
+        if ((error as ApiError)?.status === 401) {
           this.clearToken();
           window.location.href = '/login';
+          return new Promise(() => {}); // intentionally never resolves — page is navigating away
         }
-        
         return Promise.reject(error);
       }
     );
@@ -123,11 +122,32 @@ class ApiClient {
     }
 
     const loginData = response.data.data!;
+    if ((loginData as any).mfa_required) {
+      return loginData; // MFA step — no JWT yet, don't store anything
+    }
     this.token = loginData.token;
     localStorage.setItem('vaas_admin_token', this.token);
     this.setAuthHeader(this.token);
-    
+
     return loginData;
+  }
+
+  async verifyTotp(tempToken: string, totpCode: string): Promise<{ token: string }> {
+    const response: AxiosResponse<ApiResponse<{ token: string }>> = await this.client.post('/auth/totp/verify', {
+      temp_token: tempToken,
+      totp_code: totpCode,
+    });
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'TOTP verification failed');
+    }
+    const data = response.data.data!;
+    if (!data.token || typeof data.token !== 'string') {
+      throw new Error('TOTP verification returned an invalid token');
+    }
+    this.token = data.token;
+    localStorage.setItem('vaas_admin_token', this.token);
+    this.setAuthHeader(this.token);
+    return data;
   }
 
   async logout(): Promise<void> {
@@ -334,6 +354,14 @@ class ApiClient {
       deliveries: response.data.data!,
       meta: response.data.meta || {}
     };
+  }
+
+  async getWebhookSecret(webhookId: string): Promise<string> {
+    const response: AxiosResponse<ApiResponse<{ secret: string }>> = await this.client.get(`/webhooks/${webhookId}/secret`);
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to fetch webhook secret');
+    }
+    return response.data.data!.secret;
   }
 
   // End Users
@@ -903,6 +931,45 @@ class ApiClient {
     }
 
     return response.data.data!;
+  }
+
+
+  // Session management
+  async getSessions(): Promise<ActiveSession[]> {
+    const response: AxiosResponse<ApiResponse<{ sessions: ActiveSession[] } | ActiveSession[]>> =
+      await this.client.get('/auth/sessions');
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to load sessions');
+    }
+    const data = response.data.data!;
+    if (Array.isArray(data)) return data;
+    if (data && 'sessions' in data) return (data as { sessions: ActiveSession[] }).sessions;
+    throw new Error('Unexpected response shape from /auth/sessions');
+  }
+
+  async revokeSession(sessionId: string): Promise<void> {
+    const response: AxiosResponse<ApiResponse<void>> =
+      await this.client.delete(`/auth/sessions/${sessionId}`);
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to revoke session');
+    }
+  }
+
+  // Provider metrics
+  async getProviderMetrics(
+    providerType: ProviderType,
+    days: number = 7,
+  ): Promise<ProviderSummary> {
+    const response: AxiosResponse<ApiResponse<ProviderSummary>> =
+      await this.client.get(`/admin/provider-metrics?provider=${providerType}&days=${days}`);
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to load provider metrics');
+    }
+    const data = response.data.data;
+    if (!data) {
+      throw new Error('Provider metrics response missing data payload');
+    }
+    return data;
   }
 
   // Utility methods

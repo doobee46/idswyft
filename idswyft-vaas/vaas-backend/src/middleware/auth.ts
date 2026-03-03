@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { vaasSupabase } from '../config/database.js';
 import config from '../config/index.js';
 import { VaasApiResponse } from '../types/index.js';
@@ -237,6 +238,7 @@ export const requireApiKey = async (req: AuthenticatedRequest, res: Response, ne
         scopes,
         rate_limit_per_hour,
         enabled,
+        key_hash,
         vaas_organizations!inner(
           id,
           name,
@@ -256,10 +258,28 @@ export const requireApiKey = async (req: AuthenticatedRequest, res: Response, ne
           message: 'Invalid API key'
         }
       };
-      
+
       return res.status(401).json(response);
     }
-    
+
+    // Verify the full key against the stored HMAC hash — prefix alone is not proof of ownership.
+    const expectedHash = crypto
+      .createHmac('sha256', config.apiKeySecret)
+      .update(apiKey)
+      .digest('hex');
+    const storedHash = Buffer.from(apiKeyRecord.key_hash, 'hex');
+    const computedHash = Buffer.from(expectedHash, 'hex');
+    if (
+      storedHash.length !== computedHash.length ||
+      !crypto.timingSafeEqual(storedHash, computedHash)
+    ) {
+      const response: VaasApiResponse = {
+        success: false,
+        error: { code: 'INVALID_API_KEY', message: 'Invalid API key' },
+      };
+      return res.status(401).json(response);
+    }
+
     // Update last used timestamp
     await vaasSupabase
       .from('vaas_api_keys')

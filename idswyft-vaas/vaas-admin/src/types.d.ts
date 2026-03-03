@@ -187,6 +187,8 @@ export interface Webhook {
   last_success_at?: string;
   last_failure_at?: string;
   failure_count: number;
+  max_retries?: number;
+  retry_backoff_minutes?: number;
   created_at: string;
   updated_at: string;
 }
@@ -212,6 +214,8 @@ export interface WebhookFormData {
   url: string;
   events: string[];
   secret_key?: string;
+  max_retries?: number;
+  retry_backoff_minutes?: number;
 }
 
 export interface UsageStats {
@@ -688,3 +692,21 @@ export interface AdminUserPasswordReset {
   require_password_change: boolean;
   send_email: boolean;
 }
+
+export interface ActiveSession {
+  id: string;
+  ip: string;
+  userAgent: string;
+  lastActiveAt: string;
+  isCurrent: boolean;
+}
+
+export interface ProviderSummary {
+  totalRequests: number;
+  successRate: number;    // 0.0 – 1.0
+  avgLatencyMs: number;
+  avgConfidence: number;  // 0.0 – 1.0
+  providerName: string;
+}
+
+export type ProviderType = 'ocr' | 'face' | 'liveness';

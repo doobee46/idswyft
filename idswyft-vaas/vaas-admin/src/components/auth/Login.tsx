@@ -1,18 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Navigate, Link } from 'react-router-dom';
+import { Navigate, Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, AlertCircle, Shield, ArrowRight, Lock, Mail, Building, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { LoginRequest } from '../../types.js';
+import { apiClient } from '../../services/api';
+import { TotpModal } from './TotpModal';
 
 export default function Login() {
-  const { login, isAuthenticated, loading, error } = useAuth();
+  const { isAuthenticated, loading, error, refreshAuth } = useAuth();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState<LoginRequest>({
     email: '',
     password: '',
     organization_slug: '',
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [tempToken, setTempToken] = useState<string | null>(null);
+  const [showTotpModal, setShowTotpModal] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Redirect if already authenticated
   if (isAuthenticated) {
@@ -38,16 +45,32 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
 
     if (!validateForm()) {
       return;
     }
 
+    setSubmitting(true);
     try {
-      await login(formData);
-    } catch (err) {
-      // Error is handled by the auth context
+      const result = await apiClient.login(formData);
+      if ((result as any).mfa_required) {
+        const token: string | undefined = (result as any).temp_token;
+        if (!token || typeof token !== 'string') {
+          setSubmitError('Authentication error: MFA required but no token received. Please try again.');
+          return;
+        }
+        setTempToken(token);
+        setShowTotpModal(true);
+        return;
+      }
+      // Login succeeded without MFA — refresh auth context to populate admin/org data
+      await refreshAuth();
+    } catch (err: any) {
       console.error('Login failed:', err);
+      setSubmitError(err?.message ?? 'Login failed. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -272,12 +295,18 @@ export default function Login() {
                   </div>
                 </div>
 
+                {submitError && (
+                  <div className="mb-4 bg-red-50/80 backdrop-blur-sm border-2 border-red-200 rounded-2xl p-4 flex items-center space-x-3">
+                    <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                    <p className="text-red-700 text-sm font-medium">{submitError}</p>
+                  </div>
+                )}
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || submitting}
                   className="w-full btn btn-primary py-4 text-base font-semibold shadow-xl"
                 >
-                  {loading ? (
+                  {loading || submitting ? (
                     <div className="flex items-center justify-center space-x-3">
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                       <span>Signing in...</span>
@@ -316,6 +345,20 @@ export default function Login() {
           </div>
         </div>
       </div>
+      {showTotpModal && tempToken && (
+        <TotpModal
+          tempToken={tempToken}
+          onSuccess={(_token) => {
+            setTempToken(null);
+            setShowTotpModal(false);
+            refreshAuth().then(() => navigate('/dashboard', { replace: true }));
+          }}
+          onCancel={() => {
+            setShowTotpModal(false);
+            setTempToken(null);
+          }}
+        />
+      )}
     </div>
   );
 }

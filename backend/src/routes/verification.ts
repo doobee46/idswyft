@@ -1847,7 +1847,16 @@ router.post('/check-consistency/:verification_id',
     }
     
     const { verification_id } = req.params;
-    
+
+    // IDOR protection: verify the verification belongs to the authenticated developer
+    const ownerCheck = await verificationService.getVerificationRequestForDeveloper(
+      verification_id,
+      (req as any).developer.id
+    );
+    if (!ownerCheck) {
+      throw new ValidationError('Verification request not found', 'verification_id', verification_id);
+    }
+
     // Validate verification consistency
     const consistencyCheck = await consistencyService.validateVerificationConsistency(verification_id);
     
@@ -1926,21 +1935,15 @@ router.post('/reupload-document/:verification_id',
       throw new FileUploadError(backIdTypeCheck.reason || 'Invalid file type');
     }
 
-    // Get verification request
-    const verificationRequest = await verificationService.getVerificationRequest(verification_id);
+    // Get verification request (atomic ownership check — IDOR protection)
+    const verificationRequest = await verificationService.getVerificationRequestForDeveloper(
+      verification_id,
+      (req as any).developer.id
+    );
     if (!verificationRequest) {
       throw new ValidationError('Verification request not found', 'verification_id', verification_id);
     }
-    
-    // Authenticate user
-    req.body.user_id = verificationRequest.user_id;
-    await new Promise((resolve, reject) => {
-      authenticateUser(req as any, res as any, (err: any) => {
-        if (err) reject(err);
-        else resolve(true);
-      });
-    });
-    
+
     // Check if this is a reupload for a failed verification
     if (verificationRequest.status !== 'failed') {
       throw new ValidationError('Document re-upload is only allowed for failed verifications', 'status', verificationRequest.status);
