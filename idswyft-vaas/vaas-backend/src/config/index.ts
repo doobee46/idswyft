@@ -6,7 +6,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Load environment variables manually for Railway/Docker compatibility
-try {
+// Skip in test environments — tests control process.env directly via vi.stubEnv / delete
+if (!process.env.VITEST) try {
   const envPath = join(__dirname, '../../.env');
   const envFile = readFileSync(envPath, 'utf8');
   envFile
@@ -20,7 +21,7 @@ try {
       }
     });
   console.log('✅ VaaS environment variables loaded');
-} catch (error) {
+} catch (error: unknown) {
   console.warn('⚠️ Could not load .env file, using defaults');
 }
 
