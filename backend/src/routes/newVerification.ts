@@ -7,6 +7,7 @@ import { catchAsync, ValidationError, FileUploadError } from '@/middleware/error
 import { NewVerificationEngine, VerificationStatus } from '@/services/NewVerificationEngine.js';
 import { StorageService } from '@/services/storage.js';
 import { logger, logVerificationEvent } from '@/utils/logger.js';
+import { validateFileType } from '@/middleware/fileValidation.js';
 
 const router = express.Router();
 
@@ -19,14 +20,6 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Invalid file type. Only JPEG, PNG, and PDF files are allowed.'));
-    }
   },
 });
 
@@ -56,7 +49,10 @@ router.post('/initialize',
 
     try {
       // Initialize verification with clean state machine
-      const verificationState = await verificationEngine.initializeVerification(user_id);
+      const verificationState = await verificationEngine.initializeVerification(
+        user_id,
+        (req as any).developer.id
+      );
 
       logVerificationEvent('verification_initialized', verificationState.id, {
         userId: user_id,
@@ -102,7 +98,13 @@ router.post('/:verification_id/front-document',
     }
 
     if (!req.file) {
-      throw new FileUploadError('No document file provided');
+      throw new FileUploadError('Document file is required');
+    }
+
+    // Validate actual file bytes — rejects MIME-type spoofing
+    const frontFileTypeCheck = await validateFileType(req.file.buffer);
+    if (!frontFileTypeCheck.valid) {
+      throw new FileUploadError(frontFileTypeCheck.reason || 'Invalid file type');
     }
 
     const { verification_id } = req.params;
@@ -172,7 +174,13 @@ router.post('/:verification_id/back-document',
     }
 
     if (!req.file) {
-      throw new FileUploadError('No document file provided');
+      throw new FileUploadError('Document file is required');
+    }
+
+    // Validate actual file bytes — rejects MIME-type spoofing
+    const backFileTypeCheck = await validateFileType(req.file.buffer);
+    if (!backFileTypeCheck.valid) {
+      throw new FileUploadError(backFileTypeCheck.reason || 'Invalid file type');
     }
 
     const { verification_id } = req.params;
@@ -307,7 +315,13 @@ router.post('/:verification_id/live-capture',
     }
 
     if (!req.file) {
-      throw new FileUploadError('No selfie file provided');
+      throw new FileUploadError('Document file is required');
+    }
+
+    // Validate actual file bytes — rejects MIME-type spoofing
+    const liveFileTypeCheck = await validateFileType(req.file.buffer);
+    if (!liveFileTypeCheck.valid) {
+      throw new FileUploadError(liveFileTypeCheck.reason || 'Invalid file type');
     }
 
     const { verification_id } = req.params;

@@ -94,8 +94,15 @@ export class NewVerificationEngine {
   /**
    * STEP 1: Initialize verification
    */
-  async initializeVerification(userId: string): Promise<VerificationState> {
-    const verificationId = this.generateVerificationId();
+  async initializeVerification(userId: string, developerId: string): Promise<VerificationState> {
+    // Create the DB record first — saveVerificationState only updates, never inserts.
+    const dbRecord = await this.verificationService.createVerificationRequest({
+      user_id: userId,
+      developer_id: developerId,
+      is_sandbox: false,
+    });
+
+    const verificationId = dbRecord.id; // Use DB-assigned ID
 
     const initialState: VerificationState = {
       id: verificationId,
@@ -383,11 +390,6 @@ export class NewVerificationEngine {
     console.log('🎉 Step 6/6: Verification algorithm completed');
 
     return state;
-  }
-
-  // Helper methods (to be implemented)
-  private generateVerificationId(): string {
-    return `ver_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
   /**
