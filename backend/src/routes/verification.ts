@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import { body, param, validationResult } from 'express-validator';
 import { authenticateAPIKey, authenticateUser, checkSandboxMode } from '@/middleware/auth.js';
 import { verificationRateLimit } from '@/middleware/rateLimit.js';
-import { catchAsync, ValidationError, FileUploadError, AuthorizationError } from '@/middleware/errorHandler.js';
+import { catchAsync, ValidationError, FileUploadError } from '@/middleware/errorHandler.js';
 import { idempotencyMiddleware } from '@/middleware/idempotency.js';
 import { VerificationService } from '@/services/verification.js';
 import { StorageService } from '@/services/storage.js';
@@ -1849,12 +1849,12 @@ router.post('/check-consistency/:verification_id',
     const { verification_id } = req.params;
 
     // IDOR protection: verify the verification belongs to the authenticated developer
-    const ownerCheck = await verificationService.getVerificationRequest(verification_id);
+    const ownerCheck = await verificationService.getVerificationRequestForDeveloper(
+      verification_id,
+      (req as any).developer.id
+    );
     if (!ownerCheck) {
       throw new ValidationError('Verification request not found', 'verification_id', verification_id);
-    }
-    if (ownerCheck.developer_id !== (req as any).developer.id) {
-      throw new AuthorizationError();
     }
 
     // Validate verification consistency
@@ -1935,15 +1935,13 @@ router.post('/reupload-document/:verification_id',
       throw new FileUploadError(backIdTypeCheck.reason || 'Invalid file type');
     }
 
-    // Get verification request
-    const verificationRequest = await verificationService.getVerificationRequest(verification_id);
+    // Get verification request (atomic ownership check — IDOR protection)
+    const verificationRequest = await verificationService.getVerificationRequestForDeveloper(
+      verification_id,
+      (req as any).developer.id
+    );
     if (!verificationRequest) {
       throw new ValidationError('Verification request not found', 'verification_id', verification_id);
-    }
-
-    // IDOR protection: verify the verification belongs to the authenticated developer
-    if (verificationRequest.developer_id !== (req as any).developer.id) {
-      throw new AuthorizationError();
     }
 
     // Check if this is a reupload for a failed verification
