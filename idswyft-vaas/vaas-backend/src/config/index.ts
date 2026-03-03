@@ -14,7 +14,7 @@ try {
     .filter(line => line && !line.startsWith('#') && line.includes('='))
     .forEach(line => {
       const [key, ...valueParts] = line.split('=');
-      if (key && valueParts.length > 0) {
+      if (key && valueParts.length > 0 && !process.env[key.trim()]) {
         const value = valueParts.join('=').trim();
         process.env[key.trim()] = value;
       }

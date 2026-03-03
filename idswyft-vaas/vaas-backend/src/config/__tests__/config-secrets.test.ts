@@ -46,4 +46,11 @@ describe('config startup secret validation', () => {
 
     await expect(import('../index.js')).resolves.toBeDefined();
   });
+
+  it('throws when VAAS_JWT_SECRET is empty string in production', async () => {
+    process.env.NODE_ENV = 'production';
+    process.env.VAAS_JWT_SECRET = '';
+    process.env.VAAS_API_KEY_SECRET = 'some-secret-value';
+    await expect(import('../index.js')).rejects.toThrow(/VAAS_JWT_SECRET/);
+  });
 });
