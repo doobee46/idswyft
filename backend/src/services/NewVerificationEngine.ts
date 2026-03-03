@@ -117,9 +117,22 @@ export class NewVerificationEngine {
       updatedAt: new Date()
     };
 
-    await this.saveVerificationState(initialState);
+    try {
+      await this.saveVerificationState(initialState);
+    } catch (error) {
+      // Compensating delete — prevent orphaned DB row if state sync fails
+      logger.error('Failed to save initial verification state — deleting orphaned DB record', {
+        verificationId,
+        error,
+      });
+      await this.verificationService.deleteVerificationRequest(verificationId).catch(() => {
+        // Best-effort cleanup; log but don't mask the original error
+        logger.error('Failed to clean up orphaned verification record', { verificationId });
+      });
+      throw error;
+    }
 
-    console.log('🚀 Step 1/6: Verification initialized', { verificationId });
+    logger.info('🚀 Step 1/6: Verification initialized', { verificationId });
     return initialState;
   }
 

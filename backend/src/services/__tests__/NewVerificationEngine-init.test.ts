@@ -13,12 +13,14 @@ vi.mock('@/utils/logger.js', () => ({
 const mockCreate = vi.fn();
 const mockUpdate = vi.fn();
 const mockGet = vi.fn();
+const mockDelete = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('@/services/verification.js', () => ({
   VerificationService: class {
     createVerificationRequest = mockCreate;
     updateVerificationRequest = mockUpdate;
     getVerificationRequest = mockGet;
+    deleteVerificationRequest = mockDelete;
   },
 }));
 
@@ -46,6 +48,7 @@ describe('NewVerificationEngine.initializeVerification', () => {
       created_at: new Date(),
       updated_at: new Date(),
     });
+    mockDelete.mockResolvedValue(undefined);
   });
 
   it('calls createVerificationRequest before updateVerificationRequest', async () => {
@@ -69,14 +72,40 @@ describe('NewVerificationEngine.initializeVerification', () => {
     expect(state.id).toBe('db-generated-id');
   });
 
-  it('does NOT call createVerificationRequest when it should update (subsequent steps)', async () => {
+  it('propagates createVerificationRequest failure and does not call saveVerificationState', async () => {
+    mockCreate.mockRejectedValue(new Error('DB constraint violation'));
+
     const { NewVerificationEngine } = await import('../NewVerificationEngine.js');
     const engine = new NewVerificationEngine();
 
-    await engine.initializeVerification('user-1', 'dev-1');
+    await expect(engine.initializeVerification('user-1', 'dev-1')).rejects.toThrow(
+      'DB constraint violation'
+    );
+    // saveVerificationState calls updateVerificationRequest — must not be called if create fails
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
 
-    // updateVerificationRequest may be called (for state sync), but createVerificationRequest
-    // must be called exactly once — only on initialize
-    expect(mockCreate).toHaveBeenCalledOnce();
+  it('attempts compensating delete when saveVerificationState fails after successful create', async () => {
+    mockCreate.mockResolvedValue({
+      id: 'db-generated-id',
+      status: 'pending',
+      user_id: 'user-1',
+      developer_id: 'dev-1',
+      is_sandbox: false,
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+    // Make saveVerificationState fail (it calls updateVerificationRequest)
+    mockUpdate.mockRejectedValue(new Error('State sync failed'));
+    mockGet.mockResolvedValue(null);
+
+    const { NewVerificationEngine } = await import('../NewVerificationEngine.js');
+    const engine = new NewVerificationEngine();
+
+    await expect(engine.initializeVerification('user-1', 'dev-1')).rejects.toThrow(
+      'State sync failed'
+    );
+    // Compensating delete must be attempted
+    expect(mockDelete).toHaveBeenCalledWith('db-generated-id');
   });
 });
