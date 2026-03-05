@@ -8,7 +8,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
-import config from './config.js';
+import config from './config/index.js';
 import { connectDB, supabase } from './config/database.js';
 import { generateAPIKey, authenticateAPIKey } from './middleware/auth.js';
 import { apiActivityLogger } from './middleware/apiLogger.js';
