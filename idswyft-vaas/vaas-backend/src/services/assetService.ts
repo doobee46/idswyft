@@ -17,12 +17,6 @@ const ASSET_FILENAMES: Record<AssetType, string> = {
   'portal-background': 'portal-background',
 };
 
-function mimeToExt(mime: string): string {
-  if (mime === 'image/png') return 'png';
-  if (mime === 'image/webp') return 'webp';
-  return 'jpg';
-}
-
 export function validateAssetFile(file: Express.Multer.File): void {
   if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
     throw new Error('Invalid file type. Accepted: PNG, JPG, WebP');
@@ -39,8 +33,7 @@ export async function uploadOrgAsset(
 ): Promise<AssetUploadResult> {
   validateAssetFile(file);
 
-  const ext = mimeToExt(file.mimetype);
-  const path = `orgs/${orgId}/${ASSET_FILENAMES[assetType]}.${ext}`;
+  const path = `orgs/${orgId}/${ASSET_FILENAMES[assetType]}`;
 
   const { error: uploadError } = await vaasSupabase.storage
     .from(BUCKET)
@@ -63,6 +56,7 @@ export async function uploadOrgAsset(
     .single();
 
   if (fetchError) throw new Error(`Failed to fetch org branding: ${fetchError.message}`);
+  if (!org) throw new Error(`Organization not found: ${orgId}`);
 
   const updatedBranding = { ...(org.branding || {}), [brandingKey]: url };
 
@@ -82,8 +76,7 @@ export async function uploadPlatformAsset(
 ): Promise<AssetUploadResult> {
   validateAssetFile(file);
 
-  const ext = mimeToExt(file.mimetype);
-  const path = `platform/${ASSET_FILENAMES[assetType]}.${ext}`;
+  const path = `platform/${ASSET_FILENAMES[assetType]}`;
 
   const { error: uploadError } = await vaasSupabase.storage
     .from(BUCKET)
@@ -101,8 +94,7 @@ export async function uploadPlatformAsset(
 
   const { error: saveError } = await vaasSupabase
     .from('platform_branding')
-    .update({ [brandingKey]: url, updated_at: new Date().toISOString() })
-    .eq('id', 'platform');
+    .upsert({ id: 'platform', [brandingKey]: url, updated_at: new Date().toISOString() }, { onConflict: 'id' });
 
   if (saveError) throw new Error(`Failed to update platform branding: ${saveError.message}`);
 
@@ -117,6 +109,7 @@ export async function getOrgAssets(orgId: string): Promise<Record<string, string
     .single();
 
   if (error) throw new Error(`Failed to fetch org: ${error.message}`);
+  if (!org) throw new Error(`Organization not found: ${orgId}`);
 
   const branding = org.branding || {};
   return {
