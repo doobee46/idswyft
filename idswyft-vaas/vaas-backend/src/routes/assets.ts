@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { requireAuth, requireSuperAdmin, AuthenticatedRequest } from '../middleware/auth.js';
 import {
@@ -141,5 +141,18 @@ router.post(
     }
   }
 );
+
+// Multer error handler — catches LIMIT_FILE_SIZE and returns 400 instead of 500.
+// Must be a 4-argument handler so Express recognises it as an error middleware.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+router.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  if (err?.code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'FILE_TOO_LARGE', message: 'File exceeds 2MB limit' },
+    });
+  }
+  _next(err);
+});
 
 export default router;
