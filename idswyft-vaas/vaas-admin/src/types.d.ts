@@ -30,6 +30,7 @@ export interface Admin {
   email_verified_at?: string;
   last_login_at?: string;
   login_count?: number;
+  is_super_admin?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -50,10 +51,36 @@ export interface OrganizationSettings {
 export interface OrganizationBranding {
   company_name: string;
   logo_url?: string;
+  favicon_url?: string;
+  email_banner_url?: string;
+  portal_background_url?: string;
   primary_color?: string;
   welcome_message: string;
   success_message: string;
   custom_css?: string;
+}
+
+export type AssetType = 'logo' | 'favicon' | 'email-banner' | 'portal-background';
+
+export interface AssetUploadResult {
+  url: string;
+  asset_type: AssetType;
+  updated_at: string;
+}
+
+export interface PlatformBranding {
+  logo_url: string | null;
+  favicon_url: string | null;
+  email_banner_url: string | null;
+  portal_background_url: string | null;
+  updated_at: string;
+}
+
+export interface OrgAssets {
+  logo_url: string | null;
+  favicon_url: string | null;
+  email_banner_url: string | null;
+  portal_background_url: string | null;
 }
 
 export interface Organization {

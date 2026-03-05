@@ -42,7 +42,10 @@ import {
   AdminUserPasswordReset,
   ActiveSession,
   ProviderSummary,
-  ProviderType
+  ProviderType,
+  AssetUploadResult,
+  PlatformBranding,
+  OrgAssets
 } from '../types.js';
 
 class ApiClient {
@@ -970,6 +973,53 @@ class ApiClient {
       throw new Error('Provider metrics response missing data payload');
     }
     return data;
+  }
+
+  // Asset management
+  async uploadOrgAsset(orgId: string, assetType: string, file: File): Promise<AssetUploadResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response: AxiosResponse<ApiResponse<AssetUploadResult>> = await this.client.post(
+      `/assets/organizations/${orgId}/${assetType}`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Upload failed');
+    }
+    return response.data.data!;
+  }
+
+  async uploadPlatformAsset(assetType: string, file: File): Promise<AssetUploadResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response: AxiosResponse<ApiResponse<AssetUploadResult>> = await this.client.post(
+      `/assets/platform/${assetType}`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Upload failed');
+    }
+    return response.data.data!;
+  }
+
+  async getPlatformBranding(): Promise<PlatformBranding> {
+    const response: AxiosResponse<ApiResponse<PlatformBranding>> =
+      await this.client.get('/assets/platform');
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to get platform branding');
+    }
+    return response.data.data!;
+  }
+
+  async getOrgAssets(orgId: string): Promise<OrgAssets> {
+    const response: AxiosResponse<ApiResponse<OrgAssets>> =
+      await this.client.get(`/assets/organizations/${orgId}`);
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to get org assets');
+    }
+    return response.data.data!;
   }
 
   // Utility methods
