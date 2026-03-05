@@ -6,6 +6,7 @@ import type { AxiosResponse } from 'axios';
 import { Building2, Settings, CreditCard, Palette, Users, Save, AlertCircle, UserCog, Key, Database } from 'lucide-react';
 import AdminManagement from '../components/organization/AdminManagement';
 import UsageDashboard from '../components/organization/UsageDashboard';
+import { AssetUpload } from '../components/AssetUpload';
 
 export default function Organization() {
   const { organization, admin } = useAuth();
@@ -197,6 +198,7 @@ export default function Organization() {
       {activeTab === 'branding' && (
         <BrandingSettings
           branding={orgData.branding}
+          orgId={orgData.id}
           onSave={handleSaveBranding}
           isLoading={isLoading}
           canEdit={admin?.permissions.manage_organization || false}
@@ -716,13 +718,15 @@ function BillingSettings({ organization, canManage }: BillingSettingsProps) {
 
 interface BrandingSettingsProps {
   branding: OrganizationBranding;
+  orgId: string;
   onSave: (branding: OrganizationBranding) => void;
   isLoading: boolean;
   canEdit: boolean;
 }
 
-function BrandingSettings({ branding, onSave, isLoading, canEdit }: BrandingSettingsProps) {
+function BrandingSettings({ branding, orgId, onSave, isLoading, canEdit }: BrandingSettingsProps) {
   const [formData, setFormData] = useState(branding);
+  const [localBranding, setLocalBranding] = useState(branding);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -733,12 +737,19 @@ function BrandingSettings({ branding, onSave, isLoading, canEdit }: BrandingSett
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleAssetUpload = async (assetType: string, file: File) => {
+    const result = await apiClient.uploadOrgAsset(orgId, assetType, file);
+    const key = (assetType.replace('-', '_') + '_url') as keyof OrganizationBranding;
+    setLocalBranding(prev => ({ ...prev, [key]: result.url }));
+    setFormData(prev => ({ ...prev, [key]: result.url }));
+  };
+
   return (
     <div className="bg-white shadow rounded-lg">
       <div className="px-6 py-4 border-b border-gray-200">
         <h3 className="text-lg font-medium text-gray-900">Branding & Customization</h3>
       </div>
-      
+
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
@@ -752,20 +763,6 @@ function BrandingSettings({ branding, onSave, isLoading, canEdit }: BrandingSett
               disabled={!canEdit}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
               required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Logo URL
-            </label>
-            <input
-              type="url"
-              value={formData.logo_url || ''}
-              onChange={(e) => handleChange('logo_url', e.target.value)}
-              disabled={!canEdit}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
-              placeholder="https://example.com/logo.png"
             />
           </div>
 
@@ -790,6 +787,37 @@ function BrandingSettings({ branding, onSave, isLoading, canEdit }: BrandingSett
                 placeholder="#3B82F6"
               />
             </div>
+          </div>
+        </div>
+
+        {/* Brand asset uploads — replaces the old logo URL text input */}
+        <div>
+          <h4 className="text-sm font-medium text-gray-700 mb-3">Brand Assets</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <AssetUpload
+              label="Logo"
+              currentUrl={localBranding.logo_url}
+              onUpload={(file) => handleAssetUpload('logo', file)}
+              disabled={!canEdit}
+            />
+            <AssetUpload
+              label="Favicon"
+              currentUrl={localBranding.favicon_url}
+              onUpload={(file) => handleAssetUpload('favicon', file)}
+              disabled={!canEdit}
+            />
+            <AssetUpload
+              label="Email Banner"
+              currentUrl={localBranding.email_banner_url}
+              onUpload={(file) => handleAssetUpload('email-banner', file)}
+              disabled={!canEdit}
+            />
+            <AssetUpload
+              label="Portal Background"
+              currentUrl={localBranding.portal_background_url}
+              onUpload={(file) => handleAssetUpload('portal-background', file)}
+              disabled={!canEdit}
+            />
           </div>
         </div>
 
