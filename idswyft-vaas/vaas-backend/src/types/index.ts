@@ -346,3 +346,28 @@ export interface VaasApiResponse<T = any> {
     has_more?: boolean;
   };
 }
+
+export type AssetType = 'logo' | 'favicon' | 'email-banner' | 'portal-background';
+
+export const ASSET_TYPES: AssetType[] = ['logo', 'favicon', 'email-banner', 'portal-background'];
+
+export const ASSET_TYPE_TO_BRANDING_KEY: Record<AssetType, string> = {
+  'logo': 'logo_url',
+  'favicon': 'favicon_url',
+  'email-banner': 'email_banner_url',
+  'portal-background': 'portal_background_url',
+};
+
+export interface AssetUploadResult {
+  url: string;
+  asset_type: AssetType;
+  updated_at: string;
+}
+
+export interface PlatformBranding {
+  logo_url: string | null;
+  favicon_url: string | null;
+  email_banner_url: string | null;
+  portal_background_url: string | null;
+  updated_at: string;
+}
