@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/api';
-import { Organization, OrganizationSettings } from '../types.js';
+import { Organization, OrganizationSettings, PlatformBranding } from '../types.js';
 import { Settings as SettingsIcon, Save, AlertCircle, CheckCircle, Shield, Palette, Bell, Clock, Users, Zap } from 'lucide-react';
 import AdvancedThresholdSettings from '../components/AdvancedThresholdSettings';
+import { AssetUpload } from '../components/AssetUpload';
 
 export default function Settings() {
   const { organization, admin } = useAuth();
@@ -56,6 +57,23 @@ export default function Settings() {
   }
 
   const canEdit = admin?.permissions.manage_settings || false;
+  const isSuperAdmin = admin?.is_super_admin === true;
+
+  const [platformBranding, setPlatformBranding] = useState<PlatformBranding | null>(null);
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      apiClient.getPlatformBranding()
+        .then(setPlatformBranding)
+        .catch(console.error);
+    }
+  }, [isSuperAdmin]);
+
+  const handlePlatformAssetUpload = async (assetType: string, file: File) => {
+    const result = await apiClient.uploadPlatformAsset(assetType, file);
+    const key = (assetType.replace('-', '_') + '_url') as keyof PlatformBranding;
+    setPlatformBranding(prev => prev ? { ...prev, [key]: result.url } : prev);
+  };
 
   return (
     <div className="p-6 space-y-8">
@@ -202,6 +220,41 @@ export default function Settings() {
               isLoading={isLoading}
               canEdit={canEdit}
             />
+          )}
+
+          {isSuperAdmin && (
+            <div className="bg-white shadow rounded-lg mt-6">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-medium text-gray-900">Platform Branding</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Global branding shown when no organization override is set. Super-admin only.
+                </p>
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <AssetUpload
+                    label="Logo"
+                    currentUrl={platformBranding?.logo_url}
+                    onUpload={(file) => handlePlatformAssetUpload('logo', file)}
+                  />
+                  <AssetUpload
+                    label="Favicon"
+                    currentUrl={platformBranding?.favicon_url}
+                    onUpload={(file) => handlePlatformAssetUpload('favicon', file)}
+                  />
+                  <AssetUpload
+                    label="Email Banner"
+                    currentUrl={platformBranding?.email_banner_url}
+                    onUpload={(file) => handlePlatformAssetUpload('email-banner', file)}
+                  />
+                  <AssetUpload
+                    label="Portal Background"
+                    currentUrl={platformBranding?.portal_background_url}
+                    onUpload={(file) => handlePlatformAssetUpload('portal-background', file)}
+                  />
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>
