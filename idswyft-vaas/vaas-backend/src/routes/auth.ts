@@ -240,11 +240,14 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res) => {
     
     // Remove sensitive data
     const { password_hash, ...adminData } = admin as any;
-    
+
+    const superAdminEmails = (config.superAdminEmails || '').split(',').map((e: string) => e.trim());
+    const isSuperAdmin = superAdminEmails.includes(adminData.email);
+
     const response: VaasApiResponse = {
       success: true,
       data: {
-        admin: adminData,
+        admin: { ...adminData, is_super_admin: isSuperAdmin },
         organization: admin.vaas_organizations
       }
     };
