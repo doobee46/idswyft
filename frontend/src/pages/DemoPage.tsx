@@ -1016,31 +1016,66 @@ const DemoPage: React.FC = () => {
   };
 
   // Render progress indicator
-  const renderProgressIndicator = () => (
-    <div className="mb-8">
-      <div className="flex items-center justify-between mb-4">
-        {[1, 2, 3, 4, 5].map((step) => (
-          <div
-            key={step}
-            className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full font-semibold text-sm ${
-              step <= currentStep
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-200 text-gray-600'
-            }`}
-          >
-            {step}
-          </div>
-        ))}
+  const renderProgressIndicator = () => {
+    const steps = [
+      { label: 'Start',    icon: '🔑' },
+      { label: 'Upload',   icon: '📄' },
+      { label: 'Process',  icon: '⚙️' },
+      { label: 'Verify',   icon: '🤳' },
+      { label: 'Complete', icon: '✓'  },
+    ];
+    return (
+      <div className="mb-10">
+        <div className="flex items-start">
+          {steps.map((s, i) => {
+            const stepNum = i + 1;
+            const isCompleted = stepNum < currentStep;
+            const isActive    = stepNum === currentStep;
+            return (
+              <React.Fragment key={stepNum}>
+                {/* Circle + label */}
+                <div className="flex flex-col items-center gap-1.5 min-w-0">
+                  <div
+                    className={`flex items-center justify-center w-9 h-9 rounded-full text-sm font-bold transition-all duration-300 ${
+                      isCompleted
+                        ? 'bg-blue-600 text-white'
+                        : isActive
+                        ? 'bg-blue-600 text-white ring-4 ring-blue-100 scale-110'
+                        : 'bg-gray-100 text-gray-400'
+                    }`}
+                  >
+                    {isCompleted
+                      ? <CheckCircleIcon className="w-5 h-5" />
+                      : stepNum}
+                  </div>
+                  <span
+                    className={`text-[11px] font-medium whitespace-nowrap transition-colors duration-300 ${
+                      isActive    ? 'text-blue-600' :
+                      isCompleted ? 'text-gray-600' : 'text-gray-400'
+                    }`}
+                  >
+                    {s.label}
+                  </span>
+                </div>
+
+                {/* Connector line */}
+                {i < steps.length - 1 && (
+                  <div className="flex-1 mx-2 mt-[18px]">
+                    <div className="h-0.5 w-full bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-blue-600 rounded-full transition-all duration-500"
+                        style={{ width: stepNum < currentStep ? '100%' : '0%' }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
       </div>
-      <div className="flex justify-between text-xs sm:text-sm text-gray-600">
-        <span>Start</span>
-        <span>Upload</span>
-        <span>Process</span>
-        <span>Verify</span>
-        <span>Complete</span>
-      </div>
-    </div>
-  );
+    );
+  };
 
   // Render embedded live capture
   const renderLiveCapture = () => (
@@ -1630,26 +1665,6 @@ const DemoPage: React.FC = () => {
       {/* ── HERO ── */}
       <div className="bg-[#0F172A] text-white">
         <div className="max-w-6xl mx-auto px-6">
-          {/* Nav */}
-          <nav className="flex items-center justify-between py-5 border-b border-white/10">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-                <EyeIcon className="w-4 h-4 text-white" />
-              </div>
-              <span className="font-bold text-lg">Idswyft</span>
-            </div>
-            <div className="hidden sm:flex items-center gap-6 text-sm text-gray-300">
-              <a href="/docs" className="hover:text-white transition-colors">Docs</a>
-              <a href="/developer" className="hover:text-white transition-colors">Developer Portal</a>
-              <a
-                href="/developer"
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
-              >
-                Get API Key
-              </a>
-            </div>
-          </nav>
-
           {/* Hero content */}
           <div className="py-20 text-center max-w-3xl mx-auto">
             <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs font-medium px-3 py-1.5 rounded-full mb-6">

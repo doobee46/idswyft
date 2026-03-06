@@ -18,12 +18,21 @@ export function isCorsAllowed(origin: string, config: CorsConfig): boolean {
   // 2. Check the explicit Railway deployment allowlist (exact match, no wildcards)
   if (config.railwayAllowedOrigins?.includes(origin)) return true;
 
-  // 3. In development only, allow localhost and loopback addresses
+  // 3. In development only, allow localhost, loopback, and RFC-1918 LAN addresses
+  //    so that phones on the same network can reach the dev backend.
   if (config.nodeEnv === 'development') {
     if (origin.startsWith('http://localhost:') ||
         origin.startsWith('http://127.0.0.1:')) {
       return true;
     }
+    try {
+      const { hostname } = new URL(origin);
+      if (/^10\./.test(hostname) ||
+          /^192\.168\./.test(hostname) ||
+          /^172\.(1[6-9]|2\d|3[01])\./.test(hostname)) {
+        return true;
+      }
+    } catch { /* unparseable origin — deny */ }
   }
 
   return false;

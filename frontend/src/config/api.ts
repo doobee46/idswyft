@@ -1,5 +1,18 @@
 // API Configuration
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// When accessed via a LAN IP (e.g. phone scanning a QR code), route API calls
+// through the same Vite dev server instead of hitting the backend port directly.
+// Vite's /api proxy forwards to localhost:3001 server-side, so the phone only
+// ever needs to reach port 5173 — no firewall or CORS issues.
+const _getApiBaseUrl = (): string => {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  const h = window.location.hostname;
+  if (h !== 'localhost' && h !== '127.0.0.1') {
+    // Network IP: proxy API through Vite (same host:port as the frontend)
+    return `${window.location.protocol}//${window.location.host}`;
+  }
+  return 'http://localhost:3001';
+};
+export const API_BASE_URL = _getApiBaseUrl();
 
 // Determine if we should use sandbox mode
 export const shouldUseSandbox = (apiKey?: string) => {

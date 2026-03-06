@@ -190,8 +190,8 @@ export const errorHandler = (
     error = new APIError(message, 400, 'DUPLICATE_FIELD');
   }
 
-  // Mongoose validation error
-  if (err.name === 'ValidationError') error = handleValidationErrorDB(error);
+  // Mongoose validation error (guard against our own ValidationError class which also has name='ValidationError')
+  if (err.name === 'ValidationError' && !err.isOperational) error = handleValidationErrorDB(error);
 
   // JWT error
   if (err.name === 'JsonWebTokenError') error = handleJWTError();

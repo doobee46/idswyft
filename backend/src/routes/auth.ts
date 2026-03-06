@@ -100,14 +100,9 @@ export const developerLoginValidation = [
     .isEmail()
     .normalizeEmail()
     .withMessage('Valid email is required'),
-  body('password')
-    .notEmpty()
-    .withMessage('Password is required')
-    .isLength({ min: 8 })
-    .withMessage('Password must be at least 8 characters'),
 ];
 
-// Developer login
+// Developer login — passwordless, email-only (API keys are the real credentials)
 router.post('/developer/login',
   developerLoginValidation,
   catchAsync(async (req: Request, res: Response) => {
@@ -115,9 +110,9 @@ router.post('/developer/login',
     if (!errors.isEmpty()) {
       throw new ValidationError('Validation failed', 'multiple', errors.array());
     }
-    
-    const { email, password } = req.body;
-    
+
+    const { email } = req.body;
+
     // Get developer user
     const { data: developer, error } = await supabase
       .from('developers')
@@ -125,27 +120,12 @@ router.post('/developer/login',
       .eq('email', email)
       .eq('is_verified', true)
       .single();
-    
+
     if (error || !developer) {
-      logger.warn('Developer login attempt with invalid email', { email });
-      throw new AuthenticationError('Invalid credentials or developer account not found');
+      logger.warn('Developer login attempt with unknown email', { email });
+      throw new AuthenticationError('No developer account found for this email');
     }
-    
-    // Password is always required (enforced by express-validator above).
-    // Reject if the developer account has no password hash set.
-    if (!developer.password_hash) {
-      logger.warn('Developer login attempt but account has no password set', { email });
-      throw new AuthenticationError('Invalid credentials');
-    }
-    const isValidPassword = await bcrypt.compare(password, developer.password_hash);
-    if (!isValidPassword) {
-      logger.warn('Developer login attempt with invalid password', {
-        email,
-        developerId: developer.id,
-      });
-      throw new AuthenticationError('Invalid credentials');
-    }
-    
+
     // Generate token
     const token = generateDeveloperToken(developer);
     

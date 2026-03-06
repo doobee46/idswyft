@@ -38,7 +38,16 @@ const MobileVerificationPage: React.FC = () => {
         setUserId(data.user_id);
       })
       .catch(e => {
-        if (e.name !== 'AbortError') setError(e.message);
+        if (e.name === 'AbortError') return;
+        // "Failed to fetch" means the phone can't reach the backend
+        const isNetwork = e.message === 'Failed to fetch' ||
+          e.message === 'Load failed' ||
+          e.message.toLowerCase().includes('network');
+        setError(
+          isNetwork
+            ? 'Could not reach the verification server. Make sure your phone and computer are on the same Wi-Fi network, then scan the QR code again.'
+            : e.message
+        );
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);

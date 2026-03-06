@@ -129,3 +129,6 @@ AUDIT_REPORT.md
 
 # Git worktrees
 .worktrees/
+
+# Internal design docs & plans (never committed)
+docs/
