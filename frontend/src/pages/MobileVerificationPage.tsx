@@ -12,6 +12,7 @@ const MobileVerificationPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [patchFailed, setPatchFailed] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -20,7 +21,9 @@ const MobileVerificationPage: React.FC = () => {
       return;
     }
 
-    fetch(`${API_BASE_URL}/api/verify/handoff/${token}/session`)
+    const controller = new AbortController();
+
+    fetch(`${API_BASE_URL}/api/verify/handoff/${token}/session`, { signal: controller.signal })
       .then(r => {
         if (r.status === 410) throw new Error('This QR code has expired. Please generate a new one on your desktop.');
         if (r.status === 409) throw new Error('This link has already been used.');
@@ -28,23 +31,37 @@ const MobileVerificationPage: React.FC = () => {
         return r.json();
       })
       .then(data => {
+        if (!data.api_key || !data.user_id) {
+          throw new Error('Session response is incomplete. Please try scanning the QR code again.');
+        }
         setApiKey(data.api_key);
         setUserId(data.user_id);
       })
-      .catch(e => setError(e.message))
-      .finally(() => setLoading(false));
+      .catch(e => {
+        if (e.name !== 'AbortError') setError(e.message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+
+    return () => controller.abort();
   }, [token]);
 
   const handleComplete = async (result: any) => {
     if (!token) return;
     try {
-      await fetch(`${API_BASE_URL}/api/verify/handoff/${token}/complete`, {
+      const res = await fetch(`${API_BASE_URL}/api/verify/handoff/${token}/complete`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: result.status, result }),
       });
+      if (!res.ok) {
+        console.error('Failed to notify desktop of completion:', res.status);
+        setPatchFailed(true);
+      }
     } catch (err) {
       console.error('Failed to report completion to desktop:', err);
+      setPatchFailed(true);
     }
     setDone(true);
   };
@@ -88,6 +105,11 @@ const MobileVerificationPage: React.FC = () => {
           <p className="text-gray-500 leading-relaxed">
             Your verification is complete. You can close this tab and check your desktop.
           </p>
+          {patchFailed && (
+            <p className="mt-3 text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              Note: We couldn't notify your desktop automatically. Please refresh it to see your result.
+            </p>
+          )}
         </div>
       </div>
     );
