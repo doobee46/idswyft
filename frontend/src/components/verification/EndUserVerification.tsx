@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '../../config/api';
 import { ContinueOnPhone } from '../ContinueOnPhone';
@@ -72,6 +72,16 @@ const EndUserVerification: React.FC<VerificationProps> = ({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [documentType, setDocumentType] = useState<string>('national_id');
   const [showMobileChoice, setShowMobileChoice] = useState(enableMobileHandoff);
+  const mountedRef = useRef(true);
+  const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
+    };
+  }, []);
 
   const themeClasses = {
     light: {
@@ -182,6 +192,7 @@ const EndUserVerification: React.FC<VerificationProps> = ({
 
       if (response.ok) {
         const data = await response.json();
+        if (!mountedRef.current) return;
         setVerificationRequest(data);
 
         // Check if OCR is complete and we can proceed to live capture
@@ -189,7 +200,7 @@ const EndUserVerification: React.FC<VerificationProps> = ({
           setCurrentStep(4); // Move to live capture
         } else if (data.status === 'processing') {
           // Continue polling
-          setTimeout(pollVerificationStatus, 2000);
+          if (mountedRef.current) setTimeout(pollVerificationStatus, 2000);
         }
       }
     } catch (error) {
@@ -266,7 +277,7 @@ const EndUserVerification: React.FC<VerificationProps> = ({
 
         // Handle redirect after 3 seconds
         if (redirectUrl || onRedirect) {
-          setTimeout(() => {
+          redirectTimerRef.current = setTimeout(() => {
             if (onRedirect) {
               onRedirect(redirectUrl || '/');
             } else if (redirectUrl) {
