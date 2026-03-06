@@ -1625,30 +1625,173 @@ const DemoPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Demo Banner */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
+    <div className="min-h-screen bg-[#F8FAFC]">
+
+      {/* ── HERO ── */}
+      <div className="bg-[#0F172A] text-white">
+        <div className="max-w-6xl mx-auto px-6">
+          {/* Nav */}
+          <nav className="flex items-center justify-between py-5 border-b border-white/10">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                <EyeIcon className="w-4 h-4 text-white" />
+              </div>
+              <span className="font-bold text-lg">Idswyft</span>
             </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-blue-800">
-                Interactive Demo
-              </h3>
-              <p className="text-sm text-blue-700 mt-1">
-                Experience our complete identity verification flow with PDF417 barcode scanning and live capture. Get your API key from the <a href="/developer" className="underline font-medium">Developer page</a> to test the full integration.
-              </p>
+            <div className="hidden sm:flex items-center gap-6 text-sm text-gray-300">
+              <a href="/docs" className="hover:text-white transition-colors">Docs</a>
+              <a href="/developer" className="hover:text-white transition-colors">Developer Portal</a>
+              <a
+                href="/developer"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                Get API Key
+              </a>
+            </div>
+          </nav>
+
+          {/* Hero content */}
+          <div className="py-20 text-center max-w-3xl mx-auto">
+            <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs font-medium px-3 py-1.5 rounded-full mb-6">
+              <span className="w-1.5 h-1.5 bg-blue-400 rounded-full" />
+              Live Interactive Demo
+            </div>
+            <h1 className="text-4xl sm:text-6xl font-extrabold mb-6 leading-tight tracking-tight">
+              Identity Verification
+              <br />
+              <span className="text-blue-400">Built for Developers</span>
+            </h1>
+            <p className="text-gray-400 text-lg mb-10 leading-relaxed">
+              Production-ready KYC API with AI-powered document OCR, liveness detection,
+              and face matching. Integrate in under 30 minutes.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <a
+                href="#demo"
+                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3.5 rounded-xl transition-colors"
+              >
+                Try Demo ↓
+              </a>
+              <a
+                href="/docs"
+                className="w-full sm:w-auto bg-white/10 hover:bg-white/15 text-white font-semibold px-8 py-3.5 rounded-xl transition-colors"
+              >
+                View Docs →
+              </a>
+            </div>
+
+            {/* Trust badges */}
+            <div className="flex flex-wrap items-center justify-center gap-6 mt-12 text-sm text-gray-400">
+              <span className="flex items-center gap-1.5">
+                <CheckCircleIcon className="w-4 h-4 text-emerald-400" />
+                AI-Powered OCR
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CheckCircleIcon className="w-4 h-4 text-emerald-400" />
+                Under 3 Minutes
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CheckCircleIcon className="w-4 h-4 text-emerald-400" />
+                90%+ Accuracy
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CheckCircleIcon className="w-4 h-4 text-emerald-400" />
+                GDPR Compliant
+              </span>
             </div>
           </div>
         </div>
-        
-        <div className="bg-white rounded-lg shadow-lg p-6 sm:p-8">
+      </div>
+
+      {/* ── FEATURES STRIP ── */}
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-6xl mx-auto px-6 py-12">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { icon: '📄', title: 'Document OCR', desc: 'Extracts name, DOB, ID number from passports, licenses, and national IDs' },
+              { icon: '👤', title: 'Face Matching', desc: 'Matches selfie against document photo with configurable confidence threshold' },
+              { icon: '👁', title: 'Liveness Detection', desc: 'Real-time challenge-response to prevent spoofing with printed photos or videos' },
+              { icon: '🔑', title: 'API-First', desc: 'RESTful API with webhook callbacks, sandbox mode, and SDKs for JS and Python' },
+            ].map(f => (
+              <div key={f.title} className="flex flex-col gap-2">
+                <div className="text-2xl">{f.icon}</div>
+                <h3 className="font-semibold text-gray-900 text-sm">{f.title}</h3>
+                <p className="text-xs text-gray-500 leading-relaxed">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── VERIFICATION WIDGET ── */}
+      <div id="demo" className="max-w-4xl mx-auto px-6 py-16">
+        <div className="text-center mb-8">
+          <span className="text-xs font-semibold text-blue-600 uppercase tracking-widest">Interactive Demo</span>
+          <h2 className="text-3xl font-bold text-gray-900 mt-2">Try It Live</h2>
+          <p className="text-gray-500 mt-2 text-sm">Use your real API key — this calls the actual verification API</p>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
           {renderProgressIndicator()}
           {renderStepContent()}
+        </div>
+      </div>
+
+      {/* ── HOW IT WORKS ── */}
+      <div className="bg-white border-t border-gray-100">
+        <div className="max-w-4xl mx-auto px-6 py-16">
+          <h2 className="text-2xl font-bold text-gray-900 text-center mb-12">How It Works</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 relative">
+            {[
+              { step: '1', icon: '📤', title: 'Upload ID', desc: 'User uploads a photo of their government-issued ID. Our AI extracts and validates the data.' },
+              { step: '2', icon: '🤳', title: 'Live Selfie', desc: 'A real-time liveness challenge confirms the person is physically present, not a photo or video.' },
+              { step: '3', icon: '⚡', title: 'Instant Result', desc: 'Receive a verification result in seconds with confidence scores via API response or webhook.' },
+            ].map((s) => (
+              <div key={s.step} className="flex flex-col items-center text-center gap-3">
+                <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center text-2xl">
+                  {s.icon}
+                </div>
+                <div className="w-6 h-6 bg-blue-600 text-white rounded-full text-xs font-bold flex items-center justify-center">
+                  {s.step}
+                </div>
+                <h3 className="font-semibold text-gray-900">{s.title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── DEVELOPER CTA ── */}
+      <div className="bg-[#0F172A] text-white">
+        <div className="max-w-4xl mx-auto px-6 py-16 text-center">
+          <h2 className="text-3xl font-bold mb-3">Integrate in 30 Minutes</h2>
+          <p className="text-gray-400 mb-8">One API call to start a verification session.</p>
+
+          <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-left font-mono text-sm text-gray-300 max-w-xl mx-auto mb-8 overflow-x-auto">
+            <span className="text-gray-500"># Start a verification</span>
+            <br />
+            curl -X POST https://api.idswyft.app/api/verify/start \
+            <br />
+            {'  '}-H <span className="text-emerald-400">"X-API-Key: YOUR_KEY"</span> \
+            <br />
+            {'  '}-d <span className="text-blue-400">{'\'{"user_id":"usr_123"}\''}</span>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <a
+              href="/developer"
+              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3.5 rounded-xl transition-colors"
+            >
+              Get Free API Key →
+            </a>
+            <a
+              href="/docs"
+              className="w-full sm:w-auto bg-white/10 hover:bg-white/15 text-white font-semibold px-8 py-3.5 rounded-xl transition-colors"
+            >
+              Read the Docs →
+            </a>
+          </div>
         </div>
       </div>
 
