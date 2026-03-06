@@ -847,8 +847,11 @@ router.post('/back-of-id',
             await verificationService.updateVerificationRequest(verificationRequest.id, {
               cross_validation_score: crossValidation.match_score,
               enhanced_verification_completed: true,
-              status: crossValidationPassed ? 'verified' : 'failed',
-              failure_reason: !crossValidationPassed ? 
+              // Cross-validation passing means "ready for live capture", not yet verified.
+              // Keep 'processing' so the frontend knows to proceed to live capture.
+              // Cross-validation failing is a hard failure.
+              status: crossValidationPassed ? 'processing' : 'failed',
+              failure_reason: !crossValidationPassed ?
                 `Cross-validation failed - front and back ID data mismatch (score: ${crossValidation.match_score.toFixed(2)})` : undefined
             });
 
@@ -859,10 +862,10 @@ router.post('/back-of-id',
               discrepancies: crossValidation.discrepancies
             });
           } else {
-            // No front document to cross-validate, just complete with back-of-ID data
+            // No front document to cross-validate, mark ready for live capture
             await verificationService.updateVerificationRequest(verificationRequest.id, {
               enhanced_verification_completed: true,
-              status: 'verified'
+              status: 'processing'
             });
           }
 
@@ -905,7 +908,7 @@ router.post('/back-of-id',
           await verificationService.updateVerificationRequest(verificationRequest.id, {
             cross_validation_score: mockCrossValidation.match_score,
             enhanced_verification_completed: true,
-            status: 'verified'
+            status: 'processing' // Ready for live capture
           });
 
           logVerificationEvent('mock_enhanced_verification_completed', verificationRequest.id, {
@@ -1455,11 +1458,14 @@ router.post('/live-capture',
               liveness: livenessScore
             });
             
-            // For enhanced verification, check if document validation passed
+            // For enhanced verification, check if document cross-validation passed.
+            // A passing cross-validation sets status to 'processing' (ready for live capture).
+            // A failing cross-validation sets status to 'failed'.
             let documentValidationPassed = true;
             if (backDocument) {
               const currentVerification = await verificationService.getVerificationRequest(verification_id);
-              documentValidationPassed = currentVerification!.status === 'verified';
+              documentValidationPassed = currentVerification!.enhanced_verification_completed === true &&
+                                         currentVerification!.status !== 'failed';
             }
             
             // Determine final status and handle errors appropriately

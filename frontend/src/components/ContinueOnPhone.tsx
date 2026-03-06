@@ -151,12 +151,25 @@ export const ContinueOnPhone: React.FC<ContinueOnPhoneProps> = ({
 
   // ── WAITING ──
   if (state === 'waiting') {
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     return (
       <div className="border-2 border-blue-200 bg-blue-50 rounded-2xl p-6 flex flex-col items-center text-center gap-3">
+        {isLocalhost && (
+          <div className="w-full bg-amber-50 border border-amber-300 rounded-xl px-3 py-2 text-xs text-amber-800 text-left">
+            <strong>Local dev tip:</strong> Open this page at{' '}
+            <span className="font-mono font-medium">
+              http://{window.location.hostname === 'localhost' ? '192.168.x.x' : window.location.hostname}:{window.location.port}/demo
+            </span>{' '}
+            (your LAN IP) so the QR code works on your phone.
+          </div>
+        )}
         <p className="text-sm font-medium text-gray-700">Scan with your phone camera</p>
         <div className="bg-white p-3 rounded-xl shadow-sm">
           {mobileUrl && <QRCode value={mobileUrl} size={180} />}
         </div>
+        {mobileUrl && (
+          <p className="text-[10px] text-gray-400 break-all max-w-[220px]">{mobileUrl}</p>
+        )}
         <div className="flex items-center gap-2 text-sm text-gray-500">
           <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse flex-shrink-0" />
           <span>Waiting for phone…</span>
