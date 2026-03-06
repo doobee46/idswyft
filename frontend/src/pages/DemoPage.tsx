@@ -11,6 +11,7 @@ import {
   XMarkIcon,
   EyeIcon,
 } from '@heroicons/react/24/outline';
+import { ContinueOnPhone } from '../components/ContinueOnPhone';
 
 // OpenCV types
 declare global {
@@ -97,6 +98,8 @@ const DemoPage: React.FC = () => {
   const [captureAttempts, setCaptureAttempts] = useState(0);
   const [opencvReady, setOpencvReady] = useState(false);
   const [faceDetectionBuffer, setFaceDetectionBuffer] = useState<boolean[]>([]);
+  const [mobileHandoffDone, setMobileHandoffDone] = useState(false);
+  const [mobileResult, setMobileResult] = useState<any>(null);
   
   // Refs for live capture
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1198,54 +1201,104 @@ const DemoPage: React.FC = () => {
       case 1:
         return (
           <div className="py-8">
-            <h2 className="text-xl sm:text-2xl font-bold mb-4 text-center">Demo Identity Verification</h2>
-            <p className="text-gray-600 mb-8 text-center">
-              Enter your API key and user ID to start the verification process with live scan capability.
-            </p>
-            
-            <div className="space-y-6 max-w-md mx-auto">
-              <div>
-                <label htmlFor="apiKey" className="block text-sm font-medium text-gray-700 mb-2">
-                  API Key
-                </label>
-                <input
-                  type="text"
-                  id="apiKey"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="sk_test_your_api_key_here"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Get your API key from the <a href="/developer" className="text-blue-600 hover:underline">Developer page</a>
-                </p>
+            {mobileHandoffDone ? (
+              // Mobile completed — show result inline
+              <div className="max-w-md mx-auto text-center py-8">
+                <div className="text-5xl mb-3">
+                  {mobileResult?.status === 'verified' || mobileResult?.status === 'completed' ? '✓' : '✗'}
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-1">
+                  {mobileResult?.status === 'verified' || mobileResult?.status === 'completed'
+                    ? 'Verification Complete'
+                    : mobileResult?.status === 'failed'
+                    ? 'Verification Failed'
+                    : 'Under Review'}
+                </h2>
+                <p className="text-gray-500 text-sm">Completed on mobile device</p>
+                {mobileResult?.confidence_score != null && (
+                  <p className="text-sm text-gray-600 mt-2">
+                    Confidence: {Math.round(mobileResult.confidence_score * 100)}%
+                  </p>
+                )}
               </div>
-              
-              <div>
-                <label htmlFor="userId" className="block text-sm font-medium text-gray-700 mb-2">
-                  User ID
-                </label>
-                <input
-                  type="text"
-                  id="userId"
-                  value={userId}
-                  onChange={(e) => setUserId(e.target.value)}
-                  placeholder="Auto-generated UUID"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Unique identifier for this verification session
+            ) : (
+              <>
+                <h2 className="text-xl sm:text-2xl font-bold mb-2 text-center">
+                  Identity Verification Demo
+                </h2>
+                <p className="text-gray-500 text-sm mb-6 text-center">
+                  Enter your API key, then verify on this device or scan to use your phone.
                 </p>
-              </div>
-              
-              <button
-                onClick={startVerification}
-                disabled={isLoading || !apiKey.trim() || !userId.trim()}
-                className="w-full bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isLoading ? 'Starting...' : 'Start Demo Verification'}
-              </button>
-            </div>
+
+                {/* API Key and User ID inputs */}
+                <div className="space-y-6 max-w-md mx-auto">
+                  <div>
+                    <label htmlFor="apiKey" className="block text-sm font-medium text-gray-700 mb-2">
+                      API Key
+                    </label>
+                    <input
+                      type="text"
+                      id="apiKey"
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      placeholder="sk_test_your_api_key_here"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Get your API key from the <a href="/developer" className="text-blue-600 hover:underline">Developer page</a>
+                    </p>
+                  </div>
+
+                  <div>
+                    <label htmlFor="userId" className="block text-sm font-medium text-gray-700 mb-2">
+                      User ID
+                    </label>
+                    <input
+                      type="text"
+                      id="userId"
+                      value={userId}
+                      onChange={(e) => setUserId(e.target.value)}
+                      placeholder="Auto-generated UUID"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Unique identifier for this verification session
+                    </p>
+                  </div>
+                </div>
+
+                {/* Two-column choice */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto mt-6">
+                  {/* Desktop */}
+                  <div className="border border-gray-200 rounded-2xl p-6 flex flex-col items-center text-center gap-3">
+                    <div className="text-4xl">💻</div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Start Here</h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Use webcam and upload documents on this device
+                      </p>
+                    </div>
+                    <button
+                      onClick={startVerification}
+                      disabled={isLoading || !apiKey.trim() || !userId.trim()}
+                      className="mt-1 w-full py-2.5 px-4 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {isLoading ? 'Starting…' : 'Start on This Device'}
+                    </button>
+                  </div>
+
+                  {/* Mobile */}
+                  <ContinueOnPhone
+                    apiKey={apiKey}
+                    userId={userId}
+                    onComplete={(result) => {
+                      setMobileResult(result);
+                      setMobileHandoffDone(true);
+                    }}
+                  />
+                </div>
+              </>
+            )}
           </div>
         );
 
