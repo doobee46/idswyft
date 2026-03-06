@@ -617,7 +617,14 @@ const EndUserVerification: React.FC<VerificationProps> = ({
                     userId={userId}
                     onComplete={(result) => {
                       setShowMobileChoice(false);
-                      if (onComplete) onComplete(result as any);
+                      if (onComplete) onComplete({
+                        verification_id: (result as any).verification_id ?? 'mobile-handoff',
+                        user_id: (result as any).user_id ?? userId,
+                        status: (result.status ?? 'manual_review') as VerificationResult['status'],
+                        confidence_score: result.confidence_score,
+                        face_match_score: result.face_match_score,
+                        liveness_score: result.liveness_score,
+                      });
                     }}
                   />
                 </div>
