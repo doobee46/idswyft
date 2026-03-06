@@ -23,6 +23,7 @@ import authRoutes from './routes/auth.js';
 import healthRoutes from './routes/health.js';
 import webhookRoutes from './routes/webhooks.js';
 import vaasRoutes from './routes/vaas.js';
+import handoffRoutes from './routes/handoff.js';
 
 const app = express();
 
@@ -91,6 +92,7 @@ app.use('/api', apiActivityLogger);
 // Mount API routes
 app.use('/api/verify', verificationRoutes);
 app.use('/api/v2/verify', newVerificationRoutes); // New clean verification engine
+app.use('/api/verify/handoff', handoffRoutes);
 app.use('/api/developer', developerRoutes);
 // CSRF protection for state-changing admin endpoints (cookie-based session auth)
 app.use('/api/admin', csrfProtection);
