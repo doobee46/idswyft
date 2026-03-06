@@ -33,6 +33,10 @@ router.post('/create', catchAsync(async (req: Request, res: Response) => {
 router.get('/:token/session', catchAsync(async (req: Request, res: Response) => {
   const { token } = req.params;
 
+  if (!/^[0-9a-f]{64}$/.test(token)) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
   const { data, error } = await supabase
     .from('mobile_handoff_sessions')
     .select('api_key, user_id, status, expires_at')
@@ -64,6 +68,11 @@ router.get('/:token/session', catchAsync(async (req: Request, res: Response) => 
 // PATCH /api/verify/handoff/:token/complete — mobile reports completion
 router.patch('/:token/complete', catchAsync(async (req: Request, res: Response) => {
   const { token } = req.params;
+
+  if (!/^[0-9a-f]{64}$/.test(token)) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
   const { status, result } = req.body;
 
   if (!status || !['completed', 'failed'].includes(status)) {
@@ -75,7 +84,7 @@ router.patch('/:token/complete', catchAsync(async (req: Request, res: Response) 
     if (typeof result !== 'object' || Array.isArray(result)) {
       throw new ValidationError('result must be a plain object', 'result', result);
     }
-    if (JSON.stringify(result).length > 4096) {
+    if (Buffer.byteLength(JSON.stringify(result), 'utf8') > 4096) {
       throw new ValidationError('result payload too large (max 4096 bytes)', 'result', result);
     }
   }
@@ -118,6 +127,10 @@ router.patch('/:token/complete', catchAsync(async (req: Request, res: Response) 
 // GET /api/verify/handoff/:token/status — desktop polls for completion
 router.get('/:token/status', catchAsync(async (req: Request, res: Response) => {
   const { token } = req.params;
+
+  if (!/^[0-9a-f]{64}$/.test(token)) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
 
   const { data, error } = await supabase
     .from('mobile_handoff_sessions')
