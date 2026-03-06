@@ -1,0 +1,166 @@
+import React, { useState, useEffect, useRef } from 'react';
+import QRCode from 'react-qr-code';
+import { API_BASE_URL } from '../config/api';
+
+type HandoffState = 'idle' | 'waiting' | 'done';
+
+interface VerificationResult {
+  status: string;
+  confidence_score?: number;
+  face_match_score?: number;
+  liveness_score?: number;
+  [key: string]: any;
+}
+
+interface ContinueOnPhoneProps {
+  apiKey: string;
+  userId: string;
+  onComplete: (result: VerificationResult) => void;
+}
+
+export const ContinueOnPhone: React.FC<ContinueOnPhoneProps> = ({
+  apiKey,
+  userId,
+  onComplete,
+}) => {
+  const [state, setState] = useState<HandoffState>('idle');
+  const [mobileUrl, setMobileUrl] = useState<string | null>(null);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [result, setResult] = useState<VerificationResult | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearTimers = () => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+  };
+
+  useEffect(() => () => clearTimers(), []);
+
+  const generateQR = async () => {
+    setIsGenerating(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/verify/handoff/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: apiKey, user_id: userId }),
+      });
+      if (!res.ok) throw new Error('Failed to create handoff session');
+      const data = await res.json();
+
+      const url = `${window.location.origin}/verify/mobile?token=${data.token}`;
+      const expiry = new Date(data.expires_at);
+
+      setMobileUrl(url);
+      setTimeLeft(Math.floor((expiry.getTime() - Date.now()) / 1000));
+      setState('waiting');
+      startTimers(data.token, expiry);
+    } catch (err) {
+      console.error('Failed to generate QR:', err);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const startTimers = (tok: string, expiry: Date) => {
+    // Countdown
+    timerRef.current = setInterval(() => {
+      const left = Math.floor((expiry.getTime() - Date.now()) / 1000);
+      if (left <= 0) { clearTimers(); setState('idle'); }
+      else setTimeLeft(left);
+    }, 1000);
+
+    // Status poll every 3 seconds
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/verify/handoff/${tok}/status`);
+        if (res.status === 410) { clearTimers(); setState('idle'); return; }
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.status !== 'pending') {
+          clearTimers();
+          setResult(data.result ?? { status: data.status });
+          setState('done');
+          onComplete(data.result ?? { status: data.status });
+        }
+      } catch { /* network hiccup — retry next tick */ }
+    }, 3000);
+  };
+
+  const cancel = () => {
+    clearTimers();
+    setState('idle');
+    setMobileUrl(null);
+  };
+
+  const fmt = (s: number) =>
+    `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
+
+  // ── IDLE ──
+  if (state === 'idle') {
+    return (
+      <div className="border border-gray-200 rounded-2xl p-6 flex flex-col items-center text-center h-full justify-center gap-3">
+        <div className="text-4xl">📱</div>
+        <div>
+          <h3 className="font-semibold text-gray-900">Continue on Phone</h3>
+          <p className="text-sm text-gray-500 mt-1">
+            Scan a QR code to complete verification on your mobile device
+          </p>
+        </div>
+        <button
+          onClick={generateQR}
+          disabled={!apiKey || !userId || isGenerating}
+          className="mt-1 w-full py-2.5 px-4 bg-gray-900 text-white rounded-xl text-sm font-medium hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          {isGenerating ? 'Generating…' : 'Generate QR Code'}
+        </button>
+      </div>
+    );
+  }
+
+  // ── WAITING ──
+  if (state === 'waiting') {
+    return (
+      <div className="border-2 border-blue-200 bg-blue-50 rounded-2xl p-6 flex flex-col items-center text-center gap-3">
+        <p className="text-sm font-medium text-gray-700">Scan with your phone camera</p>
+        <div className="bg-white p-3 rounded-xl shadow-sm">
+          {mobileUrl && <QRCode value={mobileUrl} size={180} />}
+        </div>
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse flex-shrink-0" />
+          <span>Waiting for phone…</span>
+          <span className="font-mono text-blue-600 font-medium">{fmt(timeLeft)}</span>
+        </div>
+        <button
+          onClick={cancel}
+          className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2"
+        >
+          Cancel — use this device instead
+        </button>
+      </div>
+    );
+  }
+
+  // ── DONE ──
+  const statusMap: Record<string, { icon: string; color: string; label: string }> = {
+    verified:      { icon: '✓', color: 'text-emerald-600', label: 'Verification Complete' },
+    completed:     { icon: '✓', color: 'text-emerald-600', label: 'Verification Complete' },
+    failed:        { icon: '✗', color: 'text-red-500',     label: 'Verification Failed' },
+    manual_review: { icon: '⏳', color: 'text-yellow-600', label: 'Under Manual Review' },
+  };
+  const cfg = statusMap[result?.status ?? ''] ?? statusMap.manual_review;
+
+  return (
+    <div className="border border-gray-200 rounded-2xl p-6 flex flex-col items-center text-center gap-2">
+      <div className={`text-5xl font-bold ${cfg.color}`}>{cfg.icon}</div>
+      <h3 className={`font-semibold text-lg ${cfg.color}`}>{cfg.label}</h3>
+      <p className="text-sm text-gray-500">Completed on mobile device</p>
+      {result?.confidence_score != null && (
+        <p className="text-sm text-gray-600 mt-1">
+          Confidence: {Math.round(result.confidence_score * 100)}%
+        </p>
+      )}
+    </div>
+  );
+};
