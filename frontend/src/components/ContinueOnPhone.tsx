@@ -28,6 +28,7 @@ export const ContinueOnPhone: React.FC<ContinueOnPhoneProps> = ({
   const [timeLeft, setTimeLeft] = useState(0);
   const [result, setResult] = useState<VerificationResult | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -36,10 +37,20 @@ export const ContinueOnPhone: React.FC<ContinueOnPhoneProps> = ({
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
   };
 
-  useEffect(() => () => clearTimers(), []);
+  // Fix 1: mounted-ref guard
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; clearTimers(); };
+  }, []);
+
+  // Fix 2: onComplete ref to prevent stale closure
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => { onCompleteRef.current = onComplete; });
 
   const generateQR = async () => {
     setIsGenerating(true);
+    setError(null);
     try {
       const res = await fetch(`${API_BASE_URL}/api/verify/handoff/create`, {
         method: 'POST',
@@ -49,8 +60,19 @@ export const ContinueOnPhone: React.FC<ContinueOnPhoneProps> = ({
       if (!res.ok) throw new Error('Failed to create handoff session');
       const data = await res.json();
 
-      const url = `${window.location.origin}/verify/mobile?token=${data.token}`;
+      // Fix 3: validate required fields before use
+      if (!data.token || !data.expires_at) {
+        throw new Error("Handoff response missing required fields");
+      }
       const expiry = new Date(data.expires_at);
+      if (isNaN(expiry.getTime())) {
+        throw new Error("Invalid expires_at value from server");
+      }
+
+      // Fix 1: bail if component unmounted while awaiting fetch
+      if (!mountedRef.current) return;
+
+      const url = `${window.location.origin}/verify/mobile?token=${data.token}`;
 
       setMobileUrl(url);
       setTimeLeft(Math.floor((expiry.getTime() - Date.now()) / 1000));
@@ -58,6 +80,7 @@ export const ContinueOnPhone: React.FC<ContinueOnPhoneProps> = ({
       startTimers(data.token, expiry);
     } catch (err) {
       console.error('Failed to generate QR:', err);
+      setError('Could not generate QR code. Please try again.');
     } finally {
       setIsGenerating(false);
     }
@@ -82,7 +105,8 @@ export const ContinueOnPhone: React.FC<ContinueOnPhoneProps> = ({
           clearTimers();
           setResult(data.result ?? { status: data.status });
           setState('done');
-          onComplete(data.result ?? { status: data.status });
+          // Fix 2: use ref so we always call the latest onComplete prop
+          onCompleteRef.current(data.result ?? { status: data.status });
         }
       } catch { /* network hiccup — retry next tick */ }
     }, 3000);
@@ -115,6 +139,10 @@ export const ContinueOnPhone: React.FC<ContinueOnPhoneProps> = ({
         >
           {isGenerating ? 'Generating…' : 'Generate QR Code'}
         </button>
+        {/* Fix 4: user-visible error message */}
+        {error && (
+          <p role="alert" className="text-xs text-red-500 mt-1">{error}</p>
+        )}
       </div>
     );
   }
