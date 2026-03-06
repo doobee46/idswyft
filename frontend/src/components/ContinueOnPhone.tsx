@@ -136,7 +136,7 @@ export const ContinueOnPhone: React.FC<ContinueOnPhoneProps> = ({
         </div>
         <button
           onClick={generateQR}
-          disabled={!apiKey || !userId || isGenerating}
+          disabled={!apiKey.trim() || !userId.trim() || isGenerating}
           className="mt-1 w-full py-2.5 px-4 bg-gray-900 text-white rounded-xl text-sm font-medium hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           {isGenerating ? 'Generating…' : 'Generate QR Code'}

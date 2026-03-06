@@ -1220,6 +1220,14 @@ const DemoPage: React.FC = () => {
                     Confidence: {Math.round(mobileResult.confidence_score * 100)}%
                   </p>
                 )}
+                {(mobileResult?.status === 'failed' || mobileResult?.status === 'manual_review') && (
+                  <button
+                    onClick={() => { setMobileHandoffDone(false); setMobileResult(null); }}
+                    className="mt-4 text-sm text-blue-600 hover:text-blue-700 underline underline-offset-2"
+                  >
+                    Try Again
+                  </button>
+                )}
               </div>
             ) : (
               <>
