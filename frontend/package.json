@@ -23,6 +23,7 @@
     "react-dropzone": "^14.2.3",
     "react-hook-form": "^7.47.0",
     "react-hot-toast": "^2.4.1",
+    "react-qr-code": "^2.0.18",
     "react-router-dom": "^6.18.0",
     "recharts": "^2.8.0",
     "tailwind-merge": "^2.0.0",
