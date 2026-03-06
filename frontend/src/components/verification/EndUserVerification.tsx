@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '../../config/api';
+import { ContinueOnPhone } from '../ContinueOnPhone';
 
 export interface VerificationProps {
   apiKey: string;
@@ -11,6 +12,7 @@ export interface VerificationProps {
   className?: string;
   theme?: 'light' | 'dark';
   allowedDocumentTypes?: ('passport' | 'drivers_license' | 'national_id')[];
+  enableMobileHandoff?: boolean;
 }
 
 export interface VerificationResult {
@@ -59,7 +61,8 @@ const EndUserVerification: React.FC<VerificationProps> = ({
   redirectUrl,
   className = '',
   theme = 'light',
-  allowedDocumentTypes = ['passport', 'drivers_license', 'national_id']
+  allowedDocumentTypes = ['passport', 'drivers_license', 'national_id'],
+  enableMobileHandoff = false,
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [verificationRequest, setVerificationRequest] = useState<VerificationRequest | null>(null);
@@ -68,6 +71,7 @@ const EndUserVerification: React.FC<VerificationProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [documentType, setDocumentType] = useState<string>('national_id');
+  const [showMobileChoice, setShowMobileChoice] = useState(enableMobileHandoff);
 
   const themeClasses = {
     light: {
@@ -220,8 +224,8 @@ const EndUserVerification: React.FC<VerificationProps> = ({
       if (status === 'completed') {
         loadFinalResults(verifyId);
       }
-    } else {
-      // Auto-start verification
+    } else if (!enableMobileHandoff) {
+      // Auto-start verification (skipped when showing mobile choice screen)
       startVerification();
     }
   }, []);
@@ -578,8 +582,52 @@ const EndUserVerification: React.FC<VerificationProps> = ({
       <div className="w-full max-w-lg">
         <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-3xl shadow-xl border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} overflow-hidden`}>
           <div className="p-8">
-            {renderProgressIndicator()}
-            {renderStepContent()}
+            {showMobileChoice ? (
+              <div className="py-6">
+                <h2 className="text-xl font-bold text-center text-gray-900 mb-2">
+                  How would you like to verify?
+                </h2>
+                <p className="text-sm text-center text-gray-500 mb-6">
+                  Complete on this device, or scan a QR code to use your phone
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Desktop option */}
+                  <div className="border border-gray-200 rounded-2xl p-6 flex flex-col items-center text-center gap-3">
+                    <div className="text-4xl">💻</div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Start Here</h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Use your webcam and upload documents on this device
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowMobileChoice(false);
+                        startVerification();
+                      }}
+                      className="mt-1 w-full py-2.5 px-4 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
+                    >
+                      Start on This Device
+                    </button>
+                  </div>
+
+                  {/* Mobile option */}
+                  <ContinueOnPhone
+                    apiKey={apiKey}
+                    userId={userId}
+                    onComplete={(result) => {
+                      setShowMobileChoice(false);
+                      if (onComplete) onComplete(result as any);
+                    }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <>
+                {renderProgressIndicator()}
+                {renderStepContent()}
+              </>
+            )}
           </div>
         </div>
       </div>
