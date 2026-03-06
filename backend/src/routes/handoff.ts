@@ -44,10 +44,13 @@ router.get('/:token/session', catchAsync(async (req: Request, res: Response) => 
   }
 
   if (new Date(data.expires_at) < new Date()) {
-    await supabase
+    const { error: expireError } = await supabase
       .from('mobile_handoff_sessions')
       .update({ status: 'expired' })
       .eq('token', token);
+    if (expireError) {
+      logger.warn('Failed to mark handoff session as expired', { token, error: expireError });
+    }
     return res.status(410).json({ error: 'Session expired' });
   }
 
@@ -67,6 +70,17 @@ router.patch('/:token/complete', catchAsync(async (req: Request, res: Response) 
     throw new ValidationError('status must be completed or failed', 'status', status);
   }
 
+  // Validate result shape and size
+  if (result != null) {
+    if (typeof result !== 'object' || Array.isArray(result)) {
+      throw new ValidationError('result must be a plain object', 'result', result);
+    }
+    if (JSON.stringify(result).length > 4096) {
+      throw new ValidationError('result payload too large (max 4096 bytes)', 'result', result);
+    }
+  }
+
+  // First verify the session exists and hasn't expired
   const { data: session, error: fetchError } = await supabase
     .from('mobile_handoff_sessions')
     .select('status, expires_at')
@@ -81,18 +95,21 @@ router.patch('/:token/complete', catchAsync(async (req: Request, res: Response) 
     return res.status(410).json({ error: 'Session expired' });
   }
 
-  if (session.status !== 'pending') {
-    return res.status(409).json({ error: 'Session already completed' });
-  }
-
-  const { error } = await supabase
+  // Atomic update — only succeeds if status is still 'pending'
+  const { data: updated, error } = await supabase
     .from('mobile_handoff_sessions')
     .update({ status, result: result ?? null })
-    .eq('token', token);
+    .eq('token', token)
+    .eq('status', 'pending')
+    .select('id');
 
   if (error) {
     logger.error('Failed to complete handoff session', error);
     throw new Error('Failed to update session');
+  }
+
+  if (!updated || updated.length === 0) {
+    return res.status(409).json({ error: 'Session already completed' });
   }
 
   res.json({ success: true });
@@ -113,10 +130,13 @@ router.get('/:token/status', catchAsync(async (req: Request, res: Response) => {
   }
 
   if (new Date(data.expires_at) < new Date()) {
-    await supabase
+    const { error: expireError } = await supabase
       .from('mobile_handoff_sessions')
       .update({ status: 'expired' })
       .eq('token', token);
+    if (expireError) {
+      logger.warn('Failed to mark handoff session as expired', { token, error: expireError });
+    }
     return res.status(410).json({ error: 'Session expired' });
   }
 
