@@ -112,7 +112,7 @@ router.get('/:token/status', catchAsync(async (req: Request, res: Response) => {
     return res.status(404).json({ error: 'Session not found' });
   }
 
-  if (data.status === 'pending' && new Date(data.expires_at) < new Date()) {
+  if (new Date(data.expires_at) < new Date()) {
     await supabase
       .from('mobile_handoff_sessions')
       .update({ status: 'expired' })
