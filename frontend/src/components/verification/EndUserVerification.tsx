@@ -198,8 +198,10 @@ const EndUserVerification: React.FC<VerificationProps> = ({
         // Check if OCR is complete and we can proceed to live capture
         if (data.documents && data.documents.length > 0 && data.documents[0].ocr_data) {
           setCurrentStep(4); // Move to live capture
-        } else if (data.status === 'processing') {
-          // Continue polling
+        } else if (data.status === 'failed' || data.status === 'verified' || data.status === 'manual_review') {
+          // Terminal state — stop polling
+        } else {
+          // 'pending', 'processing', or any other transient state — keep polling
           if (mountedRef.current) setTimeout(pollVerificationStatus, 2000);
         }
       }
@@ -257,6 +259,7 @@ const EndUserVerification: React.FC<VerificationProps> = ({
 
       if (response.ok) {
         const data = await response.json();
+        if (!mountedRef.current) return;
         setVerificationRequest(data);
         setCurrentStep(5);
 
