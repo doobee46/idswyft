@@ -204,10 +204,15 @@ const EndUserVerification: React.FC<VerificationProps> = ({
   };
 
   // Handle file selection
+  useEffect(() => {
+    return () => { if (previewUrl) URL.revokeObjectURL(previewUrl); };
+  }, [previewUrl]);
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setSelectedFile(file);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
     }
@@ -618,8 +623,8 @@ const EndUserVerification: React.FC<VerificationProps> = ({
                     onComplete={(result) => {
                       setShowMobileChoice(false);
                       if (onComplete) onComplete({
-                        verification_id: (result as any).verification_id ?? 'mobile-handoff',
-                        user_id: (result as any).user_id ?? userId,
+                        verification_id: result.verification_id ?? 'mobile-handoff',
+                        user_id: result.user_id ?? userId,
                         status: (result.status ?? 'manual_review') as VerificationResult['status'],
                         confidence_score: result.confidence_score,
                         face_match_score: result.face_match_score,
