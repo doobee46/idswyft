@@ -82,7 +82,7 @@ export const ContinueOnPhone: React.FC<ContinueOnPhoneProps> = ({
       console.error('Failed to generate QR:', err);
       setError('Could not generate QR code. Please try again.');
     } finally {
-      setIsGenerating(false);
+      if (mountedRef.current) setIsGenerating(false);
     }
   };
 
@@ -98,9 +98,11 @@ export const ContinueOnPhone: React.FC<ContinueOnPhoneProps> = ({
     pollRef.current = setInterval(async () => {
       try {
         const res = await fetch(`${API_BASE_URL}/api/verify/handoff/${tok}/status`);
+        if (!mountedRef.current) return;
         if (res.status === 410) { clearTimers(); setState('idle'); return; }
         if (!res.ok) return;
         const data = await res.json();
+        if (!mountedRef.current) return;
         if (data.status !== 'pending') {
           clearTimers();
           setResult(data.result ?? { status: data.status });
