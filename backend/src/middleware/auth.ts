@@ -240,29 +240,21 @@ export const checkSandboxMode = (req: Request, res: Response, next: NextFunction
   
   if (req.apiKey) {
     const isSandboxKey = req.apiKey.is_sandbox;
-    
-    // Environment-based key validation
+
+    // Sandbox keys cannot be used in production
     if (isProductionEnv && isSandboxKey) {
       throw new AuthorizationError('Sandbox API keys cannot be used in production environment');
     }
-    
-    if (!isProductionEnv && !isSandboxKey) {
-      throw new AuthorizationError('Production API keys cannot be used in development environment');
-    }
-    
-    // Sandbox keys can only make sandbox requests
-    if (isSandboxKey && !isSandboxRequest) {
-      throw new AuthorizationError('Sandbox API keys can only make sandbox requests');
-    }
-    
-    // Production keys cannot make sandbox requests
+
+    // Production keys cannot make explicit sandbox requests
     if (!isSandboxKey && isSandboxRequest) {
       throw new AuthorizationError('Production API keys cannot make sandbox requests');
     }
   }
-  
-  // Add sandbox flag to request for downstream middleware
-  req.isSandbox = isSandboxRequest || req.apiKey?.is_sandbox || false;
+
+  // Auto-infer sandbox mode from key type — SDK widgets (e.g. EndUserVerification)
+  // don't need to explicitly pass sandbox:true; the key itself declares its mode.
+  req.isSandbox = req.apiKey?.is_sandbox || isSandboxRequest || false;
   
   next();
 };

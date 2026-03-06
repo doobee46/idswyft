@@ -8,7 +8,7 @@ import {
   QrCodeIcon,
   ViewfinderCircleIcon
 } from '@heroicons/react/24/outline';
-import { shouldUseSandbox } from '../config/api';
+import { API_BASE_URL, shouldUseSandbox } from '../config/api';
 
 interface BackOfIdUploadProps {
   verificationId: string;
@@ -65,8 +65,7 @@ export const BackOfIdUpload: React.FC<BackOfIdUploadProps> = ({
       formData.append('document_type', documentType);
 
       // Build URL with sandbox query parameter if needed
-      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const url = new URL(`${baseUrl}/api/verify/back-of-id`);
+      const url = new URL(`${API_BASE_URL}/api/verify/back-of-id`);
       if (shouldUseSandbox()) {
         url.searchParams.append('sandbox', 'true');
       }

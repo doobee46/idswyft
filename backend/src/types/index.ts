@@ -34,7 +34,7 @@ export interface VerificationRequest {
   updated_at: Date;
 }
 
-export type VerificationStatus = 'pending' | 'verified' | 'failed' | 'manual_review';
+export type VerificationStatus = 'pending' | 'processing' | 'verified' | 'failed' | 'manual_review';
 
 export interface Document {
   id: string;

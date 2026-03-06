@@ -1,679 +1,692 @@
-import { 
-  DocumentCheckIcon, 
-  CameraIcon,
-  CodeBracketIcon,
-  BoltIcon,
-  ChartBarIcon,
-  ShieldCheckIcon,
-  SparklesIcon,
-  AcademicCapIcon,
-  EyeIcon
+import React, { useState, useEffect } from 'react';
+import {
+  CheckCircleIcon,
+  XCircleIcon,
+  ExclamationTriangleIcon,
+  InformationCircleIcon,
+  ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 import { getDocumentationApiUrl } from '../config/api';
 
-export const DocsPage: React.FC = () => {
-  const apiUrl = getDocumentationApiUrl();
-  
-  return (
-    <div className="max-w-6xl mx-auto p-4 sm:p-6">
-      <div className="bg-white rounded-lg shadow-md p-4 sm:p-8">
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 sm:mb-4">
-            <SparklesIcon className="inline h-8 w-8 text-purple-600 mr-2" />
-            AI-Powered API Documentation
-          </h1>
-          <p className="text-base sm:text-lg lg:text-xl text-gray-600">
-            Complete guide to the Idswyft Identity Verification API with GPT-4o Vision, AI liveness detection, and enhanced verification features
-          </p>
-        </div>
-        
-        {/* Quick Start */}
-        <section className="mb-8 sm:mb-10">
-          <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold mb-4 sm:mb-6 flex items-center">
-            <BoltIcon className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-500 mr-2" />
-            Quick Start
-          </h2>
-          <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
-            <div className="bg-gray-50 p-4 sm:p-6 rounded-lg">
-              <h3 className="font-semibold text-base sm:text-lg mb-3">JavaScript/TypeScript v2.0.0</h3>
-              <pre className="text-xs sm:text-sm bg-gray-900 text-green-400 p-3 sm:p-4 rounded overflow-x-auto">
-{`npm install idswyft-sdk
+// ─── Design tokens ────────────────────────────────────────────────────────────
+const C = {
+  bg: '#080c14',
+  sidebar: '#0b0f19',
+  surface: '#0f1420',
+  surfaceHover: '#141b2a',
+  border: 'rgba(255,255,255,0.07)',
+  borderStrong: 'rgba(255,255,255,0.13)',
+  cyan: '#22d3ee',
+  cyanDim: 'rgba(34,211,238,0.1)',
+  cyanBorder: 'rgba(34,211,238,0.25)',
+  green: '#34d399',
+  greenDim: 'rgba(52,211,153,0.1)',
+  red: '#f87171',
+  redDim: 'rgba(248,113,113,0.1)',
+  amber: '#fbbf24',
+  amberDim: 'rgba(251,191,36,0.1)',
+  blue: '#60a5fa',
+  blueDim: 'rgba(96,165,250,0.12)',
+  orange: '#fb923c',
+  orangeDim: 'rgba(251,146,60,0.1)',
+  purple: '#a78bfa',
+  purpleDim: 'rgba(167,139,250,0.1)',
+  text: '#dde2ec',
+  muted: '#8896aa',
+  dim: '#4a5568',
+  code: '#86efac',
+  codeBg: '#05080f',
+  mono: '"IBM Plex Mono","Fira Code",monospace',
+  sans: '"DM Sans",system-ui,sans-serif',
+};
 
-import { IdswyftSDK } from 'idswyft-sdk';
+// ─── Small reusable pieces ────────────────────────────────────────────────────
 
-const client = new IdswyftSDK({
-  apiKey: 'your-api-key',
-  sandbox: true // Set to false for production
-});
-
-// Enhanced Verification Flow (NEW in v2.0.0)
-const session = await client.startVerification({
-  user_id: 'user-123'
-});
-
-// Step 1: Upload front document
-const document = await client.verifyDocument({
-  verification_id: session.verification_id,
-  document_type: 'drivers_license',
-  document_file: frontFile
-});
-
-// Step 2: Upload back of ID (barcode scanning)
-const backId = await client.verifyBackOfId({
-  verification_id: session.verification_id,
-  document_type: 'drivers_license', 
-  back_of_id_file: backFile
-});
-
-// Step 3: Live capture with AI liveness detection
-const liveResult = await client.liveCapture({
-  verification_id: session.verification_id,
-  live_image_data: 'data:image/jpeg;base64,...'
-});
-
-// Get comprehensive results
-const results = await client.getVerificationResults(
-  session.verification_id
+const Pill = ({ children, color, bg }: { children: React.ReactNode; color: string; bg: string }) => (
+  <span style={{
+    fontFamily: C.mono, fontSize: '0.65rem', fontWeight: 600,
+    letterSpacing: '0.06em', padding: '2px 8px', borderRadius: 4,
+    background: bg, color, border: `1px solid ${color}30`,
+  }}>{children}</span>
 );
 
-console.log(results.ocr_data); // GPT-4o Vision OCR
-console.log(results.cross_validation_results);
-console.log(results.liveness_score);`}
-              </pre>
+const MethodBadge = ({ method }: { method: 'GET' | 'POST' }) =>
+  <Pill color={method === 'GET' ? C.green : C.blue} bg={method === 'GET' ? C.greenDim : C.blueDim}>{method}</Pill>;
+
+const StatusPill = ({ status }: { status: string }) => {
+  const map: Record<string, [string, string]> = {
+    pending: [C.amber, C.amberDim],
+    processing: [C.blue, C.blueDim],
+    verified: [C.green, C.greenDim],
+    failed: [C.red, C.redDim],
+    manual_review: [C.orange, C.orangeDim],
+  };
+  const [color, bg] = map[status] ?? [C.muted, 'rgba(136,150,170,0.1)'];
+  return <Pill color={color} bg={bg}>{status}</Pill>;
+};
+
+const Callout = ({ type = 'note', children }: { type?: 'note' | 'warning' | 'danger' | 'tip'; children: React.ReactNode }) => {
+  const cfg = {
+    note:    { c: C.blue,   bg: C.blueDim,   icon: <InformationCircleIcon className="w-4 h-4 flex-shrink-0" />, label: 'Note' },
+    warning: { c: C.amber,  bg: C.amberDim,  icon: <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0" />, label: 'Important' },
+    danger:  { c: C.red,    bg: C.redDim,    icon: <XCircleIcon className="w-4 h-4 flex-shrink-0" />, label: 'Warning' },
+    tip:     { c: C.green,  bg: C.greenDim,  icon: <CheckCircleIcon className="w-4 h-4 flex-shrink-0" />, label: 'Tip' },
+  }[type];
+  return (
+    <div style={{ borderLeft: `3px solid ${cfg.c}`, background: cfg.bg, borderRadius: '0 6px 6px 0', padding: '12px 16px', marginBottom: 16, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+      <span style={{ color: cfg.c, marginTop: 1 }}>{cfg.icon}</span>
+      <div style={{ fontFamily: C.sans, fontSize: '0.85rem', color: C.text, lineHeight: 1.65 }}>
+        <strong style={{ color: cfg.c, textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '0.08em', marginRight: 8, fontFamily: C.mono }}>{cfg.label}</strong>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+const Pre = ({ code, label }: { code: string; label?: string }) => (
+  <div style={{ borderRadius: 8, border: `1px solid ${C.border}`, overflow: 'hidden', marginBottom: 16 }}>
+    {label && (
+      <div style={{ background: C.surface, padding: '6px 20px', borderBottom: `1px solid ${C.border}`, fontFamily: C.mono, fontSize: '0.68rem', color: C.muted, letterSpacing: '0.07em', textTransform: 'uppercase' }}>
+        {label}
+      </div>
+    )}
+    <pre style={{ margin: 0, padding: '18px 24px', fontFamily: C.mono, fontSize: '0.79rem', lineHeight: 1.75, color: C.code, background: C.codeBg, overflowX: 'auto', whiteSpace: 'pre' }}>
+      {code}
+    </pre>
+  </div>
+);
+
+const SectionAnchor = ({ id }: { id: string }) => <div id={id} style={{ scrollMarginTop: 88 }} />;
+
+const H2 = ({ children }: { children: React.ReactNode }) => (
+  <h2 style={{ fontFamily: C.mono, fontSize: '1.35rem', fontWeight: 600, color: C.text, margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 10 }}>
+    <span style={{ color: C.cyan, fontWeight: 400 }}>#</span>{children}
+  </h2>
+);
+
+const Lead = ({ children }: { children: React.ReactNode }) => (
+  <p style={{ fontFamily: C.sans, fontSize: '0.93rem', color: C.muted, lineHeight: 1.75, margin: '0 0 24px', maxWidth: 680 }}>{children}</p>
+);
+
+const Divider = () => <div style={{ height: 1, background: C.border, margin: '48px 0' }} />;
+
+const FieldRow = ({ name, type, req, desc }: { name: string; type: string; req: boolean; desc: string }) => (
+  <div style={{ display: 'flex', gap: 12, padding: '10px 0', borderTop: `1px solid ${C.border}`, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+    <code style={{ fontFamily: C.mono, fontSize: '0.78rem', color: C.cyan, width: 160, flexShrink: 0 }}>{name}</code>
+    <code style={{ fontFamily: C.mono, fontSize: '0.72rem', color: C.muted, width: 100, flexShrink: 0 }}>{type}</code>
+    <span style={{ width: 72, flexShrink: 0 }}>
+      {req ? <Pill color={C.red} bg={C.redDim}>required</Pill> : <Pill color={C.dim} bg="rgba(74,85,104,0.13)">optional</Pill>}
+    </span>
+    <span style={{ fontFamily: C.sans, fontSize: '0.83rem', color: C.text, flex: 1, lineHeight: 1.6 }}>{desc}</span>
+  </div>
+);
+
+// ─── Pipeline step diagram ────────────────────────────────────────────────────
+const Pipeline = () => {
+  const steps = [
+    { n: 1, label: 'Start Session', color: C.blue },
+    { n: 2, label: 'Front Doc', color: C.cyan },
+    { n: 3, label: 'Back-of-ID', color: C.cyan },
+    { n: 4, label: 'Live Capture', color: C.green },
+    { n: 5, label: 'Results', color: C.green },
+  ];
+  return (
+    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: '24px 32px', marginBottom: 24 }}>
+      <p style={{ fontFamily: C.mono, fontSize: '0.68rem', color: C.muted, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 20px' }}>Verification Pipeline</p>
+      <div style={{ display: 'flex', alignItems: 'flex-start', overflowX: 'auto', paddingBottom: 4 }}>
+        {steps.map((s, i) => (
+          <React.Fragment key={s.n}>
+            <div style={{ textAlign: 'center', flexShrink: 0, minWidth: 80 }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: `${s.color}18`, border: `1.5px solid ${s.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: C.mono, fontSize: '0.78rem', fontWeight: 700, color: s.color, margin: '0 auto 8px' }}>{s.n}</div>
+              <div style={{ fontFamily: C.sans, fontSize: '0.72rem', color: C.muted, lineHeight: 1.4, whiteSpace: 'nowrap' }}>{s.label}</div>
             </div>
-            <div className="bg-gray-50 p-4 sm:p-6 rounded-lg">
-              <h3 className="font-semibold text-base sm:text-lg mb-3">Python v2.0.0</h3>
-              <pre className="text-xs sm:text-sm bg-gray-900 text-green-400 p-3 sm:p-4 rounded overflow-x-auto">
-{`pip install idswyft
+            {i < steps.length - 1 && (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', paddingBottom: 20, minWidth: 24 }}>
+                <div style={{ flex: 1, height: 1, background: C.borderStrong }} />
+                <ArrowRightIcon style={{ width: 12, height: 12, color: C.dim, flexShrink: 0 }} />
+              </div>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+      <div style={{ marginTop: 16, padding: '10px 14px', background: C.redDim, borderRadius: 6, border: `1px solid ${C.red}25`, fontFamily: C.sans, fontSize: '0.78rem', color: C.muted }}>
+        <span style={{ color: C.red, fontWeight: 600 }}>⚠ Cross-validation gate:</span>{' '}
+        If Step 3 (back-of-ID) fails cross-validation, status is set to <code style={{ fontFamily: C.mono, color: C.red }}>failed</code> and Step 4 is blocked.
+      </div>
+    </div>
+  );
+};
 
-import idswyft
+// ─── Tabbed code block ────────────────────────────────────────────────────────
+const CodeTabs = ({ js, python, tab, onChange }: { js: string; python: string; tab: 'js' | 'python'; onChange: (t: 'js' | 'python') => void }) => (
+  <div style={{ borderRadius: 8, border: `1px solid ${C.border}`, overflow: 'hidden', marginBottom: 16 }}>
+    <div style={{ display: 'flex', background: C.surface, borderBottom: `1px solid ${C.border}` }}>
+      {(['js', 'python'] as const).map(t => (
+        <button key={t} onClick={() => onChange(t)} style={{ padding: '8px 18px', fontFamily: C.mono, fontSize: '0.75rem', fontWeight: 500, color: tab === t ? C.cyan : C.muted, background: 'none', border: 'none', borderBottom: tab === t ? `2px solid ${C.cyan}` : '2px solid transparent', cursor: 'pointer', transition: 'color 0.15s' }}>
+          {t === 'js' ? 'JavaScript' : 'Python'}
+        </button>
+      ))}
+    </div>
+    <pre style={{ margin: 0, padding: '20px 24px', fontFamily: C.mono, fontSize: '0.79rem', lineHeight: 1.75, color: C.code, background: C.codeBg, overflowX: 'auto', whiteSpace: 'pre' }}>
+      {tab === 'js' ? js : python}
+    </pre>
+  </div>
+);
 
-client = idswyft.IdswyftClient(
-    api_key='your-api-key',
-    sandbox=True
-)
+// ─── Endpoint card ────────────────────────────────────────────────────────────
+const EndpointCard = ({ step, method, path, title, badge, children }: {
+  step?: number; method: 'GET' | 'POST'; path: string; title: string;
+  badge?: { label: string; color: string; bg: string }; children: React.ReactNode;
+}) => (
+  <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, marginBottom: 28, overflow: 'hidden' }}>
+    <div style={{ padding: '14px 24px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 12, background: `linear-gradient(90deg, ${C.surface}, rgba(34,211,238,0.03))` }}>
+      {step && (
+        <div style={{ width: 26, height: 26, borderRadius: '50%', background: C.cyanDim, border: `1px solid ${C.cyanBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: C.mono, fontSize: '0.7rem', fontWeight: 700, color: C.cyan, flexShrink: 0 }}>{step}</div>
+      )}
+      <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3, flexWrap: 'wrap' }}>
+          <MethodBadge method={method} />
+          <code style={{ fontFamily: C.mono, fontSize: '0.84rem', color: C.cyan }}>{path}</code>
+          {badge && <Pill color={badge.color} bg={badge.bg}>{badge.label}</Pill>}
+        </div>
+        <div style={{ fontFamily: C.sans, fontSize: '0.88rem', fontWeight: 600, color: C.text }}>{title}</div>
+      </div>
+    </div>
+    <div style={{ padding: '20px 24px' }}>{children}</div>
+  </div>
+);
 
-# Enhanced Verification Flow (NEW in v2.0.0)
-session = client.start_verification(user_id='user-123')
+// ─── Sidebar nav ──────────────────────────────────────────────────────────────
+const NAV = [
+  { id: 'quick-start', label: 'Quick Start', depth: 0 },
+  { id: 'auth', label: 'Authentication', depth: 0 },
+  { id: 'flow', label: 'Verification Flow', depth: 0 },
+  { id: 'step-1', label: '1 · Start Session', depth: 1 },
+  { id: 'step-2', label: '2 · Upload Front', depth: 1 },
+  { id: 'step-3', label: '3 · Upload Back', depth: 1 },
+  { id: 'step-4', label: '4 · Live Capture', depth: 1 },
+  { id: 'step-5', label: '5 · Get Results', depth: 1 },
+  { id: 'selfie', label: 'Selfie (Legacy)', depth: 1 },
+  { id: 'live-token', label: 'Live Token', depth: 1 },
+  { id: 'integration', label: 'Integration', depth: 0 },
+  { id: 'analysis', label: 'AI Analysis', depth: 0 },
+  { id: 'statuses', label: 'Statuses', depth: 0 },
+  { id: 'rate-limits', label: 'Rate Limits', depth: 0 },
+  { id: 'support', label: 'Support', depth: 0 },
+];
 
-# Step 1: Upload front document  
-document = client.verify_document(
-    verification_id=session['verification_id'],
-    document_type='drivers_license',
-    document_file='front.jpg'
-)
+// ─── Main component ───────────────────────────────────────────────────────────
+export const DocsPage: React.FC = () => {
+  const apiUrl = getDocumentationApiUrl();
+  const [tab, setTab] = useState<'js' | 'python'>('js');
+  const [active, setActive] = useState('quick-start');
 
-# Step 2: Upload back of ID (barcode scanning)
-back_id = client.verify_back_of_id(
-    verification_id=session['verification_id'],
-    document_type='drivers_license',
-    back_of_id_file='back.jpg'
-)
+  // Inject fonts
+  useEffect(() => {
+    const id = 'docs-ibm-fonts';
+    if (!document.getElementById(id)) {
+      const link = document.createElement('link');
+      link.id = id;
+      link.rel = 'stylesheet';
+      link.href = 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=DM+Sans:wght@400;500;600&display=swap';
+      document.head.appendChild(link);
+    }
+  }, []);
 
-# Step 3: Live capture with AI liveness detection
-live_result = client.live_capture(
-    verification_id=session['verification_id'],
-    live_image_data='data:image/jpeg;base64,...'
-)
+  // Scroll spy
+  useEffect(() => {
+    const ids = NAV.map(n => n.id);
+    const obs = new IntersectionObserver(
+      entries => entries.forEach(e => { if (e.isIntersecting) setActive(e.target.id); }),
+      { rootMargin: '-80px 0px -55% 0px' }
+    );
+    ids.forEach(id => { const el = document.getElementById(id); if (el) obs.observe(el); });
+    return () => obs.disconnect();
+  }, []);
 
-# Get comprehensive results
-results = client.get_verification_results(
-    session['verification_id']
-)
+  const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-print(results['ocr_data'])  # GPT-4o Vision OCR
-print(results['cross_validation_results'])
-print(results['liveness_score'])`}
-              </pre>
+  return (
+    <div style={{ fontFamily: C.sans, background: C.bg, color: C.text, margin: '-24px -24px 0', minHeight: '100vh' }}>
+
+      {/* ── Page header bar ── */}
+      <div style={{ borderBottom: `1px solid ${C.border}`, padding: '18px 32px', display: 'flex', alignItems: 'center', gap: 16, position: 'sticky', top: 0, background: `${C.bg}ee`, backdropFilter: 'blur(8px)', zIndex: 10 }}>
+        <div>
+          <span style={{ fontFamily: C.mono, fontSize: '1.05rem', fontWeight: 600, color: C.text }}>
+            <span style={{ color: C.cyan }}>idswyft</span>
+            <span style={{ color: C.dim }}> / </span>
+            <span>api-docs</span>
+          </span>
+        </div>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Pill color={C.green} bg={C.greenDim}>v2.0</Pill>
+          <Pill color={C.muted} bg="rgba(74,85,104,0.13)">March 2026</Pill>
+        </div>
+      </div>
+
+      {/* ── Two-column layout ── */}
+      <div style={{ display: 'flex', maxWidth: 1360, margin: '0 auto' }}>
+
+        {/* Sidebar */}
+        <aside className="hidden lg:block" style={{ width: 230, flexShrink: 0, position: 'sticky', top: 57, height: 'calc(100vh - 57px)', overflowY: 'auto', borderRight: `1px solid ${C.border}`, padding: '28px 0', background: C.sidebar }}>
+          <div style={{ fontFamily: C.mono, fontSize: '0.62rem', color: C.dim, letterSpacing: '0.12em', textTransform: 'uppercase', padding: '0 20px 12px' }}>Contents</div>
+          {NAV.map(item => (
+            <button key={item.id} onClick={() => scrollTo(item.id)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: item.depth === 0 ? '6px 20px' : '5px 20px 5px 34px', fontFamily: C.sans, fontSize: item.depth === 0 ? '0.82rem' : '0.77rem', fontWeight: item.depth === 0 ? 600 : 400, color: active === item.id ? C.cyan : item.depth === 0 ? C.text : C.muted, background: active === item.id ? C.cyanDim : 'transparent', borderLeft: active === item.id ? `2px solid ${C.cyan}` : '2px solid transparent', border: 'none', cursor: 'pointer', transition: 'all 0.15s' }}>
+              {item.label}
+            </button>
+          ))}
+        </aside>
+
+        {/* Main content */}
+        <main style={{ flex: 1, padding: '48px 52px', maxWidth: 860, minWidth: 0 }}>
+
+          {/* ══ QUICK START ══════════════════════════════════════════════════ */}
+          <SectionAnchor id="quick-start" />
+          <H2>Quick Start</H2>
+          <Lead>
+            The verification flow is a 5-call sequence. Every processing step is asynchronous —
+            you submit, then poll <code style={{ fontFamily: C.mono, color: C.cyan, fontSize: '0.82rem' }}>GET /api/verify/results/:id</code> until
+            the relevant field appears. Below is the complete flow.
+          </Lead>
+
+          <Pipeline />
+
+          <CodeTabs tab={tab} onChange={setTab}
+            js={`const BASE = '${apiUrl}';
+const KEY  = 'your-api-key';
+const headers = { 'X-API-Key': KEY };
+
+// ─── 1. Start session ───────────────────────────────────────────
+const { verification_id } = await fetch(\`\${BASE}/api/verify/start\`, {
+  method: 'POST',
+  headers: { ...headers, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ user_id: 'user-uuid' }),
+}).then(r => r.json());
+
+// ─── 2. Upload front document (OCR runs async) ──────────────────
+const fd1 = new FormData();
+fd1.append('verification_id', verification_id);
+fd1.append('document_type', 'drivers_license');
+fd1.append('document', frontFile);       // File from <input type="file">
+await fetch(\`\${BASE}/api/verify/document\`, { method: 'POST', headers, body: fd1 });
+
+// ─── 3. Poll until OCR finishes ─────────────────────────────────
+let r;
+do {
+  await new Promise(ok => setTimeout(ok, 2000));
+  r = await fetch(\`\${BASE}/api/verify/results/\${verification_id}\`, { headers }).then(r => r.json());
+} while (!r.ocr_data);
+
+// ─── 4. Upload back-of-ID (cross-validation runs async) ─────────
+const fd2 = new FormData();
+fd2.append('verification_id', verification_id);
+fd2.append('document_type', 'drivers_license');
+fd2.append('back_of_id', backFile);
+await fetch(\`\${BASE}/api/verify/back-of-id\`, { method: 'POST', headers, body: fd2 });
+
+// ─── 5. Poll until cross-validation finishes ────────────────────
+do {
+  await new Promise(ok => setTimeout(ok, 2000));
+  r = await fetch(\`\${BASE}/api/verify/results/\${verification_id}\`, { headers }).then(r => r.json());
+} while (!r.enhanced_verification_completed);
+
+if (r.status === 'failed') throw new Error('Cross-validation failed: ' + r.failure_reason);
+
+// ─── 6. Submit live capture ──────────────────────────────────────
+// capturedBase64 = base64 string from your camera (no data URI prefix)
+await fetch(\`\${BASE}/api/verify/live-capture\`, {
+  method: 'POST',
+  headers: { ...headers, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ verification_id, live_image_data: capturedBase64 }),
+});
+
+// ─── 7. Poll for final result ────────────────────────────────────
+const DONE = ['verified', 'failed', 'manual_review'];
+do {
+  await new Promise(ok => setTimeout(ok, 2000));
+  r = await fetch(\`\${BASE}/api/verify/results/\${verification_id}\`, { headers }).then(r => r.json());
+} while (!r.live_capture_completed || !DONE.includes(r.status));
+
+console.log(r.status);           // 'verified' | 'failed' | 'manual_review'
+console.log(r.face_match_score); // 0.0 – 1.0
+console.log(r.liveness_score);   // 0.0 – 1.0
+console.log(r.ocr_data.name);    // "Jane Smith"`}
+            python={`import requests, time, base64
+
+BASE = '${apiUrl}'
+HEADERS = {'X-API-Key': 'your-api-key'}
+
+def poll(vid, until_key=None, until_status=None, extra_check=None):
+    """Poll /results until condition is met."""
+    done = ['verified', 'failed', 'manual_review']
+    while True:
+        time.sleep(2)
+        r = requests.get(f'{BASE}/api/verify/results/{vid}', headers=HEADERS).json()
+        if until_key and r.get(until_key): return r
+        if until_status and r.get('status') in done and r.get('live_capture_completed'): return r
+        if extra_check and extra_check(r): return r
+
+# ─── 1. Start session ───────────────────────────────────────────
+session = requests.post(f'{BASE}/api/verify/start',
+    headers={**HEADERS, 'Content-Type': 'application/json'},
+    json={'user_id': 'user-uuid'}
+).json()
+vid = session['verification_id']
+
+# ─── 2. Upload front document ───────────────────────────────────
+with open('front.jpg', 'rb') as f:
+    requests.post(f'{BASE}/api/verify/document', headers=HEADERS,
+        data={'verification_id': vid, 'document_type': 'drivers_license'},
+        files={'document': f})
+
+# ─── 3. Poll until OCR is ready ─────────────────────────────────
+r = poll(vid, until_key='ocr_data')
+print('Name:', r['ocr_data']['name'])
+
+# ─── 4. Upload back-of-ID ───────────────────────────────────────
+with open('back.jpg', 'rb') as f:
+    requests.post(f'{BASE}/api/verify/back-of-id', headers=HEADERS,
+        data={'verification_id': vid, 'document_type': 'drivers_license'},
+        files={'back_of_id': f})
+
+# ─── 5. Poll until cross-validation finishes ────────────────────
+r = poll(vid, until_key='enhanced_verification_completed')
+if r['status'] == 'failed':
+    raise Exception('Cross-validation failed: ' + r.get('failure_reason', ''))
+
+# ─── 6. Submit live capture ─────────────────────────────────────
+with open('selfie.jpg', 'rb') as f:
+    img_b64 = base64.b64encode(f.read()).decode()
+requests.post(f'{BASE}/api/verify/live-capture',
+    headers={**HEADERS, 'Content-Type': 'application/json'},
+    json={'verification_id': vid, 'live_image_data': img_b64})
+
+# ─── 7. Poll for final result ────────────────────────────────────
+r = poll(vid, until_status=True)
+print(r['status'])            # verified / failed / manual_review
+print(r['face_match_score'])  # 0.0 – 1.0
+print(r['liveness_score'])    # 0.0 – 1.0
+print(r['ocr_data']['name'])  # "Jane Smith"`}
+          />
+
+          <Divider />
+
+          {/* ══ AUTHENTICATION ═══════════════════════════════════════════════ */}
+          <SectionAnchor id="auth" />
+          <H2>Authentication</H2>
+          <Lead>Every API request must include your API key in the <code style={{ fontFamily: C.mono, color: C.cyan, fontSize: '0.82rem' }}>X-API-Key</code> header. You can generate keys in the Developer Portal.</Lead>
+
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '20px 24px', marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontFamily: C.mono, fontSize: '0.68rem', color: C.muted, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Base URL</div>
+                <code style={{ fontFamily: C.mono, fontSize: '0.85rem', color: C.cyan }}>{apiUrl}</code>
+              </div>
+              <div>
+                <div style={{ fontFamily: C.mono, fontSize: '0.68rem', color: C.muted, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Auth Header</div>
+                <code style={{ fontFamily: C.mono, fontSize: '0.85rem', color: C.cyan }}>X-API-Key: sk_live_your_key</code>
+              </div>
             </div>
           </div>
-        </section>
 
-        {/* What's New in v2.0.0 */}
-        <section className="mb-8 sm:mb-10">
-          <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold mb-4 sm:mb-6 flex items-center">
-            <SparklesIcon className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600 mr-2" />
-            🆕 What's New in SDK v2.0.0
-          </h2>
-          <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 sm:p-6 rounded-lg mb-6">
-            <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <div className="bg-white p-4 rounded-lg shadow-sm">
-                <div className="flex items-center mb-3">
-                  <EyeIcon className="h-5 w-5 text-blue-600 mr-2" />
-                  <h3 className="font-semibold text-sm sm:text-base">Enhanced Verification Flow</h3>
-                </div>
-                <p className="text-xs sm:text-sm text-gray-600 mb-2">Session-based verification with back-of-ID scanning, barcode validation, and cross-validation</p>
-                <code className="text-xs bg-gray-100 px-2 py-1 rounded">startVerification()</code>
-              </div>
-              <div className="bg-white p-4 rounded-lg shadow-sm">
-                <div className="flex items-center mb-3">
-                  <CameraIcon className="h-5 w-5 text-green-600 mr-2" />
-                  <h3 className="font-semibold text-sm sm:text-base">AI Liveness Detection</h3>
-                </div>
-                <p className="text-xs sm:text-sm text-gray-600 mb-2">Real-time liveness detection with challenge-response and facial recognition</p>
-                <code className="text-xs bg-gray-100 px-2 py-1 rounded">liveCapture()</code>
-              </div>
-              <div className="bg-white p-4 rounded-lg shadow-sm">
-                <div className="flex items-center mb-3">
-                  <CodeBracketIcon className="h-5 w-5 text-purple-600 mr-2" />
-                  <h3 className="font-semibold text-sm sm:text-base">Developer Management</h3>
-                </div>
-                <p className="text-xs sm:text-sm text-gray-600 mb-2">Complete API key lifecycle, activity monitoring, and webhook management</p>
-                <code className="text-xs bg-gray-100 px-2 py-1 rounded">createApiKey()</code>
-              </div>
-              <div className="bg-white p-4 rounded-lg shadow-sm">
-                <div className="flex items-center mb-3">
-                  <DocumentCheckIcon className="h-5 w-5 text-red-600 mr-2" />
-                  <h3 className="font-semibold text-sm sm:text-base">Barcode Scanning</h3>
-                </div>
-                <p className="text-xs sm:text-sm text-gray-600 mb-2">PDF417 barcode parsing for driver's licenses with security feature validation</p>
-                <code className="text-xs bg-gray-100 px-2 py-1 rounded">verifyBackOfId()</code>
-              </div>
-              <div className="bg-white p-4 rounded-lg shadow-sm">
-                <div className="flex items-center mb-3">
-                  <ChartBarIcon className="h-5 w-5 text-yellow-600 mr-2" />
-                  <h3 className="font-semibold text-sm sm:text-base">Analytics & Monitoring</h3>
-                </div>
-                <p className="text-xs sm:text-sm text-gray-600 mb-2">Comprehensive verification history, usage analytics, and activity tracking</p>
-                <code className="text-xs bg-gray-100 px-2 py-1 rounded">getVerificationHistory()</code>
-              </div>
-              <div className="bg-white p-4 rounded-lg shadow-sm">
-                <div className="flex items-center mb-3">
-                  <ShieldCheckIcon className="h-5 w-5 text-indigo-600 mr-2" />
-                  <h3 className="font-semibold text-sm sm:text-base">Webhook System</h3>
-                </div>
-                <p className="text-xs sm:text-sm text-gray-600 mb-2">Full webhook CRUD, delivery testing, retry logic, and signature verification</p>
-                <code className="text-xs bg-gray-100 px-2 py-1 rounded">registerWebhook()</code>
-              </div>
-            </div>
-            <div className="mt-4 sm:mt-6 p-4 bg-white rounded-lg border-l-4 border-purple-500">
-              <h4 className="font-semibold text-sm sm:text-base mb-2 flex items-center">
-                <AcademicCapIcon className="h-4 w-4 text-purple-600 mr-2" />
-                Migration from v1.x to v2.0.0
-              </h4>
-              <p className="text-xs sm:text-sm text-gray-600 mb-2">
-                The new enhanced verification flow is backward compatible. Existing v1.x code continues to work, but we recommend migrating to the session-based approach for enhanced features.
-              </p>
-              <div className="text-xs text-purple-700 font-medium">
-                Breaking Changes: None • New Features: 15+ • Enhanced Security: ✓
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Authentication */}
-        <section className="mb-8 sm:mb-10">
-          <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold mb-4 sm:mb-6 flex items-center">
-            <ShieldCheckIcon className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 mr-2" />
-            Authentication
-          </h2>
-          <div className="bg-blue-50 p-4 sm:p-6 rounded-lg mb-4">
-            <p className="text-blue-800 mb-3 text-sm sm:text-base">
-              <strong>Base URL:</strong> <code className="bg-blue-100 px-2 py-1 rounded text-xs sm:text-sm break-all">{apiUrl}</code>
-            </p>
-            <p className="text-blue-800 text-sm sm:text-base">
-              <strong>Authentication:</strong> Include <code className="bg-blue-100 px-2 py-1 rounded text-xs sm:text-sm">X-API-Key</code> header with your API key
-            </p>
-          </div>
-          <div className="bg-gray-50 p-3 sm:p-4 rounded-md">
-            <pre className="text-xs sm:text-sm overflow-x-auto">
-{`Headers:
-X-API-Key: your-api-key-here
-Content-Type: multipart/form-data (for file uploads)
-Content-Type: application/json (for other requests)`}
-            </pre>
-          </div>
-        </section>
-
-        {/* Core Endpoints */}
-        <section className="mb-8 sm:mb-10">
-          <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold mb-4 sm:mb-6 flex items-center">
-            <DocumentCheckIcon className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 mr-2" />
-            Complete Verification Flow
-          </h2>
-          
-          <div className="mb-4 sm:mb-6 bg-blue-50 p-3 sm:p-4 rounded-lg border border-blue-200">
-            <h4 className="font-semibold text-blue-900 mb-2 text-sm sm:text-base">🔄 New Cohesive API Flow</h4>
-            <p className="text-blue-800 text-xs sm:text-sm">
-              Our verification API now follows a session-based approach where you start a verification, 
-              upload documents, perform live capture, and get unified results.
-            </p>
-          </div>
-
-          {/* Start Verification */}
-          <div className="mb-6 sm:mb-8 border border-gray-200 rounded-lg">
-            <div className="bg-blue-50 p-3 sm:p-4 border-b">
-              <h3 className="font-semibold text-base sm:text-lg">1. Start Verification Session</h3>
-              <code className="text-xs sm:text-sm text-blue-700 break-all">POST /api/verify/start</code>
-            </div>
-            <div className="p-4 sm:p-6">
-              <p className="text-gray-700 mb-3 sm:mb-4 text-sm sm:text-base">
-                Initialize a new verification session for a user. This creates a unique verification ID 
-                that will be used for all subsequent operations.
-              </p>
-              
-              <h4 className="font-medium mb-2 text-sm sm:text-base">Request Parameters:</h4>
-              <div className="bg-gray-50 p-3 sm:p-4 rounded text-xs sm:text-sm mb-3 sm:mb-4">
-                <pre className="overflow-x-auto">
-{`user_id: string (UUID - unique identifier for the user)
-sandbox: boolean (optional - defaults to false)`}
-                </pre>
-              </div>
-
-              <h4 className="font-medium mb-2 text-sm sm:text-base">Example Request:</h4>
-              <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm mb-3 sm:mb-4">
-                <pre className="overflow-x-auto">
-{`curl -X POST ${apiUrl}/api/verify/start \\
-  -H "X-API-Key: your-api-key" \\
+          <Pre label="Curl example" code={`curl -X POST ${apiUrl}/api/verify/start \\
+  -H "X-API-Key: sk_live_your_key" \\
   -H "Content-Type: application/json" \\
-  -d '{
-    "user_id": "user_123"
-  }'`}
-                </pre>
-              </div>
+  -d '{"user_id": "550e8400-e29b-41d4-a716-446655440000"}'`} />
 
-              <h4 className="font-medium mb-2 text-sm sm:text-base">Response:</h4>
-              <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm">
-                <pre className="overflow-x-auto">
-{`{
-  "verification_id": "verif_abc123",
+          <Callout type="tip">
+            Use a <strong>sandbox key</strong> (prefix <code style={{ fontFamily: C.mono }}>sk_test_</code>) during development.
+            Sandbox mode uses the same pipeline with real OCR and face matching, but counts against a separate quota
+            and won't affect production metrics.
+          </Callout>
+
+          <Divider />
+
+          {/* ══ VERIFICATION FLOW ════════════════════════════════════════════ */}
+          <SectionAnchor id="flow" />
+          <H2>Verification Flow</H2>
+          <Lead>
+            Each verification is a session with a unique ID. You move through steps sequentially —
+            each step unlocks the next. All heavy processing (OCR, cross-validation, liveness) is
+            asynchronous: submit the data, then poll <code style={{ fontFamily: C.mono, color: C.cyan, fontSize: '0.82rem' }}>GET /api/verify/results/:id</code> to check progress.
+          </Lead>
+
+          {/* Step 1 */}
+          <SectionAnchor id="step-1" />
+          <EndpointCard step={1} method="POST" path="/api/verify/start" title="Start a Verification Session">
+            <p style={{ fontFamily: C.sans, fontSize: '0.88rem', color: C.muted, lineHeight: 1.7, marginBottom: 16 }}>
+              Creates a new verification session for a user. Returns a <code style={{ fontFamily: C.mono, color: C.cyan }}>verification_id</code> that
+              ties together all subsequent uploads and results. One session = one complete identity check.
+            </p>
+            <div style={{ marginBottom: 12 }}>
+              <FieldRow name="user_id" type="UUID string" req={true} desc="Your unique identifier for the user being verified." />
+              <FieldRow name="sandbox" type="boolean" req={false} desc="Set true to use sandbox mode. Defaults to false." />
+            </div>
+            <Pre label="Request" code={`curl -X POST ${apiUrl}/api/verify/start \\
+  -H "X-API-Key: your-key" \\
+  -H "Content-Type: application/json" \\
+  -d '{"user_id": "550e8400-e29b-41d4-a716-446655440000"}'`} />
+            <Pre label="Response  —  HTTP 201" code={`{
+  "verification_id": "550e8400-e29b-41d4-a716-446655440001",
   "status": "started",
-  "user_id": "user_123",
+  "user_id": "550e8400-e29b-41d4-a716-446655440000",
   "next_steps": [
     "Upload document with POST /api/verify/document",
+    "Upload back-of-ID with POST /api/verify/back-of-id",
     "Complete live capture with POST /api/verify/live-capture",
     "Check results with GET /api/verify/results/:verification_id"
   ],
-  "created_at": "2024-01-01T12:00:00Z"
-}`}
-                </pre>
-              </div>
+  "created_at": "2026-03-06T12:00:00Z"
+}`} />
+          </EndpointCard>
+
+          {/* Step 2 */}
+          <SectionAnchor id="step-2" />
+          <EndpointCard step={2} method="POST" path="/api/verify/document" title="Upload Front Document">
+            <p style={{ fontFamily: C.sans, fontSize: '0.88rem', color: C.muted, lineHeight: 1.7, marginBottom: 16 }}>
+              Upload the <strong style={{ color: C.text }}>front face</strong> of the identity document (passport, driver's license, national ID).
+              OCR extraction and image quality analysis run asynchronously after upload.
+              The response does <em>not</em> yet contain OCR data — poll
+              <code style={{ fontFamily: C.mono, color: C.cyan }}> GET /results/:id</code> until
+              <code style={{ fontFamily: C.mono, color: C.cyan }}> ocr_data</code> is present before moving to Step 3.
+            </p>
+            <div style={{ marginBottom: 12 }}>
+              <FieldRow name="verification_id" type="UUID string" req={true} desc="The ID returned from Step 1." />
+              <FieldRow name="document_type" type="string" req={true} desc="'passport' | 'drivers_license' | 'national_id' | 'other'" />
+              <FieldRow name="document" type="File" req={true} desc="JPEG, PNG, WebP, or PDF. Max 10 MB." />
             </div>
-          </div>
-
-          {/* Document Upload */}
-          <div className="mb-6 sm:mb-8 border border-gray-200 rounded-lg">
-            <div className="bg-green-50 p-3 sm:p-4 border-b">
-              <h3 className="font-semibold text-base sm:text-lg">2. Upload Document to Verification</h3>
-              <code className="text-xs sm:text-sm text-green-700 break-all">POST /api/verify/document</code>
-            </div>
-            <div className="p-4 sm:p-6">
-              <p className="text-gray-700 mb-3 sm:mb-4 text-sm sm:text-base">
-                Upload an identity document to an existing verification session. This performs OCR extraction, 
-                quality assessment, and authenticity checks.
-              </p>
-              
-              <h4 className="font-medium mb-2 text-sm sm:text-base">Request Parameters:</h4>
-              <div className="bg-gray-50 p-3 sm:p-4 rounded text-xs sm:text-sm mb-3 sm:mb-4">
-                <pre className="overflow-x-auto">
-{`verification_id: string (UUID from step 1)
-document_type: 'passport' | 'drivers_license' | 'national_id' | 'other'
-document: File (image/jpeg, image/png, image/webp, application/pdf)
-metadata: object (optional)`}
-                </pre>
-              </div>
-
-              <h4 className="font-medium mb-2 text-sm sm:text-base">Example Request:</h4>
-              <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm mb-3 sm:mb-4">
-                <pre className="overflow-x-auto">
-{`curl -X POST ${apiUrl}/api/verify/document \\
-  -H "X-API-Key: your-api-key" \\
-  -F "verification_id=verif_abc123" \\
-  -F "document_type=passport" \\
-  -F "document=@passport.jpg"`}
-                </pre>
-              </div>
-
-              <h4 className="font-medium mb-2 text-sm sm:text-base">Response with AI Analysis:</h4>
-              <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm">
-                <pre className="overflow-x-auto">
-{`{
-  "id": "verif_abc123",
-  "status": "verified",
-  "type": "document",
-  "confidence_score": 0.95,
-  "user_id": "user-123",
-  "created_at": "2024-01-01T12:00:00Z",
-  "updated_at": "2024-01-01T12:00:15Z",
-  
-  // OCR Analysis with Confidence Scores
-  "ocr_data": {
-    "name": "John Doe",
-    "date_of_birth": "1990-01-01",
-    "document_number": "P123456789",
-    "expiration_date": "2030-01-01",
-    "nationality": "US",
-    "issuing_authority": "US Passport Agency",
-    "confidence_scores": {
-      "name": 0.98,
-      "date_of_birth": 0.95,
-      "document_number": 0.92
-    }
-  },
-  
-  // Quality Analysis
-  "quality_analysis": {
-    "overallQuality": "excellent",
-    "isBlurry": false,
-    "blurScore": 342.5,
-    "brightness": 128,
-    "contrast": 45,
-    "resolution": {
-      "width": 1920,
-      "height": 1080,
-      "isHighRes": true
-    },
-    "fileSize": {
-      "bytes": 2457600,
-      "isReasonableSize": true
-    },
-    "issues": [],
-    "recommendations": ["Consider better lighting"]
-  }
-}`}
-                </pre>
-              </div>
-            </div>
-          </div>
-
-          {/* Back-of-ID Upload */}
-          <div className="mb-6 sm:mb-8 border border-gray-200 rounded-lg">
-            <div className="bg-cyan-50 p-3 sm:p-4 border-b">
-              <h3 className="font-semibold text-base sm:text-lg flex items-center">
-                <AcademicCapIcon className="h-5 w-5 text-cyan-600 mr-2" />
-                2b. Upload Back-of-ID (Enhanced Verification)
-                <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">NEW</span>
-              </h3>
-              <code className="text-xs sm:text-sm text-cyan-700 break-all">POST /api/verify/back-of-id</code>
-            </div>
-            <div className="p-4 sm:p-6">
-              <p className="text-gray-700 mb-3 sm:mb-4 text-sm sm:text-base">
-                Upload the back of an ID document for enhanced verification with QR/barcode scanning and cross-validation 
-                against front-of-ID data. This optional step significantly increases verification accuracy.
-              </p>
-              
-              <div className="bg-purple-50 border border-purple-200 p-3 mb-4 rounded-lg">
-                <h4 className="font-medium text-purple-900 mb-2 flex items-center">
-                  <SparklesIcon className="h-4 w-4 mr-1" />
-                  AI-Powered Features
-                </h4>
-                <ul className="text-purple-800 text-sm space-y-1">
-                  <li>• GPT-4o Vision barcode and QR code scanning</li>
-                  <li>• Cross-validation between front and back data</li>
-                  <li>• Security feature detection and analysis</li>
-                  <li>• Verification code extraction and matching</li>
-                </ul>
-              </div>
-              
-              <h4 className="font-medium mb-2 text-sm sm:text-base">Request Parameters:</h4>
-              <div className="bg-gray-50 p-3 sm:p-4 rounded text-xs sm:text-sm mb-3 sm:mb-4">
-                <pre className="overflow-x-auto">
-{`verification_id: string (UUID from step 1)
-document_type: 'passport' | 'drivers_license' | 'national_id' | 'other'
-back_of_id: File (image/jpeg, image/png, image/webp)
-metadata: object (optional)`}
-                </pre>
-              </div>
-
-              <h4 className="font-medium mb-2 text-sm sm:text-base">Example Request:</h4>
-              <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm mb-3 sm:mb-4">
-                <pre className="overflow-x-auto">
-{`curl -X POST ${apiUrl}/api/verify/back-of-id \\
-  -H "X-API-Key: your-api-key" \\
-  -F "verification_id=verif_abc123" \\
+            <Pre label="Request" code={`curl -X POST ${apiUrl}/api/verify/document \\
+  -H "X-API-Key: your-key" \\
+  -F "verification_id=550e8400-e29b-41d4-a716-446655440001" \\
   -F "document_type=drivers_license" \\
-  -F "back_of_id=@drivers_license_back.jpg"`}
-                </pre>
-              </div>
+  -F "document=@front.jpg"`} />
+            <Pre label="Response  —  HTTP 201" code={`{
+  "verification_id": "550e8400-e29b-41d4-a716-446655440001",
+  "status": "pending",                    // OCR not yet complete
+  "message": "Document uploaded successfully. Processing started.",
+  "document_id": "doc_abc123",
 
-              <h4 className="font-medium mb-2 text-sm sm:text-base">Response with Cross-Validation:</h4>
-              <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm">
-                <pre className="overflow-x-auto">
-{`{
-  "verification_id": "verif_abc123",
+  // Included if quality analysis ran (images only):
+  "quality_analysis": {
+    "overall_quality": "excellent",       // poor | fair | good | excellent
+    "issues": [],                         // e.g. ["blurry", "low_contrast"]
+    "recommendations": [],
+    "quality_scores": {
+      "blur_score": 342.5,
+      "brightness": 128,
+      "contrast": 45,
+      "resolution": { "width": 1920, "height": 1080 }
+    }
+  }
+}`} />
+            <Callout type="note">
+              OCR data is <strong>not in this response</strong>. Poll
+              <code style={{ fontFamily: C.mono }}> GET /api/verify/results/:id</code> every 2 seconds
+              until the <code style={{ fontFamily: C.mono }}>ocr_data</code> field is populated, then proceed to Step 3.
+            </Callout>
+          </EndpointCard>
+
+          {/* Step 3 */}
+          <SectionAnchor id="step-3" />
+          <EndpointCard step={3} method="POST" path="/api/verify/back-of-id" title="Upload Back-of-ID"
+            badge={{ label: 'required', color: C.red, bg: C.redDim }}>
+            <p style={{ fontFamily: C.sans, fontSize: '0.88rem', color: C.muted, lineHeight: 1.7, marginBottom: 16 }}>
+              Upload the <strong style={{ color: C.text }}>back face</strong> of the ID for barcode/QR scanning and cross-validation
+              against the front OCR data. This is a <strong style={{ color: C.red }}>required step</strong> — it
+              unlocks live capture. If the front and back do not match the same document, the verification
+              immediately moves to <StatusPill status="failed" /> and live capture is blocked.
+            </p>
+
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: '14px 18px', marginBottom: 16 }}>
+              <div style={{ fontFamily: C.mono, fontSize: '0.68rem', color: C.muted, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>What cross-validation checks</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 24px' }}>
+                {['PDF417 / QR barcode decoding', 'ID number consistency (front OCR ↔ barcode)', 'Expiry date matching', 'Issuing authority matching', 'Photo consistency score', 'Security feature detection'].map(s => (
+                  <div key={s} style={{ fontFamily: C.sans, fontSize: '0.8rem', color: C.muted, display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <span style={{ color: C.green, fontSize: '0.7rem' }}>✓</span> {s}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <FieldRow name="verification_id" type="UUID string" req={true} desc="The ID returned from Step 1." />
+              <FieldRow name="document_type" type="string" req={true} desc="Must match the document_type used in Step 2." />
+              <FieldRow name="back_of_id" type="File" req={true} desc="JPEG, PNG, or WebP. Max 10 MB." />
+            </div>
+            <Pre label="Request" code={`curl -X POST ${apiUrl}/api/verify/back-of-id \\
+  -H "X-API-Key: your-key" \\
+  -F "verification_id=550e8400-e29b-41d4-a716-446655440001" \\
+  -F "document_type=drivers_license" \\
+  -F "back_of_id=@back.jpg"`} />
+            <Pre label="Response  —  HTTP 201" code={`{
+  "verification_id": "550e8400-e29b-41d4-a716-446655440001",
   "back_of_id_document_id": "doc_back456",
-  "status": "processing",
+  "status": "processing",                  // cross-validation in progress
   "message": "Back-of-ID uploaded successfully. Enhanced verification processing started.",
-  
   "enhanced_verification": {
     "barcode_scanning_enabled": true,
     "cross_validation_enabled": true,
     "ai_powered": true
   },
-  
   "next_steps": [
     "Processing barcode/QR code scanning",
     "Cross-validating with front-of-ID data",
-    "Check results with GET /api/verify/results/verif_abc123"
+    "Check results with GET /api/verify/results/550e8400-..."
   ]
-}`}
-                </pre>
+}`} />
+            <Callout type="warning">
+              Poll <code style={{ fontFamily: C.mono }}>GET /results/:id</code> until{' '}
+              <code style={{ fontFamily: C.mono }}>enhanced_verification_completed: true</code>.
+              If <code style={{ fontFamily: C.mono }}>status</code> becomes{' '}
+              <StatusPill status="failed" />, cross-validation did not pass — do not proceed to live capture.
+              Check <code style={{ fontFamily: C.mono }}>failure_reason</code> for details.
+            </Callout>
+          </EndpointCard>
+
+          {/* Step 4 */}
+          <SectionAnchor id="step-4" />
+          <EndpointCard step={4} method="POST" path="/api/verify/live-capture" title="Submit Live Capture"
+            badge={{ label: 'AI-enhanced', color: C.purple, bg: C.purpleDim }}>
+            <p style={{ fontFamily: C.sans, fontSize: '0.88rem', color: C.muted, lineHeight: 1.7, marginBottom: 16 }}>
+              Submit a <strong style={{ color: C.text }}>base64-encoded camera frame</strong> for liveness detection and
+              face matching against the front document photo. Only available after cross-validation passes.
+              Liveness + face matching are asynchronous — the response returns immediately with
+              <code style={{ fontFamily: C.mono, color: C.cyan }}> status: "processing"</code>.
+              Final scores come from <code style={{ fontFamily: C.mono, color: C.cyan }}>GET /results/:id</code>.
+            </p>
+
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: '14px 18px', marginBottom: 16 }}>
+              <div style={{ fontFamily: C.mono, fontSize: '0.68rem', color: C.muted, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Liveness detection checks</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 24px' }}>
+                {['Facial depth & 3D structure', 'Natural skin texture & lighting', 'Screen glare & digital artifact detection', 'Challenge-response (blink, smile, head turn)', 'Anti-spoofing: photo/video replay', 'Face matching against front document photo'].map(s => (
+                  <div key={s} style={{ fontFamily: C.sans, fontSize: '0.8rem', color: C.muted, display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <span style={{ color: C.purple, fontSize: '0.7rem' }}>✓</span> {s}
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
 
-          {/* Selfie Verification */}
-          <div className="mb-6 sm:mb-8 border border-gray-200 rounded-lg">
-            <div className="bg-purple-50 p-3 sm:p-4 border-b">
-              <h3 className="font-semibold text-base sm:text-lg">Selfie Verification with Face Matching</h3>
-              <code className="text-xs sm:text-sm text-purple-700 break-all">POST /api/verify/selfie</code>
+            <div style={{ marginBottom: 12 }}>
+              <FieldRow name="verification_id" type="UUID string" req={true} desc="Must have cross-validation completed (enhanced_verification_completed: true)." />
+              <FieldRow name="live_image_data" type="base64 string" req={true} desc="Base64-encoded JPEG. Do NOT include the data URI prefix (data:image/jpeg;base64,...)." />
+              <FieldRow name="challenge_response" type="string" req={false} desc="The liveness challenge the user performed, e.g. 'smile', 'blink_twice'." />
             </div>
-            <div className="p-4 sm:p-6">
-              <p className="text-gray-700 mb-3 sm:mb-4 text-sm sm:text-base">
-                Upload a selfie for face matching against document photos and liveness detection.
-              </p>
-              
-              <h4 className="font-medium mb-2 text-sm sm:text-base">Request Parameters:</h4>
-              <div className="bg-gray-50 p-3 sm:p-4 rounded text-xs sm:text-sm mb-3 sm:mb-4">
-                <pre className="overflow-x-auto">
-{`selfie: File (image/jpeg, image/png, image/webp)
-reference_document_id: string (optional - document to match against)
-user_id: string (optional)
-webhook_url: string (optional)
-metadata: object (optional)`}
-                </pre>
-              </div>
-
-              <h4 className="font-medium mb-2 text-sm sm:text-base">Response with Face Matching:</h4>
-              <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm">
-                <pre className="overflow-x-auto">
-{`{
-  "id": "verif_selfie123",
-  "status": "verified",
-  "type": "selfie",
-  "user_id": "user-123",
-  
-  // Face Matching Results
-  "face_match_score": 0.91,        // 0-1 similarity score
-  "liveness_score": 0.87,          // 0-1 live person confidence
-  "manual_review_reason": null     // Why manual review needed (if any)
-}`}
-                </pre>
-              </div>
-            </div>
-          </div>
-
-          {/* Live Camera Capture */}
-          <div className="mb-6 sm:mb-8 border border-gray-200 rounded-lg">
-            <div className="bg-orange-50 p-3 sm:p-4 border-b">
-              <h3 className="font-semibold text-base sm:text-lg flex items-center">
-                <EyeIcon className="h-5 w-5 text-orange-600 mr-2" />
-                3. Live Camera Capture with AI Liveness Detection
-                <span className="ml-2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full">AI-Enhanced</span>
-              </h3>
-              <code className="text-xs sm:text-sm text-orange-700 break-all">POST /api/verify/live-capture</code>
-            </div>
-            <div className="p-4 sm:p-6">
-              <p className="text-gray-700 mb-3 sm:mb-4 text-sm sm:text-base">
-                Perform real-time camera capture with advanced AI-powered liveness detection using GPT-4o Vision. 
-                Detects spoofing attempts, analyzes facial depth, skin texture, and micro-expressions for bulletproof security.
-              </p>
-              
-              <div className="bg-purple-50 border border-purple-200 p-3 mb-4 rounded-lg">
-                <h4 className="font-medium text-purple-900 mb-2 flex items-center">
-                  <SparklesIcon className="h-4 w-4 mr-1" />
-                  AI Liveness Detection Features
-                </h4>
-                <ul className="text-purple-800 text-sm space-y-1">
-                  <li>• Facial depth and 3D structure analysis</li>
-                  <li>• Natural skin texture and lighting detection</li>
-                  <li>• Digital artifact and screen glare identification</li>
-                  <li>• Micro-expression and eye authenticity verification</li>
-                  <li>• Challenge response validation (blink, smile, head movement)</li>
-                </ul>
-              </div>
-              
-              <h4 className="font-medium mb-2 text-sm sm:text-base">Request Parameters:</h4>
-              <div className="bg-gray-50 p-3 sm:p-4 rounded text-xs sm:text-sm mb-3 sm:mb-4">
-                <pre className="overflow-x-auto">
-{`verification_id: string (existing verification with document)
-live_image_data: string (base64 encoded image)
-challenge_response: string (optional - for challenge-based liveness)
-metadata: object (optional)`}
-                </pre>
-              </div>
-
-              <h4 className="font-medium mb-2 text-sm sm:text-base">Example Request:</h4>
-              <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm mb-3 sm:mb-4">
-                <pre className="overflow-x-auto">
-{`curl -X POST ${apiUrl}/api/verify/live-capture \\
-  -H "X-API-Key: your-api-key" \\
+            <Pre label="Request" code={`curl -X POST ${apiUrl}/api/verify/live-capture \\
+  -H "X-API-Key: your-key" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "verification_id": "verif_abc123",
-    "live_image_data": "data:image/jpeg;base64,/9j/4AAQSkZJRgABA...",
-    "challenge_response": "smile",
-    "metadata": {"source": "web_app"}
-  }'`}
-                </pre>
-              </div>
+    "verification_id": "550e8400-e29b-41d4-a716-446655440001",
+    "live_image_data": "/9j/4AAQSkZJRgABA...",
+    "challenge_response": "smile"
+  }'`} />
+            <Pre label="Response  —  HTTP 201" code={`{
+  "verification_id": "550e8400-e29b-41d4-a716-446655440001",
+  "live_capture_id": "550e8400-e29b-41d4-a716-446655440099",
+  "status": "processing",        // liveness + face match running in background
+  "message": "Live capture uploaded successfully. Processing liveness detection and face matching.",
+  "liveness_check_enabled": true,
+  "face_matching_enabled": true,
+  "results_url": "/api/verify/results/550e8400-e29b-41d4-a716-446655440001"
+}`} />
+            <Callout type="note">
+              Scores are <strong>not in this response</strong>. Poll{' '}
+              <code style={{ fontFamily: C.mono }}>GET /results/:id</code> until{' '}
+              <code style={{ fontFamily: C.mono }}>live_capture_completed: true</code> AND{' '}
+              <code style={{ fontFamily: C.mono }}>status</code> is{' '}
+              <StatusPill status="verified" />, <StatusPill status="failed" />, or <StatusPill status="manual_review" />.
+            </Callout>
+          </EndpointCard>
 
-              <h4 className="font-medium mb-2 text-sm sm:text-base">Response with Liveness Analysis:</h4>
-              <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm">
-                <pre className="overflow-x-auto">
-{`{
-  "id": "verif_live123",
-  "status": "verified",
-  "type": "live_capture",
-  "user_id": "user-123",
-  "verification_id": "verif_abc123",
-  
-  // Liveness Detection Results
-  "liveness_score": 0.94,           // 0-1 confidence this is a live person
-  "liveness_details": {
-    "blink_detection": 0.89,
-    "head_movement": 0.91,
-    "texture_analysis": 0.96,
-    "challenge_passed": true
-  },
-  
-  // Face Matching Results
-  "face_match_score": 0.92,         // Similarity to document photo
-  "face_detected": true,
-  "multiple_faces": false,
-  
-  // Overall Assessment
-  "confidence_score": 0.93,
-  "manual_review_reason": null,
-  "created_at": "2024-01-01T12:00:30Z"
-}`}
-                </pre>
-              </div>
+          {/* Step 5 */}
+          <SectionAnchor id="step-5" />
+          <EndpointCard step={5} method="GET" path="/api/verify/results/:verification_id" title="Get Verification Results">
+            <p style={{ fontFamily: C.sans, fontSize: '0.88rem', color: C.muted, lineHeight: 1.7, marginBottom: 16 }}>
+              The single source of truth for a verification session. Use this endpoint for polling at each
+              processing stage and for reading the final result. Returns the full record including OCR data,
+              cross-validation scores, liveness score, and face match score.
+            </p>
+
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: '14px 18px', marginBottom: 16 }}>
+              <div style={{ fontFamily: C.mono, fontSize: '0.68rem', color: C.muted, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>Polling conditions</div>
+              {[
+                { after: 'After Step 2 (front doc)', condition: 'ocr_data is not null', next: 'proceed to Step 3' },
+                { after: 'After Step 3 (back-of-ID)', condition: 'enhanced_verification_completed === true', next: 'check status; if not "failed", proceed to Step 4' },
+                { after: 'After Step 4 (live capture)', condition: 'live_capture_completed === true AND status in ["verified","failed","manual_review"]', next: 'verification complete' },
+              ].map(r => (
+                <div key={r.after} style={{ display: 'flex', gap: 12, padding: '8px 0', borderTop: `1px solid ${C.border}`, flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: C.sans, fontSize: '0.78rem', color: C.muted, width: 160, flexShrink: 0 }}>{r.after}</span>
+                  <code style={{ fontFamily: C.mono, fontSize: '0.75rem', color: C.cyan, flex: 1 }}>{r.condition}</code>
+                  <span style={{ fontFamily: C.sans, fontSize: '0.78rem', color: C.green, flexShrink: 0 }}>→ {r.next}</span>
+                </div>
+              ))}
             </div>
-          </div>
 
-          {/* Live Token Generation */}
-          <div className="mb-8 border border-gray-200 rounded-lg">
-            <div className="bg-cyan-50 p-4 border-b">
-              <h3 className="font-semibold text-lg">Generate Live Capture Token</h3>
-              <code className="text-sm text-cyan-700">POST /api/verify/generate-live-token</code>
-            </div>
-            <div className="p-6">
-              <p className="text-gray-700 mb-4">
-                Generate a secure token and challenge for live capture verification session.
-              </p>
-              
-              <h4 className="font-medium mb-2">Request Parameters:</h4>
-              <div className="bg-gray-50 p-4 rounded text-sm mb-4">
-                <pre className="overflow-x-auto">
-{`verification_id: string (existing verification with document)
-challenge_type: 'blink' | 'smile' | 'turn_head' | 'random' (optional)`}
-                </pre>
-              </div>
+            <Pre label="Request" code={`curl -X GET ${apiUrl}/api/verify/results/550e8400-e29b-41d4-a716-446655440001 \\
+  -H "X-API-Key: your-key"`} />
+            <Pre label="Response  —  completed verification" code={`{
+  "verification_id": "550e8400-e29b-41d4-a716-446655440001",
+  "user_id":         "550e8400-e29b-41d4-a716-446655440000",
+  "status":          "verified",
+  "created_at":      "2026-03-06T12:00:00Z",
+  "updated_at":      "2026-03-06T12:05:30Z",
 
-              <h4 className="font-medium mb-2 text-sm sm:text-base">Response:</h4>
-              <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm">
-                <pre className="overflow-x-auto">
-{`{
-  "token": "live_token_xyz789",
-  "challenge": "smile",
-  "expires_at": "2024-01-01T12:05:00Z",
-  "instructions": "Please smile naturally for the camera"
-}`}
-                </pre>
-              </div>
-            </div>
-          </div>
-
-          {/* Complete Results */}
-          <div className="mb-6 sm:mb-8 border border-gray-200 rounded-lg">
-            <div className="bg-purple-50 p-3 sm:p-4 border-b">
-              <h3 className="font-semibold text-base sm:text-lg">4. Get Complete Verification Results</h3>
-              <code className="text-xs sm:text-sm text-purple-700 break-all">GET /api/verify/results/:verification_id</code>
-            </div>
-            <div className="p-4 sm:p-6">
-              <p className="text-gray-700 mb-3 sm:mb-4 text-sm sm:text-base">
-                Get comprehensive verification results including document analysis, live capture results, 
-                and overall verification status. This is your one-stop endpoint for all verification data.
-              </p>
-              
-              <h4 className="font-medium mb-2 text-sm sm:text-base">Example Request:</h4>
-              <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm mb-3 sm:mb-4">
-                <pre className="overflow-x-auto">
-{`curl -X GET ${apiUrl}/api/verify/results/verif_abc123 \\
-  -H "X-API-Key: your-api-key"`}
-                </pre>
-              </div>
-
-              <h4 className="font-medium mb-2 text-sm sm:text-base">Enhanced Response with AI Features:</h4>
-              <div className="bg-gray-900 text-green-400 p-3 sm:p-4 rounded text-xs sm:text-sm">
-                <pre className="overflow-x-auto">
-{`{
-  "verification_id": "verif_abc123",
-  "user_id": "user_123",
-  "status": "verified",
-  "created_at": "2024-01-01T12:00:00Z",
-  "updated_at": "2024-01-01T12:05:30Z",
-  
-  // Front Document Results (AI-Powered OCR)
+  // ── Front document (OCR) ─────────────────────────────────────
   "document_uploaded": true,
-  "document_type": "drivers_license",
+  "document_type":     "drivers_license",
   "ocr_data": {
-    "name": "John Doe",
-    "date_of_birth": "1990-01-01",
-    "document_number": "DL123456789",
-    "expiration_date": "2030-01-01",
-    "address": "123 Main St, Anytown, US",
-    "ai_extraction_confidence": 0.96
+    "name":              "Jane Smith",
+    "date_of_birth":     "1990-06-15",
+    "document_number":   "DL123456789",
+    "expiration_date":   "2030-06-15",
+    "address":           "123 Main St, Anytown, US",
+    "confidence_scores": { "name": 0.97, "date_of_birth": 0.96 }
   },
-  "quality_analysis": {
-    "overallQuality": "excellent",
-    "isBlurry": false,
-    "ai_authenticity_score": 0.94
-  },
-  
-  // Back-of-ID Results (NEW - Enhanced Verification)
-  "back_of_id_uploaded": true,
-  "barcode_data": {
-    "qr_code": "DL|123456789|DOE,JOHN|1990-01-01|...",
-    "parsed_data": {
-      "id_number": "DL123456789",
-      "expiry_date": "2030-01-01",
-      "issuing_authority": "Department of Motor Vehicles"
-    },
-    "verification_codes": ["VER123", "CHK456"],
-    "security_features": ["Hologram detected", "UV pattern verified"]
-  },
+  "quality_analysis": { "overallQuality": "excellent", "isBlurry": false },
+
+  // ── Back-of-ID (barcode + cross-validation) ──────────────────
+  "back_of_id_uploaded":            true,
+  "enhanced_verification_completed": true,
+  "cross_validation_score":          0.98,
   "cross_validation_results": {
     "match_score": 0.98,
     "validation_results": {
@@ -683,423 +696,250 @@ challenge_type: 'blink' | 'smile' | 'turn_head' | 'random' (optional)`}
     },
     "discrepancies": []
   },
-  "cross_validation_score": 0.98,
-  "enhanced_verification_completed": true,
-  
-  // AI Live Capture Results  
-  "live_capture_completed": true,
-  "liveness_score": 0.96,
-  "face_match_score": 0.94,
-  
-  // Overall Assessment
-  "confidence_score": 0.93,
-  "manual_review_reason": null,
-  "next_steps": ["Verification complete"]
-}`}
-                </pre>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Integration Options */}
-        <section className="mb-8 sm:mb-10">
-          <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold mb-4 sm:mb-6 flex items-center">
-            <BoltIcon className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-500 mr-2" />
-            Integration Options
-          </h2>
-          
-          <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 mb-6 sm:mb-8">
-            {/* Ready-Made Solution */}
-            <div className="border-2 border-blue-200 bg-blue-50 rounded-lg p-4 sm:p-6">
-              <div className="flex items-start">
-                <div className="flex-shrink-0 mr-3">
-                  <div className="text-2xl">🚀</div>
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-lg text-blue-900 mb-2">Ready-Made Verification Page</h3>
-                  <p className="text-blue-800 text-sm mb-3">
-                    <strong>Fastest Integration:</strong> Complete verification flow ready in minutes. 
-                    Just provide your API key and user ID - we handle everything else.
-                  </p>
-                  <div className="space-y-2 text-xs text-blue-700 mb-4">
-                    <div>✅ Complete UI with progress tracking</div>
-                    <div>✅ Document upload & OCR processing</div>
-                    <div>✅ Live camera capture with liveness detection</div>
-                    <div>✅ Results display & custom redirects</div>
-                    <div>✅ Light/dark theme support</div>
-                    <div>✅ Mobile responsive design</div>
-                  </div>
-                  <div className="bg-blue-100 p-3 rounded mb-3">
-                    <h4 className="font-semibold text-blue-900 mb-1">URL Integration:</h4>
-                    <code className="text-xs text-blue-800 break-all">
-                      /user-verification?api_key=your-key&user_id=user-123&redirect_url=https://yourapp.com/success
-                    </code>
-                  </div>
-                  <a 
-                    href="/user-verification?api_key=demo&user_id=demo-user" 
-                    className="inline-block bg-blue-600 text-white px-4 py-2 rounded font-medium text-sm hover:bg-blue-700 transition-colors mr-3"
-                    target="_blank"
-                  >
-                    Try Live Demo →
-                  </a>
-                  <a 
-                    href="#ready-made-integration" 
-                    className="inline-block bg-white text-blue-600 border border-blue-600 px-4 py-2 rounded font-medium text-sm hover:bg-blue-50 transition-colors"
-                  >
-                    View Integration Guide →
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            {/* API Integration */}
-            <div className="border border-gray-200 rounded-lg p-4 sm:p-6">
-              <div className="flex items-start">
-                <div className="flex-shrink-0 mr-3">
-                  <div className="text-2xl">⚙️</div>
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-lg text-gray-900 mb-2">Custom API Integration</h3>
-                  <p className="text-gray-600 text-sm mb-3">
-                    Full control over the verification flow. Build your own UI using our comprehensive REST API.
-                  </p>
-                  <div className="space-y-2 text-xs text-gray-600 mb-4">
-                    <div>✅ Complete API control</div>
-                    <div>✅ Custom UI/UX design</div>
-                    <div>✅ Advanced configuration options</div>
-                    <div>✅ Webhook integrations</div>
-                    <div>✅ SDK support (JS, Python)</div>
-                    <div>✅ Enterprise features</div>
-                  </div>
-                  <a 
-                    href="#complete-verification-flow" 
-                    className="inline-block bg-gray-600 text-white px-4 py-2 rounded font-medium text-sm hover:bg-gray-700 transition-colors mr-3"
-                  >
-                    View API Docs →
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Ready-Made Integration Guide */}
-        <section id="ready-made-integration" className="mb-8 sm:mb-10 scroll-mt-4">
-          <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold mb-4 sm:mb-6 flex items-center">
-            <div className="text-2xl mr-3">🚀</div>
-            Ready-Made Integration Guide
-          </h2>
-          
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 sm:p-6 rounded-lg mb-6 border border-blue-200">
-            <h3 className="font-bold text-lg text-blue-900 mb-2">Get Started in Under 5 Minutes</h3>
-            <p className="text-blue-800 text-sm">
-              Skip the complex API integration. Our ready-made verification page handles the entire flow - 
-              from document upload to live capture to results display.
-            </p>
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-2 mb-6">
-            {/* URL Method */}
-            <div className="border border-gray-200 rounded-lg p-4 sm:p-6">
-              <h3 className="font-semibold text-lg mb-3 flex items-center">
-                <span className="bg-green-100 text-green-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">1</span>
-                URL Redirect Method
-              </h3>
-              <p className="text-gray-600 text-sm mb-4">Simply redirect users to our verification page with URL parameters.</p>
-              
-              <h4 className="font-medium mb-2 text-sm">Example URL:</h4>
-              <div className="bg-gray-900 text-green-400 p-3 rounded text-xs mb-4 overflow-x-auto">
-                <pre>
-{`https://yourapp.com/user-verification?api_key=your-api-key&user_id=user-123&redirect_url=https://yourapp.com/success&theme=light`}
-                </pre>
-              </div>
-
-              <h4 className="font-medium mb-2 text-sm">JavaScript Example:</h4>
-              <div className="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-x-auto">
-                <pre>
-{`// Redirect user to verification
-const verifyUrl = \`/user-verification?\${new URLSearchParams({
-  api_key: 'your-api-key',
-  user_id: currentUser.id,
-  redirect_url: '/dashboard',
-  theme: 'light'
-}).toString()}\`;
-
-window.location.href = verifyUrl;`}
-                </pre>
-              </div>
-            </div>
-
-            {/* Popup Method */}
-            <div className="border border-gray-200 rounded-lg p-4 sm:p-6">
-              <h3 className="font-semibold text-lg mb-3 flex items-center">
-                <span className="bg-green-100 text-green-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">2</span>
-                Popup Window Method
-              </h3>
-              <p className="text-gray-600 text-sm mb-4">Open verification in a popup window for seamless user experience.</p>
-              
-              <h4 className="font-medium mb-2 text-sm">JavaScript Example:</h4>
-              <div className="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-x-auto">
-                <pre>
-{`function openVerification() {
-  const verifyUrl = \`/user-verification?\${new URLSearchParams({
-    api_key: 'your-api-key',
-    user_id: 'user-123'
-  }).toString()}\`;
-  
-  const popup = window.open(
-    verifyUrl,
-    'verification',
-    'width=500,height=700,scrollbars=yes'
-  );
-  
-  // Listen for completion message
-  window.addEventListener('message', (event) => {
-    if (event.data.type === 'VERIFICATION_COMPLETE') {
-      console.log('Result:', event.data.result);
-      popup.close();
+  "barcode_data": {
+    "parsed_data": {
+      "id_number":          "DL123456789",
+      "expiry_date":        "2030-06-15",
+      "issuing_authority":  "Department of Motor Vehicles"
     }
-  });
-}`}
-                </pre>
-              </div>
-            </div>
-          </div>
+  },
 
-          {/* Parameters Table */}
-          <div className="border border-gray-200 rounded-lg overflow-hidden mb-6">
-            <div className="bg-gray-50 px-4 py-3 border-b">
-              <h3 className="font-semibold">URL Parameters</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left font-medium">Parameter</th>
-                    <th className="px-4 py-2 text-left font-medium">Required</th>
-                    <th className="px-4 py-2 text-left font-medium">Description</th>
-                    <th className="px-4 py-2 text-left font-medium">Example</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  <tr>
-                    <td className="px-4 py-2 font-mono text-xs">api_key</td>
-                    <td className="px-4 py-2 text-red-600 font-medium">Required</td>
-                    <td className="px-4 py-2">Your Idswyft API key</td>
-                    <td className="px-4 py-2 font-mono text-xs">sk_test_123...</td>
-                  </tr>
-                  <tr>
-                    <td className="px-4 py-2 font-mono text-xs">user_id</td>
-                    <td className="px-4 py-2 text-red-600 font-medium">Required</td>
-                    <td className="px-4 py-2">Unique user identifier</td>
-                    <td className="px-4 py-2 font-mono text-xs">user-123</td>
-                  </tr>
-                  <tr>
-                    <td className="px-4 py-2 font-mono text-xs">redirect_url</td>
-                    <td className="px-4 py-2 text-gray-500">Optional</td>
-                    <td className="px-4 py-2">Where to redirect after completion</td>
-                    <td className="px-4 py-2 font-mono text-xs">https://yourapp.com/success</td>
-                  </tr>
-                  <tr>
-                    <td className="px-4 py-2 font-mono text-xs">theme</td>
-                    <td className="px-4 py-2 text-gray-500">Optional</td>
-                    <td className="px-4 py-2">UI theme (light or dark)</td>
-                    <td className="px-4 py-2 font-mono text-xs">light</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+  // ── Live capture (liveness + face match) ─────────────────────
+  "live_capture_completed": true,
+  "liveness_score":          0.96,   // 0–1; threshold ~0.6
+  "face_match_score":        0.94,   // 0–1; threshold ~0.6
 
-          {/* Flow Steps */}
-          <div className="bg-gray-50 p-4 sm:p-6 rounded-lg">
-            <h3 className="font-semibold text-lg mb-4">What Happens During Verification:</h3>
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-              <div className="bg-white p-3 rounded border">
-                <div className="text-2xl mb-2">📄</div>
-                <div className="font-medium text-sm">1. Document Upload</div>
-                <div className="text-xs text-gray-600">User uploads ID document</div>
-              </div>
-              <div className="bg-white p-3 rounded border">
-                <div className="text-2xl mb-2">⚙️</div>
-                <div className="font-medium text-sm">2. AI Processing</div>
-                <div className="text-xs text-gray-600">OCR extraction & quality analysis</div>
-              </div>
-              <div className="bg-white p-3 rounded border">
-                <div className="text-2xl mb-2">📸</div>
-                <div className="font-medium text-sm">3. Live Capture</div>
-                <div className="text-xs text-gray-600">Camera selfie with liveness detection</div>
-              </div>
-              <div className="bg-white p-3 rounded border">
-                <div className="text-2xl mb-2">✅</div>
-                <div className="font-medium text-sm">4. Results</div>
-                <div className="text-xs text-gray-600">Verification status & redirect</div>
-              </div>
-            </div>
-          </div>
-        </section>
+  // ── Overall ──────────────────────────────────────────────────
+  "confidence_score":    0.95,
+  "failure_reason":      null,       // set if status is "failed"
+  "manual_review_reason": null       // set if status is "manual_review"
+}`} />
+          </EndpointCard>
 
-        {/* SDKs Section */}
-        <section className="mb-8 sm:mb-10">
-          <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold mb-4 sm:mb-6 flex items-center">
-            <CodeBracketIcon className="h-6 w-6 sm:h-8 sm:w-8 text-indigo-500 mr-2" />
-            Official SDKs
-          </h2>
-          
-          <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 mb-4 sm:mb-6">
-            <div className="border border-gray-200 rounded-lg p-4 sm:p-6">
-              <h3 className="font-semibold text-base sm:text-lg mb-3">JavaScript/Node.js SDK</h3>
-              <p className="text-gray-600 mb-3 sm:mb-4 text-sm sm:text-base">Full TypeScript support with comprehensive type definitions</p>
-              <div className="space-y-2 text-xs sm:text-sm">
-                <div>📦 <code>npm install idswyft-sdk</code></div>
-                <div>✅ Browser & Node.js compatible</div>
-                <div>✅ Full TypeScript definitions</div>
-                <div>✅ Comprehensive error handling</div>
-                <div>✅ Webhook signature verification</div>
-              </div>
-            </div>
-            
-            <div className="border border-gray-200 rounded-lg p-4 sm:p-6">
-              <h3 className="font-semibold text-base sm:text-lg mb-3">Python SDK</h3>
-              <p className="text-gray-600 mb-3 sm:mb-4 text-sm sm:text-base">Python 3.8+ with full type hints and async support</p>
-              <div className="space-y-2 text-xs sm:text-sm">
-                <div>📦 <code>pip install idswyft</code></div>
-                <div>✅ Python 3.8+ compatible</div>
-                <div>✅ Full type hints</div>
-                <div>✅ Context manager support</div>
-                <div>✅ Framework examples (Django, FastAPI)</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-indigo-50 p-3 sm:p-4 rounded-lg">
-            <p className="text-indigo-800 text-sm sm:text-base">
-              <strong>Both SDKs provide:</strong> Complete access to AI analysis results, automatic retry logic, 
-              comprehensive error handling, and detailed documentation with real-world examples.
+          {/* Selfie legacy */}
+          <SectionAnchor id="selfie" />
+          <EndpointCard method="POST" path="/api/verify/selfie" title="Selfie Upload"
+            badge={{ label: 'legacy', color: C.dim, bg: 'rgba(74,85,104,0.13)' }}>
+            <p style={{ fontFamily: C.sans, fontSize: '0.88rem', color: C.muted, lineHeight: 1.7, marginBottom: 16 }}>
+              Upload a pre-captured selfie file for face matching. This is the legacy static-upload endpoint.
+              For new integrations, use <code style={{ fontFamily: C.mono, color: C.cyan }}>POST /api/verify/live-capture</code> which
+              includes real-time liveness detection via camera.
             </p>
-          </div>
-        </section>
+            <div style={{ marginBottom: 12 }}>
+              <FieldRow name="verification_id" type="UUID string" req={true} desc="The session ID." />
+              <FieldRow name="selfie" type="File" req={true} desc="JPEG or PNG only. Max 10 MB." />
+            </div>
+            <Pre label="Response  —  HTTP 201" code={`{
+  "verification_id": "550e8400-e29b-41d4-a716-446655440001",
+  "status":  "processing",    // face matching runs async
+  "message": "Selfie uploaded successfully. Face recognition started.",
+  "selfie_id": "selfie_abc789",
+  "next_steps": "Check verification status with /api/verify/results/:verification_id"
+}`} />
+          </EndpointCard>
 
-        {/* AI Analysis Details */}
-        <section className="mb-8 sm:mb-10">
-          <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold mb-4 sm:mb-6 flex items-center">
-            <ChartBarIcon className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500 mr-2" />
-            AI Analysis Features
-          </h2>
+          {/* Live token */}
+          <SectionAnchor id="live-token" />
+          <EndpointCard method="POST" path="/api/verify/generate-live-token" title="Generate Live Capture Token">
+            <p style={{ fontFamily: C.sans, fontSize: '0.88rem', color: C.muted, lineHeight: 1.7, marginBottom: 16 }}>
+              Generate a secure short-lived token and liveness challenge for a live capture session.
+              Useful when you want to redirect users to a hosted capture page rather than embedding the camera yourself.
+              Token expires in 30 minutes.
+            </p>
+            <div style={{ marginBottom: 12 }}>
+              <FieldRow name="user_id" type="UUID string" req={true} desc="The user to generate the token for." />
+              <FieldRow name="verification_id" type="UUID string" req={false} desc="Link the token to an existing session." />
+            </div>
+            <Pre label="Response" code={`{
+  "live_capture_token":  "a3f8b2e1c9d7...",    // 64-char hex
+  "expires_at":          "2026-03-06T12:30:00Z",
+  "expires_in_seconds":  1800,
+  "live_capture_url":    "https://yourapp.com/live-capture?token=a3f8b2e1...",
+  "liveness_challenge": {
+    "type":        "smile",                     // blink_twice | turn_head_left | smile | look_up | ...
+    "instruction": "Please smile when prompted"
+  },
+  "user_id":         "550e8400-e29b-41d4-a716-446655440000",
+  "verification_id": "550e8400-e29b-41d4-a716-446655440001"
+}`} />
+          </EndpointCard>
 
-          <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
-            <div className="border border-gray-200 rounded-lg p-4 sm:p-6">
-              <h3 className="font-semibold text-base sm:text-lg mb-3 text-blue-600">OCR Extraction</h3>
-              <ul className="text-xs sm:text-sm space-y-1 text-gray-600">
-                <li>• Name extraction with confidence scores</li>
-                <li>• Date of birth parsing</li>
-                <li>• Document number recognition</li>
-                <li>• Expiration date detection</li>
-                <li>• Issuing authority identification</li>
-                <li>• Address extraction (where applicable)</li>
-                <li>• Per-field confidence scoring</li>
-              </ul>
-            </div>
+          <Divider />
 
-            <div className="border border-gray-200 rounded-lg p-4 sm:p-6">
-              <h3 className="font-semibold text-base sm:text-lg mb-3 text-green-600">Quality Analysis</h3>
-              <ul className="text-xs sm:text-sm space-y-1 text-gray-600">
-                <li>• Blur detection and scoring</li>
-                <li>• Brightness and contrast analysis</li>
-                <li>• Resolution assessment</li>
-                <li>• File size validation</li>
-                <li>• Overall quality rating</li>
-                <li>• Issue identification</li>
-                <li>• Improvement recommendations</li>
-              </ul>
-            </div>
+          {/* ══ INTEGRATION OPTIONS ══════════════════════════════════════════ */}
+          <SectionAnchor id="integration" />
+          <H2>Integration Options</H2>
+          <Lead>Two ways to add identity verification to your product. Pick the one that fits your timeline and control requirements.</Lead>
 
-            <div className="border border-gray-200 rounded-lg p-4 sm:p-6">
-              <h3 className="font-semibold text-base sm:text-lg mb-3 text-purple-600">Face Matching & Live Capture</h3>
-              <ul className="text-xs sm:text-sm space-y-1 text-gray-600">
-                <li>• Facial similarity scoring (0-1)</li>
-                <li>• Real-time camera capture</li>
-                <li>• Advanced liveness detection</li>
-                <li>• Challenge-response verification</li>
-                <li>• Anti-spoofing measures</li>
-                <li>• Photo quality assessment</li>
-                <li>• Multiple face detection</li>
-                <li>• Manual review triggers</li>
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        {/* Verification Statuses */}
-        <section className="mb-8 sm:mb-10">
-          <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold mb-3 sm:mb-4">Verification Statuses</h2>
-          <div className="space-y-2 sm:space-y-3">
-            <div className="flex items-center flex-wrap">
-              <span className="inline-flex px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium bg-yellow-100 text-yellow-800 rounded-full mr-2 sm:mr-3 mb-1 sm:mb-0">pending</span>
-              <span className="text-gray-600 text-sm sm:text-base">Verification is being processed by our AI systems</span>
-            </div>
-            <div className="flex items-center flex-wrap">
-              <span className="inline-flex px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium bg-green-100 text-green-800 rounded-full mr-2 sm:mr-3 mb-1 sm:mb-0">verified</span>
-              <span className="text-gray-600 text-sm sm:text-base">Identity successfully verified with high confidence</span>
-            </div>
-            <div className="flex items-center flex-wrap">
-              <span className="inline-flex px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium bg-red-100 text-red-800 rounded-full mr-2 sm:mr-3 mb-1 sm:mb-0">failed</span>
-              <span className="text-gray-600 text-sm sm:text-base">Verification failed due to quality or authenticity issues</span>
-            </div>
-            <div className="flex items-center flex-wrap">
-              <span className="inline-flex px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium bg-blue-100 text-blue-800 rounded-full mr-2 sm:mr-3 mb-1 sm:mb-0">manual_review</span>
-              <span className="text-gray-600 text-sm sm:text-base">Requires human review due to edge cases or low confidence</span>
-            </div>
-          </div>
-        </section>
-
-        {/* Rate Limits & Error Codes */}
-        <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 mb-8 sm:mb-10">
-          <section>
-            <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold mb-3 sm:mb-4">Rate Limits</h2>
-            <div className="bg-yellow-50 p-3 sm:p-4 rounded-lg">
-              <div className="text-xs sm:text-sm space-y-2">
-                <div><strong>Sandbox:</strong> 100 requests/hour</div>
-                <div><strong>Production:</strong> 1000 requests/hour</div>
-                <div><strong>Enterprise:</strong> Custom limits available</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+            {[
+              {
+                emoji: '🚀', title: 'Ready-Made Page',
+                tag: { label: 'Fastest', color: C.green, bg: C.greenDim },
+                desc: 'Redirect users to our hosted verification page. No UI to build — we handle all 6 steps, camera access, mobile handoff, and result display.',
+                features: ['Complete UI, zero frontend work', 'Camera + liveness built-in', 'Mobile QR code handoff', 'Light/dark theme support', 'Custom redirect on completion'],
+                href: '/user-verification?api_key=demo&user_id=demo-user',
+                cta: 'Try demo →',
+              },
+              {
+                emoji: '⚙️', title: 'Custom API',
+                tag: { label: 'Full control', color: C.blue, bg: C.blueDim },
+                desc: 'Build your own UI using the REST API directly. Full control over every step, styling, and user flow.',
+                features: ['Custom UI/UX', 'Own the camera experience', 'Embed in existing flows', 'Webhook integrations', 'Enterprise configuration'],
+                href: '#flow',
+                cta: 'View API docs →',
+              },
+            ].map(opt => (
+              <div key={opt.title} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: '24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: '1.5rem' }}>{opt.emoji}</span>
+                  <span style={{ fontFamily: C.sans, fontWeight: 700, fontSize: '1rem', color: C.text }}>{opt.title}</span>
+                  <Pill color={opt.tag.color} bg={opt.tag.bg}>{opt.tag.label}</Pill>
+                </div>
+                <p style={{ fontFamily: C.sans, fontSize: '0.83rem', color: C.muted, lineHeight: 1.65, margin: 0 }}>{opt.desc}</p>
+                <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {opt.features.map(f => (
+                    <li key={f} style={{ fontFamily: C.sans, fontSize: '0.78rem', color: C.muted, display: 'flex', gap: 8 }}>
+                      <span style={{ color: C.green }}>✓</span> {f}
+                    </li>
+                  ))}
+                </ul>
+                <a href={opt.href} style={{ marginTop: 'auto', display: 'inline-block', fontFamily: C.sans, fontSize: '0.82rem', fontWeight: 600, color: C.cyan, textDecoration: 'none' }}>{opt.cta}</a>
               </div>
-            </div>
-          </section>
+            ))}
+          </div>
 
-          <section>
-            <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold mb-3 sm:mb-4">Status Codes</h2>
-            <div className="space-y-2 text-xs sm:text-sm">
-              <div><code className="text-green-600">200</code> - Success</div>
-              <div><code className="text-yellow-600">400</code> - Bad Request (validation error)</div>
-              <div><code className="text-red-600">401</code> - Unauthorized (invalid API key)</div>
-              <div><code className="text-red-600">429</code> - Rate limit exceeded</div>
-              <div><code className="text-red-600">500</code> - Server error</div>
-            </div>
-          </section>
-        </div>
-
-        {/* Support */}
-        <section>
-          <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold mb-3 sm:mb-4">Support & Resources</h2>
-          <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <div className="bg-blue-50 p-3 sm:p-4 rounded-lg">
-              <h3 className="font-semibold mb-2 text-sm sm:text-base">Developer Portal</h3>
-              <p className="text-xs sm:text-sm text-gray-600 mb-2">Get your API keys, view usage stats</p>
-              <a href="/developer" className="text-blue-600 text-xs sm:text-sm underline">Access Portal →</a>
-            </div>
-            <div className="bg-green-50 p-3 sm:p-4 rounded-lg">
-              <h3 className="font-semibold mb-2 text-sm sm:text-base">GitHub Repository</h3>
-              <p className="text-xs sm:text-sm text-gray-600 mb-2">Open source code, examples, issues</p>
-              <a href="https://github.com/doobee46/idswyft" className="text-green-600 text-xs sm:text-sm underline" target="_blank" rel="noopener noreferrer">View on GitHub →</a>
-            </div>
-            <div className="bg-purple-50 p-3 sm:p-4 rounded-lg">
-              <h3 className="font-semibold mb-2 text-sm sm:text-base">Email Support</h3>
-              <p className="text-xs sm:text-sm text-gray-600 mb-2">Technical support and questions</p>
-              <a href="mailto:support@idswyft.com" className="text-purple-600 text-xs sm:text-sm underline">support@idswyft.com →</a>
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', marginBottom: 24 }}>
+            <div style={{ padding: '12px 20px', borderBottom: `1px solid ${C.border}`, fontFamily: C.mono, fontSize: '0.72rem', color: C.muted, letterSpacing: '0.07em', textTransform: 'uppercase' }}>URL parameters (ready-made page)</div>
+            <div style={{ padding: '8px 20px' }}>
+              <FieldRow name="api_key" type="string" req={true} desc="Your Idswyft API key." />
+              <FieldRow name="user_id" type="UUID string" req={true} desc="Unique identifier for the user being verified." />
+              <FieldRow name="redirect_url" type="URL string" req={false} desc="Where to redirect after verification completes." />
+              <FieldRow name="theme" type="'light' | 'dark'" req={false} desc="UI color theme. Defaults to light." />
             </div>
           </div>
-        </section>
+
+          <Pre label="Example URL" code={`https://yourapp.com/user-verification?api_key=sk_live_xxx&user_id=user-123&redirect_url=https://yourapp.com/done&theme=light`} />
+
+          <Divider />
+
+          {/* ══ AI ANALYSIS ══════════════════════════════════════════════════ */}
+          <SectionAnchor id="analysis" />
+          <H2>AI Analysis Features</H2>
+          <Lead>What the platform extracts and validates from each document and capture.</Lead>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, marginBottom: 24 }}>
+            {[
+              { title: 'OCR Extraction', color: C.cyan, items: ['Name, date of birth', 'Document number', 'Expiry & issue date', 'Issuing authority', 'Address (where applicable)', 'Per-field confidence scores'] },
+              { title: 'Document Quality', color: C.blue, items: ['Blur detection', 'Brightness & contrast', 'Resolution check', 'File size validation', 'Overall quality rating', 'Improvement recommendations'] },
+              { title: 'Barcode / QR', color: C.amber, items: ['PDF417 barcode decode', 'QR code scanning', 'Data field extraction', 'Front ↔ back cross-check', 'ID number consistency', 'Security feature flags'] },
+              { title: 'Liveness & Face', color: C.green, items: ['3D facial depth analysis', 'Skin texture & lighting', 'Anti-spoofing detection', 'Challenge-response', 'Face similarity 0–1', 'Multiple face detection'] },
+            ].map(col => (
+              <div key={col.title} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '18px 20px' }}>
+                <div style={{ fontFamily: C.mono, fontSize: '0.8rem', fontWeight: 600, color: col.color, marginBottom: 12 }}>{col.title}</div>
+                {col.items.map(item => (
+                  <div key={item} style={{ fontFamily: C.sans, fontSize: '0.78rem', color: C.muted, padding: '3px 0', display: 'flex', gap: 8 }}>
+                    <span style={{ color: col.color, fontSize: '0.65rem', marginTop: 3 }}>▸</span> {item}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+
+          <Divider />
+
+          {/* ══ STATUSES ═════════════════════════════════════════════════════ */}
+          <SectionAnchor id="statuses" />
+          <H2>Verification Statuses</H2>
+          <Lead>A verification moves through these statuses. Only <strong style={{ color: C.green }}>verified</strong>, <strong style={{ color: C.red }}>failed</strong>, and <strong style={{ color: C.orange }}>manual_review</strong> are terminal.</Lead>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 24 }}>
+            {[
+              { status: 'pending', color: C.amber, bg: C.amberDim, desc: 'Session created, or document uploaded. Waiting for OCR to complete.', terminal: false },
+              { status: 'processing', color: C.blue, bg: C.blueDim, desc: 'Cross-validation passed. Live capture is the next required step.', terminal: false },
+              { status: 'verified', color: C.green, bg: C.greenDim, desc: 'All checks passed — cross-validation, liveness, and face match.', terminal: true },
+              { status: 'failed', color: C.red, bg: C.redDim, desc: 'Verification failed. Check failure_reason for: cross-validation mismatch, liveness failure, or face match below threshold.', terminal: true },
+              { status: 'manual_review', color: C.orange, bg: C.orangeDim, desc: 'Requires human review. Edge case, low confidence score, or processing error.', terminal: true },
+            ].map(s => (
+              <div key={s.status} style={{ display: 'flex', gap: 16, padding: '14px 18px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                <div style={{ width: 130, flexShrink: 0, display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <StatusPill status={s.status} />
+                  {s.terminal && <span style={{ fontFamily: C.mono, fontSize: '0.6rem', color: s.color, letterSpacing: '0.06em' }}>TERMINAL</span>}
+                </div>
+                <span style={{ fontFamily: C.sans, fontSize: '0.85rem', color: C.muted, flex: 1, lineHeight: 1.6 }}>{s.desc}</span>
+              </div>
+            ))}
+          </div>
+
+          <Divider />
+
+          {/* ══ RATE LIMITS ══════════════════════════════════════════════════ */}
+          <SectionAnchor id="rate-limits" />
+          <H2>Rate Limits & Status Codes</H2>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '20px 24px' }}>
+              <div style={{ fontFamily: C.mono, fontSize: '0.7rem', color: C.muted, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 14 }}>Rate Limits</div>
+              {[
+                { label: 'Per developer key', value: '1,000 req / hour', note: 'sandbox + production combined' },
+                { label: 'Per user', value: '5 verifications / hour', note: 'across all developer keys' },
+                { label: 'Enterprise', value: 'Custom', note: 'contact sales' },
+              ].map(r => (
+                <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: `1px solid ${C.border}` }}>
+                  <div>
+                    <div style={{ fontFamily: C.sans, fontSize: '0.83rem', color: C.text }}>{r.label}</div>
+                    <div style={{ fontFamily: C.sans, fontSize: '0.72rem', color: C.dim }}>{r.note}</div>
+                  </div>
+                  <code style={{ fontFamily: C.mono, fontSize: '0.8rem', color: C.cyan, alignSelf: 'center' }}>{r.value}</code>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '20px 24px' }}>
+              <div style={{ fontFamily: C.mono, fontSize: '0.7rem', color: C.muted, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 14 }}>HTTP Status Codes</div>
+              {[
+                { code: '200 / 201', color: C.green, desc: 'Success' },
+                { code: '400', color: C.amber, desc: 'Bad request — validation error' },
+                { code: '401', color: C.red, desc: 'Unauthorized — invalid or missing API key' },
+                { code: '404', color: C.red, desc: 'Verification not found' },
+                { code: '429', color: C.orange, desc: 'Rate limit exceeded' },
+                { code: '500', color: C.red, desc: 'Internal server error' },
+              ].map(s => (
+                <div key={s.code} style={{ display: 'flex', gap: 14, padding: '7px 0', borderTop: `1px solid ${C.border}`, alignItems: 'center' }}>
+                  <code style={{ fontFamily: C.mono, fontSize: '0.78rem', color: s.color, width: 72, flexShrink: 0 }}>{s.code}</code>
+                  <span style={{ fontFamily: C.sans, fontSize: '0.82rem', color: C.muted }}>{s.desc}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <Divider />
+
+          {/* ══ SUPPORT ══════════════════════════════════════════════════════ */}
+          <SectionAnchor id="support" />
+          <H2>Support & Resources</H2>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+            {[
+              { icon: '🔑', title: 'Developer Portal', desc: 'Get API keys, view usage stats and analytics', href: '/developer', cta: 'Open Portal →' },
+              { icon: '🎮', title: 'Live Demo', desc: 'Try the full verification flow with a sandbox key', href: '/demo', cta: 'Open Demo →' },
+              { icon: '📦', title: 'GitHub', desc: 'Source code, examples, and issue tracker', href: 'https://github.com/doobee46/idswyft', cta: 'View on GitHub →' },
+              { icon: '✉️', title: 'Email Support', desc: 'Technical support and integration help', href: 'mailto:support@idswyft.com', cta: 'support@idswyft.com' },
+            ].map(r => (
+              <div key={r.title} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontSize: '1.4rem' }}>{r.icon}</div>
+                <div style={{ fontFamily: C.sans, fontSize: '0.9rem', fontWeight: 600, color: C.text }}>{r.title}</div>
+                <div style={{ fontFamily: C.sans, fontSize: '0.78rem', color: C.muted, lineHeight: 1.55, flex: 1 }}>{r.desc}</div>
+                <a href={r.href} target={r.href.startsWith('http') ? '_blank' : undefined} rel="noopener noreferrer" style={{ fontFamily: C.sans, fontSize: '0.8rem', fontWeight: 600, color: C.cyan, textDecoration: 'none' }}>{r.cta}</a>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 64, paddingTop: 24, borderTop: `1px solid ${C.border}`, fontFamily: C.mono, fontSize: '0.7rem', color: C.dim }}>
+            © 2026 Idswyft — Open source under MIT License
+          </div>
+
+        </main>
       </div>
     </div>
   );

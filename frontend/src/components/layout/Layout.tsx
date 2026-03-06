@@ -36,6 +36,7 @@ export function Layout({ children }: LayoutProps) {
   const isStandaloneRoute =
     location.pathname.startsWith('/user-verification') ||
     location.pathname.startsWith('/verify/mobile')
+  const isDocsRoute = location.pathname.startsWith('/docs')
 
   if (isAdminRoute && location.pathname !== '/admin/login') {
     // Admin layout will be handled separately
@@ -48,10 +49,15 @@ export function Layout({ children }: LayoutProps) {
   }
   
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={clsx('min-h-screen', isDocsRoute ? 'bg-[#080c14]' : 'bg-gray-50')}>
       {/* Floating Pill Navigation */}
       <nav className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-6xl px-6">
-        <div className="bg-white/90 backdrop-blur-xl rounded-full border border-white/20 shadow-2xl shadow-black/10 px-6 py-4">
+        <div className={clsx(
+          'backdrop-blur-xl rounded-full border shadow-2xl px-6 py-4',
+          isDocsRoute
+            ? 'bg-[#0b0f19]/95 border-white/10 shadow-black/40'
+            : 'bg-white/90 border-white/20 shadow-black/10'
+        )}>
           <div className="flex justify-between items-center">
             {/* Logo */}
             <div className="flex-shrink-0 flex items-center">
@@ -77,9 +83,13 @@ export function Layout({ children }: LayoutProps) {
                     to={item.href}
                     className={clsx(
                       'text-sm font-medium transition-all hover:scale-105 transform',
-                      isActive
-                        ? 'text-gray-900'
-                        : 'text-gray-600 hover:text-gray-900'
+                      isDocsRoute
+                        ? isActive
+                          ? 'text-cyan-400'
+                          : 'text-slate-400 hover:text-white'
+                        : isActive
+                          ? 'text-gray-900'
+                          : 'text-gray-600 hover:text-gray-900'
                     )}
                   >
                     <span>{item.name}</span>
@@ -95,7 +105,12 @@ export function Layout({ children }: LayoutProps) {
                 href={getEnterpriseUrl()}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hidden sm:inline-flex items-center px-4 py-2 rounded-full text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100/50 transition-all hover:scale-105 transform"
+                className={clsx(
+                  'hidden sm:inline-flex items-center px-4 py-2 rounded-full text-sm font-medium transition-all hover:scale-105 transform',
+                  isDocsRoute
+                    ? 'text-slate-400 hover:text-white hover:bg-white/10'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/50'
+                )}
               >
                 <BuildingOfficeIcon className="h-4 w-4 mr-1.5" />
                 Enterprise
@@ -105,7 +120,10 @@ export function Layout({ children }: LayoutProps) {
                 href="https://github.com/doobee46/idswyft"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-gray-500 hover:text-gray-700 hover:scale-105 transition-all transform"
+                className={clsx(
+                  'hover:scale-105 transition-all transform',
+                  isDocsRoute ? 'text-slate-500 hover:text-white' : 'text-gray-500 hover:text-gray-700'
+                )}
               >
                 <span className="sr-only">GitHub</span>
                 <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
@@ -118,11 +136,14 @@ export function Layout({ children }: LayoutProps) {
               </a>
               
               {/* Mobile menu button */}
-              <button className="lg:hidden w-8 h-8 rounded-full bg-gray-100/50 hover:bg-gray-200/50 transition-colors flex items-center justify-center backdrop-blur-sm">
+              <button className={clsx(
+                'lg:hidden w-8 h-8 rounded-full transition-colors flex items-center justify-center backdrop-blur-sm',
+                isDocsRoute ? 'bg-white/10 hover:bg-white/20' : 'bg-gray-100/50 hover:bg-gray-200/50'
+              )}>
                 <div className="w-4 h-4 flex flex-col justify-between">
-                  <div className="w-4 h-0.5 bg-gray-600 rounded"></div>
-                  <div className="w-4 h-0.5 bg-gray-600 rounded"></div>
-                  <div className="w-4 h-0.5 bg-gray-600 rounded"></div>
+                  <div className={clsx('w-4 h-0.5 rounded', isDocsRoute ? 'bg-slate-400' : 'bg-gray-600')}></div>
+                  <div className={clsx('w-4 h-0.5 rounded', isDocsRoute ? 'bg-slate-400' : 'bg-gray-600')}></div>
+                  <div className={clsx('w-4 h-0.5 rounded', isDocsRoute ? 'bg-slate-400' : 'bg-gray-600')}></div>
                 </div>
               </button>
             </div>
@@ -131,7 +152,12 @@ export function Layout({ children }: LayoutProps) {
         
         {/* Mobile menu */}
         <div className="lg:hidden mt-2">
-          <div className="bg-white/95 backdrop-blur-xl rounded-2xl border border-white/30 shadow-xl shadow-black/5 p-4 space-y-2">
+          <div className={clsx(
+            'backdrop-blur-xl rounded-2xl border shadow-xl p-4 space-y-2',
+            isDocsRoute
+              ? 'bg-[#0b0f19]/98 border-white/10 shadow-black/40'
+              : 'bg-white/95 border-white/30 shadow-black/5'
+          )}>
             {navigation.map((item) => {
               const Icon = item.icon
               const isActive = !item.external && (location.pathname === item.href || 
@@ -144,7 +170,12 @@ export function Layout({ children }: LayoutProps) {
                     href={item.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center px-3 py-2.5 rounded-xl text-base font-medium space-x-3 text-gray-600 hover:bg-gray-50/80 hover:text-gray-900 transition-colors"
+                    className={clsx(
+                      'flex items-center px-3 py-2.5 rounded-xl text-base font-medium space-x-3 transition-colors',
+                      isDocsRoute
+                        ? 'text-slate-400 hover:bg-white/10 hover:text-white'
+                        : 'text-gray-600 hover:bg-gray-50/80 hover:text-gray-900'
+                    )}
                   >
                     <Icon className="h-5 w-5 flex-shrink-0" />
                     <span>{item.name}</span>
@@ -158,9 +189,13 @@ export function Layout({ children }: LayoutProps) {
                   to={item.href}
                   className={clsx(
                     'flex items-center px-3 py-2.5 rounded-xl text-base font-medium space-x-3 transition-colors',
-                    isActive
-                      ? 'bg-primary-50/80 text-primary-700'
-                      : 'text-gray-600 hover:bg-gray-50/80 hover:text-gray-900'
+                    isDocsRoute
+                      ? isActive
+                        ? 'bg-white/10 text-cyan-400'
+                        : 'text-slate-400 hover:bg-white/10 hover:text-white'
+                      : isActive
+                        ? 'bg-primary-50/80 text-primary-700'
+                        : 'text-gray-600 hover:bg-gray-50/80 hover:text-gray-900'
                   )}
                 >
                   <Icon className="h-5 w-5 flex-shrink-0" />
