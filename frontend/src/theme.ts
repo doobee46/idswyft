@@ -1,0 +1,46 @@
+// frontend/src/theme.ts
+export const C = {
+  bg:           '#080c14',
+  panel:        '#0b0f19',
+  sidebar:      '#0b0f19',
+  surface:      '#0f1420',
+  surfaceHover: '#141b2a',
+  border:       'rgba(255,255,255,0.07)',
+  borderStrong: 'rgba(255,255,255,0.13)',
+  cyan:         '#22d3ee',
+  cyanDim:      'rgba(34,211,238,0.1)',
+  cyanBorder:   'rgba(34,211,238,0.25)',
+  green:        '#34d399',
+  greenDim:     'rgba(52,211,153,0.1)',
+  red:          '#f87171',
+  redDim:       'rgba(248,113,113,0.1)',
+  blue:         '#60a5fa',
+  blueDim:      'rgba(96,165,250,0.12)',
+  amber:        '#fbbf24',
+  amberDim:     'rgba(251,191,36,0.1)',
+  orange:       '#fb923c',
+  orangeDim:    'rgba(251,146,60,0.1)',
+  purple:       '#a78bfa',
+  purpleDim:    'rgba(167,139,250,0.1)',
+  text:         '#dde2ec',
+  muted:        '#8896aa',
+  dim:          '#4a5568',
+  code:         '#86efac',
+  codeBg:       '#05080f',
+  mono:         '"IBM Plex Mono","Fira Code",monospace',
+  sans:         '"DM Sans",system-ui,sans-serif',
+} as const;
+
+export type ColorTokens = typeof C;
+
+/** Inject IBM Plex Mono + DM Sans from Google Fonts once per page. */
+export function injectFonts() {
+  const id = 'idswyft-fonts';
+  if (document.getElementById(id)) return;
+  const link = document.createElement('link');
+  link.id = id;
+  link.rel = 'stylesheet';
+  link.href =
+    'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=DM+Sans:wght@400;500;600&display=swap';
+  document.head.appendChild(link);
+}
