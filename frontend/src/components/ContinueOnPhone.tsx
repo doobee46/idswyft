@@ -132,22 +132,23 @@ export const ContinueOnPhone: React.FC<ContinueOnPhoneProps> = ({
           <span>Waiting for phone…</span>
           <span className="font-mono text-blue-600 font-medium">{fmt(timeLeft)}</span>
         </div>
-        <button
-          onClick={cancel}
+        <a
+          href="#"
+          onClick={(e) => { e.preventDefault(); cancel(); }}
           className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2"
         >
           Cancel — use this device instead
-        </button>
+        </a>
       </div>
     );
   }
 
   // ── DONE ──
   const statusMap: Record<string, { icon: string; color: string; label: string }> = {
-    verified:      { icon: '✓', color: 'text-emerald-600', label: 'Verification Complete' },
-    completed:     { icon: '✓', color: 'text-emerald-600', label: 'Verification Complete' },
-    failed:        { icon: '✗', color: 'text-red-500',     label: 'Verification Failed' },
-    manual_review: { icon: '⏳', color: 'text-yellow-600', label: 'Under Manual Review' },
+    verified:      { icon: '✓', color: 'text-emerald-600', label: 'Verified' },
+    completed:     { icon: '✓', color: 'text-emerald-600', label: 'Verified' },
+    failed:        { icon: '✗', color: 'text-red-500',     label: 'Failed' },
+    manual_review: { icon: '⏳', color: 'text-yellow-600', label: 'Pending Review' },
   };
   const cfg = statusMap[result?.status ?? ''] ?? statusMap.manual_review;
 
@@ -159,6 +160,16 @@ export const ContinueOnPhone: React.FC<ContinueOnPhoneProps> = ({
       {result?.confidence_score != null && (
         <p className="text-sm text-gray-600 mt-1">
           Confidence: {Math.round(result.confidence_score * 100)}%
+        </p>
+      )}
+      {result?.face_match_score != null && (
+        <p className="text-sm text-gray-600">
+          Face match: {Math.round(result.face_match_score * 100)}%
+        </p>
+      )}
+      {result?.liveness_score != null && (
+        <p className="text-sm text-gray-600">
+          Liveness: {Math.round(result.liveness_score * 100)}%
         </p>
       )}
     </div>
