@@ -65,7 +65,7 @@ export const AdminLogin: React.FC = () => {
           <div className="text-center">
             <div className="flex flex-col items-center mb-6">
               <img 
-                src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_new.png" 
+                src="/idswyft-logo.png" 
                 alt="Idswyft" 
                 className="h-8 w-auto mb-4"
                 onError={(e) => {
@@ -77,7 +77,7 @@ export const AdminLogin: React.FC = () => {
               />
               <div className="hidden items-center mb-4">
                 <img 
-                  src="https://bqrhaxpjlvyjekrwggqx.supabase.co/storage/v1/object/public/assets/logo_new.png"
+                  src="/idswyft-logo.png"
                   alt="Idswyft"
                   className="h-8 w-auto"
                 />
