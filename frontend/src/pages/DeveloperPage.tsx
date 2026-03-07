@@ -254,7 +254,7 @@ export function DeveloperPage() {
         headers: { Authorization: `Bearer ${t}` },
       })
       if (res.status === 401) { localStorage.removeItem('developer_token'); setToken(null); return }
-      if (res.ok) setApiKeys(await res.json())
+      if (res.ok) setApiKeys((await res.json()).api_keys ?? [])
     } catch { /* network error — backend offline, show empty state */ }
   }
 
