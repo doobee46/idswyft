@@ -172,8 +172,10 @@ export const errorHandler = (
   res: Response,
   next: NextFunction
 ) => {
-  let error = { ...err };
-  error.message = err.message;
+  // Use the original error directly to preserve non-enumerable class properties
+  // (isOperational, statusCode, code set via useDefineForClassFields are non-enumerable
+  //  and are lost by object spread). Specific error types get replaced below.
+  let error: AppError = err;
 
   // Log error
   logger.error(err);
