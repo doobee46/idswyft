@@ -249,17 +249,22 @@ export function DeveloperPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
   const fetchKeys = async (t: string) => {
-    const res = await fetch(`${API_BASE_URL}/api/developer/api-keys`, {
-      headers: { Authorization: `Bearer ${t}` },
-    })
-    if (res.ok) setApiKeys(await res.json())
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/developer/api-keys`, {
+        headers: { Authorization: `Bearer ${t}` },
+      })
+      if (res.status === 401) { localStorage.removeItem('developer_token'); setToken(null); return }
+      if (res.ok) setApiKeys(await res.json())
+    } catch { /* network error — backend offline, show empty state */ }
   }
 
   const fetchStats = async (t: string) => {
-    const res = await fetch(`${API_BASE_URL}/api/developer/stats`, {
-      headers: { Authorization: `Bearer ${t}` },
-    })
-    if (res.ok) setStats(await res.json())
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/developer/stats`, {
+        headers: { Authorization: `Bearer ${t}` },
+      })
+      if (res.ok) setStats(await res.json())
+    } catch { /* network error */ }
   }
 
   useEffect(() => {
@@ -308,7 +313,7 @@ export function DeveloperPage() {
 
   if (!token) {
     return (
-      <div style={{ background: C.bg, fontFamily: C.sans, color: C.text }}>
+      <div style={{ background: C.bg, fontFamily: C.sans, color: C.text, minHeight: '100vh' }}>
         <AuthGate onAuth={handleAuth} />
       </div>
     )
