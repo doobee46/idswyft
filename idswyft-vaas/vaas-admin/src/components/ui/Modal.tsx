@@ -85,15 +85,15 @@ export default function Modal({
         <div
           className={`
             relative w-full ${sizeClasses[size]} max-h-[90vh]
-            bg-white rounded-2xl shadow-2xl transform transition-all duration-300
-            flex flex-col border border-gray-100
+            bg-slate-300 rounded-2xl shadow-2xl transform transition-all duration-300
+            flex flex-col border border-white/10
             ${className}
           `}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Modal Header */}
           {(title || showCloseButton) && (
-            <div className="flex items-center justify-between p-6 border-b border-gray-100 flex-shrink-0 bg-gradient-to-r from-gray-50 to-white rounded-t-2xl">
+            <div className="flex items-center justify-between p-6 border-b border-white/10 flex-shrink-0 bg-slate-200 rounded-t-2xl">
               {title && (
                 <div className="flex items-center space-x-3">
                   <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full"></div>
@@ -115,7 +115,7 @@ export default function Modal({
           )}
 
           {/* Modal Content */}
-          <div className={`overflow-y-auto flex-1 bg-white ${title || showCloseButton ? "p-6" : "p-0"} ${!title && !showCloseButton ? "rounded-2xl" : "rounded-b-2xl"}`}>
+          <div className={`overflow-y-auto flex-1 bg-slate-300 ${title || showCloseButton ? "p-6" : "p-0"} ${!title && !showCloseButton ? "rounded-2xl" : "rounded-b-2xl"}`}>
             {children}
           </div>
         </div>

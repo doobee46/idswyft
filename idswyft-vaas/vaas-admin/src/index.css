@@ -29,6 +29,18 @@
   --color-slate-800: #dde2ec;
   --color-slate-900: #f1f5f9;
 
+  /* Dark-inverted gray scale — same mapping as slate */
+  --color-gray-50:  #050810;
+  --color-gray-100: #080c14;
+  --color-gray-200: #0b0f19;
+  --color-gray-300: #141b2a;
+  --color-gray-400: #4a5568;
+  --color-gray-500: #6b7280;
+  --color-gray-600: #8896aa;
+  --color-gray-700: #a3aec0;
+  --color-gray-800: #dde2ec;
+  --color-gray-900: #f1f5f9;
+
   /* Indigo → kept for accent use */
   --color-indigo-400: #818cf8;
   --color-indigo-500: #6366f1;
@@ -57,6 +69,10 @@
 }
 
 /* Base styles */
+html, body {
+  overflow-x: hidden;
+}
+
 body {
   font-family: var(--font-sans);
   font-feature-settings: "rlig" 1, "calt" 1;
@@ -65,6 +81,11 @@ body {
   background: #080c14;
   color: #dde2ec;
 }
+
+/* bg-white maps to dark surface (text-white stays white for button labels) */
+.bg-white { background-color: #0f1420; }
+/* Divide and ring colors that reference white */
+.divide-white\/10 > * + * { border-color: rgba(255,255,255,0.07); }
 
 /* ── Layout ── */
 .glass-panel {
