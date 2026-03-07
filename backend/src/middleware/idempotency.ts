@@ -50,8 +50,7 @@ export const idempotencyMiddleware = catchAsync(async (
         response_status: res.statusCode,
         response_body: body,
       })
-      .then(() => {})
-      .catch(() => {}); // non-blocking — don't fail the request if storage fails
+      .then(null, () => {}); // non-blocking — don't fail the request if storage fails
 
     return originalJson(body);
   };
