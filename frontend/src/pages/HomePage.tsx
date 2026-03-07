@@ -1,28 +1,35 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { C, injectFonts } from '../theme'
 
 const JS_CODE = `const BASE = 'https://api.idswyft.app'
 const KEY  = 'your-api-key'
-const h    = { 'X-API-Key': KEY, 'Content-Type': 'application/json' }
+const h    = { 'X-API-Key': KEY }
 
-// 1. Create session
+// 1. Create verification session
 const { id } = await fetch(\`\${BASE}/api/verification/sessions\`, {
-  method: 'POST', headers: h, body: JSON.stringify({ mode: 'sandbox' })
+  method: 'POST',
+  headers: { ...h, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ mode: 'sandbox' }),
 }).then(r => r.json())
 
 // 2. Upload front of ID
-const form = new FormData()
-form.append('document', frontFile)
-await fetch(\`\${BASE}/api/verification/\${id}/upload-front\`, {
-  method: 'POST', headers: { 'X-API-Key': KEY }, body: form
-})
+const front = new FormData()
+front.append('document', frontFile)
+await fetch(\`\${BASE}/api/verification/\${id}/upload-front\`, { method: 'POST', headers: h, body: front })
 
-// 3. Get results
-const result = await fetch(\`\${BASE}/api/verification/\${id}/status\`, {
-  headers: h
-}).then(r => r.json())
+// 3. Upload back of ID
+const back = new FormData()
+back.append('document', backFile)
+await fetch(\`\${BASE}/api/verification/\${id}/upload-back\`, { method: 'POST', headers: h, body: back })
 
+// 4. Upload selfie for liveness + face match
+const selfie = new FormData()
+selfie.append('image', selfieFile)
+await fetch(\`\${BASE}/api/verification/\${id}/upload-selfie\`, { method: 'POST', headers: h, body: selfie })
+
+// 5. Get results
+const result = await fetch(\`\${BASE}/api/verification/\${id}/status\`, { headers: h }).then(r => r.json())
 console.log(result.status) // 'verified' | 'failed' | 'manual_review'`
 
 const PY_CODE = `import requests
@@ -31,7 +38,7 @@ BASE = "https://api.idswyft.app"
 KEY  = "your-api-key"
 H    = {"X-API-Key": KEY}
 
-# 1. Create session
+# 1. Create verification session
 r = requests.post(f"{BASE}/api/verification/sessions",
     json={"mode": "sandbox"}, headers={**H, "Content-Type": "application/json"})
 session_id = r.json()["id"]
@@ -41,11 +48,19 @@ with open("front.jpg", "rb") as f:
     requests.post(f"{BASE}/api/verification/{session_id}/upload-front",
         files={"document": f}, headers=H)
 
-# 3. Get results
-result = requests.get(f"{BASE}/api/verification/{session_id}/status",
-    headers=H).json()
+# 3. Upload back of ID
+with open("back.jpg", "rb") as f:
+    requests.post(f"{BASE}/api/verification/{session_id}/upload-back",
+        files={"document": f}, headers=H)
 
-print(result['status'])  # 'verified' | 'failed' | 'manual_review'`
+# 4. Upload selfie for liveness + face match
+with open("selfie.jpg", "rb") as f:
+    requests.post(f"{BASE}/api/verification/{session_id}/upload-selfie",
+        files={"image": f}, headers=H)
+
+# 5. Get results
+result = requests.get(f"{BASE}/api/verification/{session_id}/status", headers=H).json()
+print(result["status"])  # 'verified' | 'failed' | 'manual_review'`
 
 function CodeStrip() {
   const [tab, setTab] = useState<'js' | 'py'>('js')
@@ -57,7 +72,7 @@ function CodeStrip() {
         <h2 style={{ fontFamily: C.mono, fontSize: 24, fontWeight: 600, color: C.text, marginBottom: 8 }}>
           Quickstart
         </h2>
-        <p style={{ color: C.muted, fontSize: 14 }}>Three calls to verify a document.</p>
+        <p style={{ color: C.muted, fontSize: 14 }}>The complete five-step verification flow.</p>
       </div>
       <div style={{ background: C.codeBg, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden' }}>
         <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}`, padding: '0 16px' }}>
@@ -149,31 +164,34 @@ export function HomePage() {
             Five steps, one API
           </h2>
         </div>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0, overflowX: 'auto', padding: '0 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', overflowX: 'auto' }}>
           {[
-            { n: '01', title: 'Create Session', desc: 'POST /api/verification/sessions' },
-            { n: '02', title: 'Upload Front',   desc: 'POST /api/verification/:id/upload-front' },
-            { n: '03', title: 'Upload Back',    desc: 'POST /api/verification/:id/upload-back' },
-            { n: '04', title: 'Live Capture',   desc: 'POST /api/verification/:id/upload-selfie' },
-            { n: '05', title: 'Get Results',    desc: 'GET /api/verification/:id/status' },
+            { n: '01', title: 'Create Session', desc: 'POST /sessions' },
+            { n: '02', title: 'Upload Front',   desc: 'POST /upload-front' },
+            { n: '03', title: 'Upload Back',    desc: 'POST /upload-back' },
+            { n: '04', title: 'Live Capture',   desc: 'POST /upload-selfie' },
+            { n: '05', title: 'Get Results',    desc: 'GET /status' },
           ].map((step, i, arr) => (
-            <div key={step.n} style={{ display: 'flex', alignItems: 'center', flex: i < arr.length - 1 ? '1' : 'none' }}>
-              <div style={{ flexShrink: 0, textAlign: 'center', minWidth: 140 }}>
+            <React.Fragment key={step.n}>
+              {/* Step node — fixed width, never shrinks */}
+              <div style={{ flexShrink: 0, width: 140, textAlign: 'center' }}>
                 <div style={{
-                  width: 40, height: 40, borderRadius: '50%',
+                  width: 44, height: 44, borderRadius: '50%',
                   background: C.cyanDim, border: `1px solid ${C.cyan}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  margin: '0 auto 12px', fontFamily: C.mono, fontSize: 13, color: C.cyan, fontWeight: 600,
+                  margin: '0 auto 12px',
+                  fontFamily: C.mono, fontSize: 13, color: C.cyan, fontWeight: 600,
                 }}>
                   {step.n}
                 </div>
-                <div style={{ fontWeight: 600, fontSize: 13, color: C.text, marginBottom: 4 }}>{step.title}</div>
-                <div style={{ fontFamily: C.mono, fontSize: 11, color: C.muted }}>{step.desc}</div>
+                <div style={{ fontWeight: 600, fontSize: 13, color: C.text, marginBottom: 6 }}>{step.title}</div>
+                <div style={{ fontFamily: C.mono, fontSize: 11, color: C.muted, lineHeight: 1.4 }}>{step.desc}</div>
               </div>
+              {/* Connector line — sits between steps, aligned to circle center */}
               {i < arr.length - 1 && (
-                <div style={{ flex: 1, height: 1, background: C.border, margin: '0 8px', marginBottom: 32 }} />
+                <div style={{ flex: 1, minWidth: 16, height: 1, background: C.border, marginTop: 22, flexShrink: 1 }} />
               )}
-            </div>
+            </React.Fragment>
           ))}
         </div>
       </section>
