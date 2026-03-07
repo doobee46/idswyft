@@ -57,7 +57,7 @@ export function TotpModal({ tempToken, onSuccess, onCancel }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl p-8 w-full max-w-sm shadow-2xl">
+      <div className="bg-[#0f1420] border border-white/10 rounded-xl p-8 w-full max-w-sm shadow-2xl">
         <h2 className="text-xl font-semibold mb-2">Two-Factor Authentication</h2>
         <p className="text-sm text-gray-500 mb-6">
           Enter the 6-digit code from your authenticator app.
@@ -70,7 +70,7 @@ export function TotpModal({ tempToken, onSuccess, onCancel }: Props) {
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
             placeholder="000000"
-            className="w-full border rounded-lg px-4 py-3 text-center text-2xl tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg px-4 py-3 text-center text-2xl tracking-widest focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-[#0b0f19] border border-white/10 text-[#dde2ec] placeholder-[#4a5568]"
             autoFocus
           />
           {error && (
