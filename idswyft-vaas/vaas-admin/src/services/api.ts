@@ -54,8 +54,8 @@ class ApiClient {
 
   constructor() {
     const BASE_URL = import.meta.env.VITE_API_URL
-      ? `${import.meta.env.VITE_API_URL}/api/v1`
-      : 'http://localhost:3002/api/v1';
+      ? import.meta.env.VITE_API_URL
+      : 'http://localhost:3002/api';
     console.log('[API Client] Initializing with baseURL:', BASE_URL);
 
     this.client = createApiClient(BASE_URL);
