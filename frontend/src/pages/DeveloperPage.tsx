@@ -7,8 +7,6 @@ import {
   TrashIcon,
   PlusIcon,
   ClipboardDocumentIcon,
-  EyeIcon,
-  EyeSlashIcon,
 } from '@heroicons/react/24/outline'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -62,10 +60,8 @@ function AuthGate({ onAuth }: { onAuth: (token: string) => void }) {
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [company, setCompany] = useState('')
   const [loading, setLoading] = useState(false)
-  const [showPw, setShowPw] = useState(false)
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -75,15 +71,15 @@ function AuthGate({ onAuth }: { onAuth: (token: string) => void }) {
         const res = await fetch(`${API_BASE_URL}/api/developer/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email, password, company }),
+          body: JSON.stringify({ name, email, company }),
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.message || 'Registration failed')
-        // Auto-login after register
+        // Auto-login after register (passwordless — email only)
         const loginRes = await fetch(`${API_BASE_URL}/api/auth/developer/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email }),
         })
         const loginData = await loginRes.json()
         if (!loginRes.ok) throw new Error(loginData.message || 'Login failed')
@@ -93,7 +89,7 @@ function AuthGate({ onAuth }: { onAuth: (token: string) => void }) {
         const res = await fetch(`${API_BASE_URL}/api/auth/developer/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email }),
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.message || 'Invalid credentials')
@@ -137,27 +133,6 @@ function AuthGate({ onAuth }: { onAuth: (token: string) => void }) {
             <label style={labelStyle}>Email</label>
             <input style={inputStyle} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required />
           </div>
-          <div>
-            <label style={labelStyle}>Password</label>
-            <div style={{ position: 'relative' }}>
-              <input
-                style={{ ...inputStyle, paddingRight: 40 }}
-                type={showPw ? 'text' : 'password'}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPw(v => !v)}
-                style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.muted, padding: 0 }}
-              >
-                {showPw ? <EyeSlashIcon style={{ width: 16, height: 16 }} /> : <EyeIcon style={{ width: 16, height: 16 }} />}
-              </button>
-            </div>
-          </div>
-
           <button
             type="submit"
             disabled={loading}
