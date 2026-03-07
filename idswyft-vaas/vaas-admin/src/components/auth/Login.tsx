@@ -326,7 +326,7 @@ export default function Login() {
                     <div className="w-full border-t border-slate-200" />
                   </div>
                   <div className="relative flex justify-center text-sm">
-                    <span className="px-4 bg-white text-slate-500 font-medium">Need help?</span>
+                    <span className="px-4 bg-[#0f1420] text-slate-500 font-medium">Need help?</span>
                   </div>
                 </div>
                 

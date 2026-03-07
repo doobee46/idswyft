@@ -1,43 +1,45 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { C, injectFonts } from '../theme';
 
 export const NotFoundPage: React.FC = () => {
+  useEffect(() => { injectFonts(); }, []);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full text-center">
-        <div className="bg-white p-8 rounded-lg shadow-md">
-          <div className="text-6xl font-bold text-gray-400 mb-4">404</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Page Not Found</h1>
-          <p className="text-gray-600 mb-6">
-            The page you're looking for doesn't exist or has been moved.
-          </p>
-          
-          <div className="space-y-3">
-            <a
-              href="/"
-              className="block w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 transition duration-200"
-            >
-              Go to Home
-            </a>
-            
-            <div className="text-sm text-gray-500">
-              Or try one of these pages:
-            </div>
-            
-            <div className="flex flex-col space-y-2 text-sm">
-              <a href="/developer" className="text-blue-600 hover:text-blue-800">
-                Developer Portal
-              </a>
-              <a href="/demo" className="text-blue-600 hover:text-blue-800">
-                Interactive Demo
-              </a>
-              <a href="/docs" className="text-blue-600 hover:text-blue-800">
-                API Documentation
-              </a>
-              <a href="/admin/login" className="text-blue-600 hover:text-blue-800">
-                Admin Login
-              </a>
-            </div>
-          </div>
+    <div style={{ background: C.bg, fontFamily: C.sans, color: C.text, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
+      <div style={{ textAlign: 'center', maxWidth: 480 }}>
+        <div style={{ fontFamily: C.mono, fontSize: 'clamp(80px, 16vw, 128px)', fontWeight: 600, color: C.surface, lineHeight: 1, marginBottom: 8, userSelect: 'none' }}>
+          404
+        </div>
+        <div style={{ fontFamily: C.mono, fontSize: 11, color: C.muted, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 20 }}>
+          Page Not Found
+        </div>
+        <p style={{ color: C.muted, fontSize: 15, lineHeight: 1.6, marginBottom: 36 }}>
+          The page you're looking for doesn't exist or has been moved.
+        </p>
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 32 }}>
+          <Link
+            to="/"
+            style={{ background: C.cyan, color: C.bg, padding: '10px 24px', borderRadius: 8, fontWeight: 600, fontSize: 14, textDecoration: 'none' }}
+          >
+            ← Home
+          </Link>
+          <Link
+            to="/docs"
+            style={{ border: `1px solid ${C.border}`, color: C.text, padding: '10px 24px', borderRadius: 8, fontWeight: 600, fontSize: 14, textDecoration: 'none' }}
+          >
+            View Docs →
+          </Link>
+        </div>
+        <div style={{ display: 'flex', gap: 24, justifyContent: 'center', flexWrap: 'wrap' }}>
+          {[
+            { label: 'Developer Portal', to: '/developer' },
+            { label: 'Live Demo', to: '/demo' },
+          ].map(({ label, to }) => (
+            <Link key={to} to={to} style={{ color: C.muted, fontSize: 13, textDecoration: 'none' }}>
+              {label}
+            </Link>
+          ))}
         </div>
       </div>
     </div>

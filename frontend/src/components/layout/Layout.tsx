@@ -1,10 +1,10 @@
 import { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { 
-  ShieldCheckIcon, 
-  CodeBracketIcon, 
+import {
+  ShieldCheckIcon,
+  CodeBracketIcon,
   DocumentTextIcon,
-  BuildingOfficeIcon 
+  BuildingOfficeIcon
 } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
 
@@ -31,12 +31,16 @@ const navigation = [
 
 export function Layout({ children }: LayoutProps) {
   const location = useLocation()
-  
+
   const isAdminRoute = location.pathname.startsWith('/admin')
   const isStandaloneRoute =
     location.pathname.startsWith('/user-verification') ||
     location.pathname.startsWith('/verify/mobile')
-  const isDocsRoute = location.pathname.startsWith('/docs')
+  const isDarkRoute =
+    location.pathname === '/' ||
+    location.pathname.startsWith('/docs') ||
+    location.pathname.startsWith('/developer') ||
+    location.pathname.startsWith('/demo')
 
   if (isAdminRoute && location.pathname !== '/admin/login') {
     // Admin layout will be handled separately
@@ -47,14 +51,14 @@ export function Layout({ children }: LayoutProps) {
     // Standalone pages (mobile verification, user verification) — no navbar or footer
     return <>{children}</>
   }
-  
+
   return (
-    <div className={clsx('min-h-screen', isDocsRoute ? 'bg-[#080c14]' : 'bg-gray-50')}>
+    <div className={clsx('min-h-screen', isDarkRoute ? 'bg-[#080c14]' : 'bg-gray-50')}>
       {/* Floating Pill Navigation */}
       <nav className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-6xl px-6">
         <div className={clsx(
           'backdrop-blur-xl rounded-full border shadow-2xl px-6 py-4',
-          isDocsRoute
+          isDarkRoute
             ? 'bg-[#0b0f19]/95 border-white/10 shadow-black/40'
             : 'bg-white/90 border-white/20 shadow-black/10'
         )}>
@@ -62,28 +66,27 @@ export function Layout({ children }: LayoutProps) {
             {/* Logo */}
             <div className="flex-shrink-0 flex items-center">
               <Link to="/" className="flex items-center">
-                <img 
+                <img
                   src="/idswyft-logo.png"
                   alt="Idswyft"
                   className="h-8 w-auto flex-shrink-0"
                 />
               </Link>
             </div>
-            
+
             {/* Navigation links - Centered */}
             <div className="hidden lg:flex items-center space-x-8">
               {navigation.slice(0, -1).map((item) => {
-                const Icon = item.icon
-                const isActive = !item.external && (location.pathname === item.href || 
+                const isActive = !item.external && (location.pathname === item.href ||
                   (item.href !== '/' && location.pathname.startsWith(item.href)))
-                
+
                 return (
                   <Link
                     key={item.name}
                     to={item.href}
                     className={clsx(
                       'text-sm font-medium transition-all hover:scale-105 transform',
-                      isDocsRoute
+                      isDarkRoute
                         ? isActive
                           ? 'text-cyan-400'
                           : 'text-slate-400 hover:text-white'
@@ -97,7 +100,7 @@ export function Layout({ children }: LayoutProps) {
                 )
               })}
             </div>
-            
+
             {/* Right side */}
             <div className="flex items-center space-x-3">
               {/* Enterprise Link */}
@@ -107,7 +110,7 @@ export function Layout({ children }: LayoutProps) {
                 rel="noopener noreferrer"
                 className={clsx(
                   'hidden sm:inline-flex items-center px-4 py-2 rounded-full text-sm font-medium transition-all hover:scale-105 transform',
-                  isDocsRoute
+                  isDarkRoute
                     ? 'text-slate-400 hover:text-white hover:bg-white/10'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/50'
                 )}
@@ -115,14 +118,14 @@ export function Layout({ children }: LayoutProps) {
                 <BuildingOfficeIcon className="h-4 w-4 mr-1.5" />
                 Enterprise
               </a>
-              
+
               <a
                 href="https://github.com/doobee46/idswyft"
                 target="_blank"
                 rel="noopener noreferrer"
                 className={clsx(
                   'hover:scale-105 transition-all transform',
-                  isDocsRoute ? 'text-slate-500 hover:text-white' : 'text-gray-500 hover:text-gray-700'
+                  isDarkRoute ? 'text-slate-500 hover:text-white' : 'text-gray-500 hover:text-gray-700'
                 )}
               >
                 <span className="sr-only">GitHub</span>
@@ -134,35 +137,35 @@ export function Layout({ children }: LayoutProps) {
                   />
                 </svg>
               </a>
-              
+
               {/* Mobile menu button */}
               <button className={clsx(
                 'lg:hidden w-8 h-8 rounded-full transition-colors flex items-center justify-center backdrop-blur-sm',
-                isDocsRoute ? 'bg-white/10 hover:bg-white/20' : 'bg-gray-100/50 hover:bg-gray-200/50'
+                isDarkRoute ? 'bg-white/10 hover:bg-white/20' : 'bg-gray-100/50 hover:bg-gray-200/50'
               )}>
                 <div className="w-4 h-4 flex flex-col justify-between">
-                  <div className={clsx('w-4 h-0.5 rounded', isDocsRoute ? 'bg-slate-400' : 'bg-gray-600')}></div>
-                  <div className={clsx('w-4 h-0.5 rounded', isDocsRoute ? 'bg-slate-400' : 'bg-gray-600')}></div>
-                  <div className={clsx('w-4 h-0.5 rounded', isDocsRoute ? 'bg-slate-400' : 'bg-gray-600')}></div>
+                  <div className={clsx('w-4 h-0.5 rounded', isDarkRoute ? 'bg-slate-400' : 'bg-gray-600')}></div>
+                  <div className={clsx('w-4 h-0.5 rounded', isDarkRoute ? 'bg-slate-400' : 'bg-gray-600')}></div>
+                  <div className={clsx('w-4 h-0.5 rounded', isDarkRoute ? 'bg-slate-400' : 'bg-gray-600')}></div>
                 </div>
               </button>
             </div>
           </div>
         </div>
-        
+
         {/* Mobile menu */}
         <div className="lg:hidden mt-2">
           <div className={clsx(
             'backdrop-blur-xl rounded-2xl border shadow-xl p-4 space-y-2',
-            isDocsRoute
+            isDarkRoute
               ? 'bg-[#0b0f19]/98 border-white/10 shadow-black/40'
               : 'bg-white/95 border-white/30 shadow-black/5'
           )}>
             {navigation.map((item) => {
               const Icon = item.icon
-              const isActive = !item.external && (location.pathname === item.href || 
+              const isActive = !item.external && (location.pathname === item.href ||
                 (item.href !== '/' && location.pathname.startsWith(item.href)))
-              
+
               if (item.external) {
                 return (
                   <a
@@ -172,7 +175,7 @@ export function Layout({ children }: LayoutProps) {
                     rel="noopener noreferrer"
                     className={clsx(
                       'flex items-center px-3 py-2.5 rounded-xl text-base font-medium space-x-3 transition-colors',
-                      isDocsRoute
+                      isDarkRoute
                         ? 'text-slate-400 hover:bg-white/10 hover:text-white'
                         : 'text-gray-600 hover:bg-gray-50/80 hover:text-gray-900'
                     )}
@@ -182,14 +185,14 @@ export function Layout({ children }: LayoutProps) {
                   </a>
                 )
               }
-              
+
               return (
                 <Link
                   key={item.name}
                   to={item.href}
                   className={clsx(
                     'flex items-center px-3 py-2.5 rounded-xl text-base font-medium space-x-3 transition-colors',
-                    isDocsRoute
+                    isDarkRoute
                       ? isActive
                         ? 'bg-white/10 text-cyan-400'
                         : 'text-slate-400 hover:bg-white/10 hover:text-white'
@@ -206,95 +209,65 @@ export function Layout({ children }: LayoutProps) {
           </div>
         </div>
       </nav>
-      
+
       {/* Main content */}
       <main className="flex-1 pt-24">
         {children}
       </main>
-      
+
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-200">
+      <footer style={{ background: '#0b0f19', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
         <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="col-span-1 md:col-span-2">
               <div className="mb-6">
-                <img 
-                  src="/idswyft-logo.png" 
-                  alt="Idswyft" 
-                  className="h-8 w-auto flex-shrink-0"
-                  onError={(e) => {
-                    // Fallback to icon and text if image fails to load
-                    e.currentTarget.style.display = 'none';
-                    const fallback = e.currentTarget.nextSibling as HTMLElement;
-                    if (fallback) fallback.style.display = 'flex';
-                  }}
-                />
-                <div className="hidden items-center space-x-2">
-                  <ShieldCheckIcon className="h-8 w-8 text-primary-600 flex-shrink-0" />
-                  <span className="text-xl font-bold text-gray-900">Idswyft</span>
-                </div>
+                <img src="/idswyft-logo.png" alt="Idswyft" className="h-8 w-auto flex-shrink-0" />
               </div>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                Open-source identity verification platform built for developers. 
+              <p style={{ color: '#8896aa', fontSize: 14, lineHeight: 1.6 }}>
+                Open-source identity verification platform built for developers.
                 Secure, fast, and compliant with GDPR and CCPA.
               </p>
             </div>
-            
             <div>
-              <h3 className="text-sm font-semibold text-gray-900 tracking-wider uppercase mb-4">
+              <h3 style={{ color: '#dde2ec', fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 16 }}>
                 Developer
               </h3>
               <ul className="space-y-2">
-                <li>
-                  <Link to="/docs" className="text-sm text-gray-600 hover:text-gray-900">
-                    API Documentation
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/developer" className="text-sm text-gray-600 hover:text-gray-900">
-                    Get API Key
-                  </Link>
-                </li>
-                <li>
-                  <a 
-                    href="https://github.com/idswyft/idswyft" 
-                    className="text-sm text-gray-600 hover:text-gray-900"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    GitHub Repository
-                  </a>
-                </li>
+                {[
+                  { label: 'API Documentation', href: '/docs' },
+                  { label: 'Get API Key', href: '/developer' },
+                  { label: 'GitHub', href: 'https://github.com/doobee46/idswyft' },
+                ].map(({ label, href }) => (
+                  <li key={label}>
+                    {href.startsWith('http') ? (
+                      <a href={href} target="_blank" rel="noopener noreferrer"
+                        style={{ color: '#8896aa', fontSize: 14 }}
+                        className="hover:text-white transition-colors">{label}</a>
+                    ) : (
+                      <Link to={href} style={{ color: '#8896aa', fontSize: 14 }}
+                        className="hover:text-white transition-colors">{label}</Link>
+                    )}
+                  </li>
+                ))}
               </ul>
             </div>
-            
             <div>
-              <h3 className="text-sm font-semibold text-gray-900 tracking-wider uppercase mb-4">
+              <h3 style={{ color: '#dde2ec', fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 16 }}>
                 Legal
               </h3>
               <ul className="space-y-2">
-                <li>
-                  <a href="#" className="text-sm text-gray-600 hover:text-gray-900">
-                    Privacy Policy
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-sm text-gray-600 hover:text-gray-900">
-                    Terms of Service
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-sm text-gray-600 hover:text-gray-900">
-                    GDPR Compliance
-                  </a>
-                </li>
+                {['Privacy Policy', 'Terms of Service', 'GDPR Compliance'].map(l => (
+                  <li key={l}>
+                    <a href="#" style={{ color: '#8896aa', fontSize: 14 }}
+                      className="hover:text-white transition-colors">{l}</a>
+                  </li>
+                ))}
               </ul>
             </div>
           </div>
-          
-          <div className="mt-8 pt-8 border-t border-gray-200">
-            <p className="text-center text-sm text-gray-600">
-              © 2024 Idswyft. Open source under MIT License.
+          <div style={{ marginTop: 32, paddingTop: 32, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+            <p style={{ textAlign: 'center', color: '#4a5568', fontSize: 13 }}>
+              © 2026 Idswyft — Open source under MIT License.
             </p>
           </div>
         </div>

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { adminApi } from '../lib/adminApiInstance';
 import type { ApiError } from '../lib/apiClient';
 import { TotpModal } from '../components/auth/TotpModal';

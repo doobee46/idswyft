@@ -55,6 +55,11 @@
   --radius-3xl: 1.5rem;
   }
 
+  /* Prevent horizontal page scroll (code blocks scroll internally via overflow-x: auto) */
+  html, body {
+    overflow-x: hidden;
+  }
+
   /* Base styles optimized for identity verification platform */
   body {
     font-family: var(--font-sans);

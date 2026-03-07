@@ -1,17 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { API_BASE_URL, shouldUseSandbox } from '../config/api';
 import { BackOfIdUpload } from '../components/BackOfIdUpload';
 import {
   CameraIcon,
-  CheckCircleIcon,
   ExclamationTriangleIcon,
-  ArrowPathIcon,
   XMarkIcon,
   EyeIcon,
 } from '@heroicons/react/24/outline';
 import { ContinueOnPhone } from '../components/ContinueOnPhone';
+import { C, injectFonts } from '../theme';
 
 // OpenCV types
 declare global {
@@ -37,11 +36,20 @@ interface Document {
 
 interface VerificationRequest {
   id: string;
+  verification_id?: string;
   status: 'pending' | 'processing' | 'verified' | 'failed' | 'manual_review';
   documents: Document[];
   selfie_id?: string;
   created_at: string;
   updated_at: string;
+  ocr_data?: {
+    document_number?: string;
+    full_name?: string;
+    date_of_birth?: string;
+    expiry_date?: string;
+    nationality?: string;
+    place_of_birth?: string;
+  };
 }
 
 interface LiveCaptureSession {
@@ -67,9 +75,7 @@ interface CaptureResult {
 
 const DemoPage: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const urlApiKey = searchParams.get('api_key');
-  const token = searchParams.get('token');
   const urlStep = searchParams.get('step');
   const urlVerificationId = searchParams.get('verification_id');
   
@@ -77,7 +83,7 @@ const DemoPage: React.FC = () => {
   const [verificationRequest, setVerificationRequest] = useState<VerificationRequest | null>(null);
   const [verificationId, setVerificationId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [_uploadProgress, setUploadProgress] = useState(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [backOfIdUploaded, setBackOfIdUploaded] = useState(false);
@@ -89,15 +95,15 @@ const DemoPage: React.FC = () => {
 
   // Live capture state
   const [showLiveCapture, setShowLiveCapture] = useState(false);
-  const [sessionData, setSessionData] = useState<LiveCaptureSession | null>(null);
+  const [_sessionData, _setSessionData] = useState<LiveCaptureSession | null>(null);
   const [captureResult, setCaptureResult] = useState<CaptureResult | null>(null);
   const [cameraState, setCameraState] = useState<'prompt' | 'initializing' | 'ready' | 'error'>('prompt');
-  const [challengeState, setChallengeState] = useState<'waiting' | 'active' | 'completed'>('waiting');
-  const [countdown, setCountdown] = useState<number | null>(null);
+  const [_challengeState, setChallengeState] = useState<'waiting' | 'active' | 'completed'>('waiting');
+  const [_countdown, _setCountdown] = useState<number | null>(null);
   const [faceDetected, setFaceDetected] = useState(false);
-  const [captureAttempts, setCaptureAttempts] = useState(0);
+  const [_captureAttempts, _setCaptureAttempts] = useState(0);
   const [opencvReady, setOpencvReady] = useState(false);
-  const [faceDetectionBuffer, setFaceDetectionBuffer] = useState<boolean[]>([]);
+  const [_faceDetectionBuffer, setFaceDetectionBuffer] = useState<boolean[]>([]);
   const [mobileHandoffDone, setMobileHandoffDone] = useState(false);
   const [mobileResult, setMobileResult] = useState<any>(null);
   
@@ -119,6 +125,9 @@ const DemoPage: React.FC = () => {
       setUserId(newUserId);
     }
   }, []); // Only run once on mount
+
+  // Inject brand fonts
+  useEffect(() => { injectFonts(); }, []);
 
   // Load OpenCV script when needed
   useEffect(() => {
@@ -404,7 +413,7 @@ const DemoPage: React.FC = () => {
       console.log('🔧 Verification ID:', verificationId);
       console.log('🔧 Upload URL:', url.toString());
       console.log('🔧 FormData entries:', Array.from(formData.entries()).map(([key, value]) => 
-        key === 'document' ? [key, `${value.constructor.name} (${value.size} bytes)`] : [key, value]
+        key === 'document' ? [key, `${value.constructor.name} (${(value as File).size} bytes)`] : [key, value]
       ));
 
       const response = await fetch(url.toString(), {
@@ -423,7 +432,7 @@ const DemoPage: React.FC = () => {
         throw new Error(errorData.error || errorData.message || 'Failed to upload document');
       }
 
-      const data = await response.json();
+      await response.json();
       // Document upload successful, start polling for OCR results
       setCurrentStep(3);
       toast.success('Document uploaded successfully');
@@ -545,16 +554,16 @@ const DemoPage: React.FC = () => {
     } catch (error) {
       console.error('Camera initialization failed:', error);
       setCameraState('error');
-      
-      // More specific error messages
-      if (error.name === 'NotAllowedError') {
+
+      const err = error as { name?: string; message?: string };
+      if (err.name === 'NotAllowedError') {
         toast.error('Camera access denied. Please allow camera permissions and try again.');
-      } else if (error.name === 'NotFoundError') {
+      } else if (err.name === 'NotFoundError') {
         toast.error('No camera found. Please connect a camera and try again.');
-      } else if (error.name === 'NotReadableError') {
+      } else if (err.name === 'NotReadableError') {
         toast.error('Camera is being used by another application.');
       } else {
-        toast.error(`Camera error: ${error.message || 'Unknown error'}`);
+        toast.error(`Camera error: ${err.message || 'Unknown error'}`);
       }
     }
   };
@@ -720,10 +729,6 @@ const DemoPage: React.FC = () => {
               
               faceCount = faces.size();
               console.log(`🔍 OPENCV: Detected ${faceCount} faces`);
-              
-              // Calculate scale factors to map from video coordinates to display coordinates
-              const scaleX = canvas.width / videoWidth;
-              const scaleY = canvas.height / videoHeight;
               
               // Face detection successful - count recorded but no visual overlay drawn
               
@@ -1017,57 +1022,39 @@ const DemoPage: React.FC = () => {
 
   // Render progress indicator
   const renderProgressIndicator = () => {
-    const steps = [
-      { label: 'Start',    icon: '🔑' },
-      { label: 'Upload',   icon: '📄' },
-      { label: 'Process',  icon: '⚙️' },
-      { label: 'Verify',   icon: '🤳' },
-      { label: 'Complete', icon: '✓'  },
-    ];
+    const steps = ['Start', 'Front ID', 'Back ID', 'Live Capture', 'Results'];
     return (
-      <div className="mb-10">
-        <div className="flex items-start">
-          {steps.map((s, i) => {
+      <div style={{ marginBottom: 36 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+          {steps.map((label, i) => {
             const stepNum = i + 1;
             const isCompleted = stepNum < currentStep;
             const isActive    = stepNum === currentStep;
             return (
               <React.Fragment key={stepNum}>
-                {/* Circle + label */}
-                <div className="flex flex-col items-center gap-1.5 min-w-0">
-                  <div
-                    className={`flex items-center justify-center w-9 h-9 rounded-full text-sm font-bold transition-all duration-300 ${
-                      isCompleted
-                        ? 'bg-blue-600 text-white'
-                        : isActive
-                        ? 'bg-blue-600 text-white ring-4 ring-blue-100 scale-110'
-                        : 'bg-gray-100 text-gray-400'
-                    }`}
-                  >
-                    {isCompleted
-                      ? <CheckCircleIcon className="w-5 h-5" />
-                      : stepNum}
+                <div style={{ flexShrink: 0, textAlign: 'center', minWidth: 72 }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: '50%',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    margin: '0 auto 6px',
+                    fontFamily: '"IBM Plex Mono","Fira Code",monospace',
+                    fontSize: 12, fontWeight: 600,
+                    background: isCompleted ? '#34d399' : isActive ? 'rgba(34,211,238,0.15)' : 'transparent',
+                    border: isCompleted ? '1px solid #34d399' : isActive ? '1px solid #22d3ee' : '1px solid rgba(255,255,255,0.07)',
+                    color: isCompleted ? '#080c14' : isActive ? '#22d3ee' : '#4a5568',
+                    transition: 'all 0.2s',
+                  }}>
+                    {isCompleted ? '✓' : stepNum}
                   </div>
-                  <span
-                    className={`text-[11px] font-medium whitespace-nowrap transition-colors duration-300 ${
-                      isActive    ? 'text-blue-600' :
-                      isCompleted ? 'text-gray-600' : 'text-gray-400'
-                    }`}
-                  >
-                    {s.label}
+                  <span style={{
+                    fontSize: 10, fontWeight: 500, whiteSpace: 'nowrap',
+                    color: isActive ? '#22d3ee' : isCompleted ? '#8896aa' : '#4a5568',
+                  }}>
+                    {label}
                   </span>
                 </div>
-
-                {/* Connector line */}
                 {i < steps.length - 1 && (
-                  <div className="flex-1 mx-2 mt-[18px]">
-                    <div className="h-0.5 w-full bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-blue-600 rounded-full transition-all duration-500"
-                        style={{ width: stepNum < currentStep ? '100%' : '0%' }}
-                      />
-                    </div>
-                  </div>
+                  <div style={{ flex: 1, height: 1, marginTop: 16, background: stepNum < currentStep ? '#34d399' : 'rgba(255,255,255,0.07)', transition: 'background 0.3s' }} />
                 )}
               </React.Fragment>
             );
@@ -1079,154 +1066,105 @@ const DemoPage: React.FC = () => {
 
   // Render embedded live capture
   const renderLiveCapture = () => (
-    <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">Live Selfie Capture</h3>
+    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 24, marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <h3 style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 600, color: C.text, margin: 0 }}>Live Selfie Capture</h3>
         <button
-          onClick={() => {
-            cleanup();
-            setShowLiveCapture(false);
-          }}
-          className="text-gray-500 hover:text-gray-700"
+          onClick={() => { cleanup(); setShowLiveCapture(false); }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted, padding: 4, display: 'flex' }}
         >
-          <XMarkIcon className="h-5 w-5" />
+          <XMarkIcon style={{ width: 18, height: 18 }} />
         </button>
       </div>
 
-      <div className="space-y-4">
-        {cameraState === 'prompt' && (
-          <div className="text-center py-8">
-            <CameraIcon className="h-12 w-12 mx-auto text-blue-600 mb-4" />
-            <h4 className="text-lg font-semibold mb-2">Ready for Live Capture</h4>
-            <p className="text-gray-600 mb-6">
-              We'll use your camera to take a selfie for identity verification.
-            </p>
-            <button
-              onClick={initializeCamera}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-            >
-              Start Camera
-            </button>
-          </div>
-        )}
+      {cameraState === 'prompt' && (
+        <div style={{ textAlign: 'center', padding: '32px 0' }}>
+          <CameraIcon style={{ width: 40, height: 40, margin: '0 auto 12px', color: C.cyan }} />
+          <h4 style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 8 }}>Ready for Live Capture</h4>
+          <p style={{ color: C.muted, fontSize: 13, marginBottom: 20 }}>We'll use your camera to take a selfie for identity verification.</p>
+          <button
+            onClick={initializeCamera}
+            style={{ background: C.cyan, color: C.bg, border: 'none', borderRadius: 8, padding: '10px 24px', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}
+          >
+            Start Camera
+          </button>
+        </div>
+      )}
 
-        {cameraState === 'initializing' && (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Initializing camera...</p>
-          </div>
-        )}
+      {cameraState === 'initializing' && (
+        <div style={{ textAlign: 'center', padding: '32px 0' }}>
+          <div className="animate-spin" style={{ width: 40, height: 40, borderRadius: '50%', border: `3px solid ${C.border}`, borderTopColor: C.cyan, margin: '0 auto 12px' }} />
+          <p style={{ color: C.muted, fontSize: 13 }}>Initializing camera...</p>
+        </div>
+      )}
 
-        {cameraState === 'ready' && (
-          <div className="space-y-4">
-            <div className="relative bg-black rounded-lg overflow-hidden" style={{ minHeight: '240px', height: '320px' }}>
-              {/* Video element for camera feed */}
-              <video
-                ref={videoElementRef}
-                autoPlay
-                playsInline
-                muted
-                controls={false}
-                className="absolute inset-0 w-full h-full object-cover"
-                style={{ 
-                  display: 'block',
-                  backgroundColor: '#000',
-                  borderRadius: '0.5rem'
-                }}
-                onLoadedMetadata={() => {
-                  console.log('🎥 Video metadata loaded in UI');
-                  if (videoElementRef.current) {
-                    videoElementRef.current.play().then(() => {
-                      console.log('🎥 Video playing in UI');
-                    }).catch(err => {
-                      console.error('🎥 Video play error:', err);
-                    });
-                  }
-                }}
-                onError={(e) => {
-                  console.error('🎥 Video element error:', e);
-                }}
-              />
-              
-              {/* Canvas overlay for face detection - positioned over video */}
-              <canvas
-                ref={canvasRef}
-                className="absolute top-0 left-0 w-full h-full pointer-events-none"
-                style={{ 
-                  display: 'block',
-                  backgroundColor: 'transparent',
-                  zIndex: 20,
-                  position: 'absolute'
-                }}
-              />
-              
-              {/* Face detection indicator */}
-              <div className="absolute top-4 right-4">
-                <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium ${
-                  faceDetected 
-                    ? 'bg-green-500 text-white' 
-                    : 'bg-red-500 text-white'
-                }`}>
-                  <EyeIcon className="h-4 w-4" />
-                  <span>{faceDetected ? 'Face Detected' : 'No Face'}</span>
-                </div>
-              </div>
-              
-              {/* Instructions overlay */}
-              <div className="absolute bottom-4 left-4 right-4">
-                <div className="bg-black bg-opacity-70 text-white p-3 rounded-lg text-center">
-                  <p className="text-sm">
-                    {!faceDetected 
-                      ? 'Position your face within the blue circle' 
-                      : 'Great! Click capture when ready'
-                    }
-                  </p>
-                </div>
+      {cameraState === 'ready' && (
+        <div>
+          <div style={{ position: 'relative', background: '#000', borderRadius: 8, overflow: 'hidden', minHeight: 240, height: 320, marginBottom: 16 }}>
+            <video
+              ref={videoElementRef}
+              autoPlay
+              playsInline
+              muted
+              controls={false}
+              style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover', backgroundColor: '#000', borderRadius: 8 }}
+              onLoadedMetadata={() => {
+                console.log('🎥 Video metadata loaded in UI');
+                if (videoElementRef.current) {
+                  videoElementRef.current.play().then(() => {
+                    console.log('🎥 Video playing in UI');
+                  }).catch(err => { console.error('🎥 Video play error:', err); });
+                }
+              }}
+              onError={(e) => { console.error('🎥 Video element error:', e); }}
+            />
+            <canvas
+              ref={canvasRef}
+              style={{ display: 'block', position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', backgroundColor: 'transparent', zIndex: 20 }}
+            />
+            <div style={{ position: 'absolute', top: 12, right: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: faceDetected ? 'rgba(52,211,153,0.85)' : 'rgba(248,113,113,0.85)', borderRadius: 20, padding: '4px 10px', fontSize: 12, color: '#fff', fontWeight: 500 }}>
+                <EyeIcon style={{ width: 14, height: 14 }} />
+                <span>{faceDetected ? 'Face Detected' : 'No Face'}</span>
               </div>
             </div>
-
-            <div className="flex space-x-4">
-              <button
-                onClick={captureSelfie}
-                disabled={!faceDetected || isLoading}
-                className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-colors ${
-                  faceDetected && !isLoading
-                    ? 'bg-green-600 text-white hover:bg-green-700'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                {isLoading ? 'Capturing...' : 'Capture Selfie'}
-              </button>
-              
-              <button
-                onClick={() => {
-                  cleanup();
-                  setShowLiveCapture(false);
-                }}
-                className="px-6 py-3 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400 transition-colors"
-              >
-                Cancel
-              </button>
+            <div style={{ position: 'absolute', bottom: 12, left: 12, right: 12 }}>
+              <div style={{ background: 'rgba(0,0,0,0.7)', color: '#fff', padding: '8px 12px', borderRadius: 6, textAlign: 'center', fontSize: 12 }}>
+                {!faceDetected ? 'Position your face within the circle' : 'Great! Click capture when ready'}
+              </div>
             </div>
           </div>
-        )}
-
-        {cameraState === 'error' && (
-          <div className="text-center py-8">
-            <ExclamationTriangleIcon className="h-12 w-12 mx-auto text-red-600 mb-4" />
-            <h4 className="text-lg font-semibold mb-2 text-red-600">Camera Error</h4>
-            <p className="text-gray-600 mb-6">
-              Unable to access your camera. Please check permissions and try again.
-            </p>
+          <div style={{ display: 'flex', gap: 12 }}>
             <button
-              onClick={initializeCamera}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+              onClick={captureSelfie}
+              disabled={!faceDetected || isLoading}
+              style={{ flex: 1, padding: '10px 0', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: !faceDetected || isLoading ? 'not-allowed' : 'pointer', border: 'none', background: !faceDetected || isLoading ? C.surface : C.green, color: !faceDetected || isLoading ? C.dim : C.bg, transition: 'all 0.2s' }}
             >
-              Try Again
+              {isLoading ? 'Capturing...' : 'Capture Selfie'}
+            </button>
+            <button
+              onClick={() => { cleanup(); setShowLiveCapture(false); }}
+              style={{ padding: '10px 20px', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: 'pointer', border: `1px solid ${C.border}`, background: 'transparent', color: C.muted }}
+            >
+              Cancel
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {cameraState === 'error' && (
+        <div style={{ textAlign: 'center', padding: '32px 0' }}>
+          <ExclamationTriangleIcon style={{ width: 40, height: 40, margin: '0 auto 12px', color: C.red }} />
+          <h4 style={{ fontSize: 15, fontWeight: 600, color: C.red, marginBottom: 8 }}>Camera Error</h4>
+          <p style={{ color: C.muted, fontSize: 13, marginBottom: 20 }}>Unable to access your camera. Please check permissions and try again.</p>
+          <button
+            onClick={initializeCamera}
+            style={{ background: C.cyan, color: C.bg, border: 'none', borderRadius: 8, padding: '10px 24px', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}
+          >
+            Try Again
+          </button>
+        </div>
+      )}
     </div>
   );
 
@@ -1235,30 +1173,32 @@ const DemoPage: React.FC = () => {
     switch (currentStep) {
       case 1:
         return (
-          <div className="py-8">
+          <div style={{ padding: '8px 0' }}>
             {mobileHandoffDone ? (
-              // Mobile completed — show result inline
-              <div className="max-w-md mx-auto text-center py-8">
-                <div className="text-5xl mb-3">
+              <div style={{ maxWidth: 400, margin: '0 auto', textAlign: 'center', padding: '32px 0' }}>
+                <div style={{
+                  width: 56, height: 56, borderRadius: '50%', margin: '0 auto 16px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: mobileResult?.status === 'verified' || mobileResult?.status === 'completed' ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.1)',
+                  border: `1px solid ${mobileResult?.status === 'verified' || mobileResult?.status === 'completed' ? '#34d399' : '#f87171'}`,
+                  fontSize: 24,
+                  color: mobileResult?.status === 'verified' || mobileResult?.status === 'completed' ? '#34d399' : '#f87171',
+                }}>
                   {mobileResult?.status === 'verified' || mobileResult?.status === 'completed' ? '✓' : '✗'}
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-1">
-                  {mobileResult?.status === 'verified' || mobileResult?.status === 'completed'
-                    ? 'Verification Complete'
-                    : mobileResult?.status === 'failed'
-                    ? 'Verification Failed'
-                    : 'Under Review'}
+                <h2 style={{ fontSize: 20, fontWeight: 600, color: '#dde2ec', marginBottom: 6 }}>
+                  {mobileResult?.status === 'verified' || mobileResult?.status === 'completed' ? 'Verification Complete' : mobileResult?.status === 'failed' ? 'Verification Failed' : 'Under Review'}
                 </h2>
-                <p className="text-gray-500 text-sm">Completed on mobile device</p>
+                <p style={{ color: '#8896aa', fontSize: 13 }}>Completed on mobile device</p>
                 {mobileResult?.confidence_score != null && (
-                  <p className="text-sm text-gray-600 mt-2">
+                  <p style={{ color: '#8896aa', fontSize: 13, marginTop: 8 }}>
                     Confidence: {Math.round(mobileResult.confidence_score * 100)}%
                   </p>
                 )}
                 {(mobileResult?.status === 'failed' || mobileResult?.status === 'manual_review') && (
                   <button
                     onClick={() => { setMobileHandoffDone(false); setMobileResult(null); }}
-                    className="mt-4 text-sm text-blue-600 hover:text-blue-700 underline underline-offset-2"
+                    style={{ marginTop: 16, background: 'none', border: 'none', color: '#22d3ee', cursor: 'pointer', fontSize: 13 }}
                   >
                     Try Again
                   </button>
@@ -1266,71 +1206,55 @@ const DemoPage: React.FC = () => {
               </div>
             ) : (
               <>
-                <h2 className="text-xl sm:text-2xl font-bold mb-2 text-center">
-                  Identity Verification Demo
+                <h2 style={{ fontSize: 18, fontWeight: 600, color: '#dde2ec', textAlign: 'center', marginBottom: 6 }}>
+                  Live Verification Demo
                 </h2>
-                <p className="text-gray-500 text-sm mb-6 text-center">
+                <p style={{ color: '#8896aa', fontSize: 13, textAlign: 'center', marginBottom: 28 }}>
                   Enter your API key, then verify on this device or scan to use your phone.
                 </p>
 
-                {/* API Key and User ID inputs */}
-                <div className="space-y-6 max-w-md mx-auto">
+                <div style={{ maxWidth: 420, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 24 }}>
                   <div>
-                    <label htmlFor="apiKey" className="block text-sm font-medium text-gray-700 mb-2">
+                    <label style={{ display: 'block', fontSize: 12, color: '#8896aa', marginBottom: 6, fontWeight: 500 }}>
                       API Key
                     </label>
                     <input
                       type="text"
-                      id="apiKey"
                       value={apiKey}
                       onChange={(e) => setApiKey(e.target.value)}
                       placeholder="sk_test_your_api_key_here"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      style={{ background: '#0f1420', border: '1px solid rgba(255,255,255,0.07)', color: '#dde2ec', borderRadius: 6, padding: '10px 14px', width: '100%', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
                     />
-                    <p className="mt-1 text-xs text-gray-500">
-                      Get your API key from the <a href="/developer" className="text-blue-600 hover:underline">Developer page</a>
+                    <p style={{ marginTop: 4, fontSize: 11, color: '#4a5568' }}>
+                      Get your key from the <a href="/developer" style={{ color: '#22d3ee', textDecoration: 'none' }}>Developer page</a>
                     </p>
                   </div>
-
                   <div>
-                    <label htmlFor="userId" className="block text-sm font-medium text-gray-700 mb-2">
+                    <label style={{ display: 'block', fontSize: 12, color: '#8896aa', marginBottom: 6, fontWeight: 500 }}>
                       User ID
                     </label>
                     <input
                       type="text"
-                      id="userId"
                       value={userId}
                       onChange={(e) => setUserId(e.target.value)}
                       placeholder="Auto-generated UUID"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      style={{ background: '#0f1420', border: '1px solid rgba(255,255,255,0.07)', color: '#dde2ec', borderRadius: 6, padding: '10px 14px', width: '100%', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
                     />
-                    <p className="mt-1 text-xs text-gray-500">
-                      Unique identifier for this verification session
-                    </p>
                   </div>
                 </div>
 
-                {/* Two-column choice */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto mt-6">
-                  {/* Desktop */}
-                  <div className="border border-gray-200 rounded-2xl p-6 flex flex-col items-center text-center gap-3">
-                    <div className="text-4xl">💻</div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Start Here</h3>
-                      <p className="text-sm text-gray-500 mt-1">
-                        Use webcam and upload documents on this device
-                      </p>
-                    </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, maxWidth: 600, margin: '0 auto' }}>
+                  <div style={{ background: '#0b0f19', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 10 }}>
+                    <div style={{ fontSize: 13, color: '#dde2ec', fontWeight: 600 }}>Start Here</div>
+                    <p style={{ fontSize: 12, color: '#8896aa', lineHeight: 1.5 }}>Upload documents and use webcam on this device.</p>
                     <button
                       onClick={startVerification}
                       disabled={isLoading || !apiKey.trim() || !userId.trim()}
-                      className="mt-1 w-full py-2.5 px-4 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      style={{ background: '#22d3ee', color: '#080c14', border: 'none', borderRadius: 8, padding: '9px 0', width: '100%', fontWeight: 600, fontSize: 13, cursor: isLoading || !apiKey.trim() || !userId.trim() ? 'not-allowed' : 'pointer', opacity: isLoading || !apiKey.trim() || !userId.trim() ? 0.5 : 1 }}
                     >
                       {isLoading ? 'Starting…' : 'Start on This Device'}
                     </button>
                   </div>
-
-                  {/* Mobile */}
                   <ContinueOnPhone
                     apiKey={apiKey}
                     userId={userId}
@@ -1347,23 +1271,18 @@ const DemoPage: React.FC = () => {
 
       case 2:
         return (
-          <div className="py-8">
-            <h2 className="text-xl sm:text-2xl font-bold mb-4 text-center">Upload Your ID Document</h2>
-            <p className="text-gray-600 mb-6 text-center">
-              Please upload a clear photo of your government-issued ID (passport, driver's license, or national ID).
+          <div style={{ padding: '8px 0' }}>
+            <h2 style={{ fontSize: 18, fontWeight: 600, color: C.text, textAlign: 'center', marginBottom: 6 }}>Upload Your ID Document</h2>
+            <p style={{ color: C.muted, fontSize: 13, textAlign: 'center', marginBottom: 24 }}>
+              Upload a clear photo of your government-issued ID.
             </p>
-
-            <div className="space-y-6">
-              {/* Document Type Selection */}
-              <div className="max-w-md mx-auto">
-                <label htmlFor="document-type" className="block text-sm font-medium text-gray-700 mb-2">
-                  Document Type
-                </label>
+            <div style={{ maxWidth: 420, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: C.muted, marginBottom: 6, fontWeight: 500 }}>Document Type</label>
                 <select
-                  id="document-type"
                   value={documentType}
                   onChange={(e) => setDocumentType(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text, borderRadius: 6, padding: '10px 14px', width: '100%', fontSize: 14, outline: 'none' }}
                 >
                   <option value="">Select document type</option>
                   <option value="national_id">National ID</option>
@@ -1372,69 +1291,34 @@ const DemoPage: React.FC = () => {
                   <option value="other">Other</option>
                 </select>
               </div>
-
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 sm:p-8 text-center">
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,application/pdf"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                  id="document-upload"
-                />
-                <label
-                  htmlFor="document-upload"
-                  className="cursor-pointer block"
-                >
-                  <div className="text-gray-400 mb-4">
-                    <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                  </div>
-                  <p className="text-gray-600">
-                    Click to upload or drag and drop
-                  </p>
-                  <p className="text-sm text-gray-400 mt-2">
-                    JPEG, PNG or PDF (max 10MB)
-                  </p>
-                </label>
-              </div>
-
+              <label htmlFor="document-upload" style={{ display: 'block', border: `2px dashed ${C.border}`, borderRadius: 8, padding: '32px 16px', textAlign: 'center', cursor: 'pointer' }}>
+                <input type="file" accept="image/jpeg,image/png,application/pdf" onChange={handleFileSelect} style={{ display: 'none' }} id="document-upload" />
+                <svg style={{ width: 40, height: 40, margin: '0 auto 12px', color: C.muted }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <p style={{ color: C.muted, fontSize: 13 }}>Click to upload or drag and drop</p>
+                <p style={{ color: C.dim, fontSize: 11, marginTop: 4 }}>JPEG, PNG or PDF (max 10MB)</p>
+              </label>
               {selectedFile && (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">{selectedFile.name}</p>
-                      <p className="text-sm text-gray-500">
-                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                      </p>
-                    </div>
-                  </div>
+                <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 16 }}>
+                  <p style={{ fontWeight: 500, color: C.text, fontSize: 13, margin: 0 }}>{selectedFile.name}</p>
+                  <p style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
                   {previewUrl && (
-                    <div className="mt-4">
-                      <img
-                        src={previewUrl}
-                        alt="Document preview"
-                        className="w-full h-48 object-contain bg-white rounded border"
-                      />
-                    </div>
+                    <img src={previewUrl} alt="Document preview" style={{ width: '100%', height: 160, objectFit: 'contain', background: C.codeBg, borderRadius: 6, marginTop: 12 }} />
                   )}
                 </div>
               )}
-
+              {selectedFile && !documentType && (
+                <p style={{ color: C.red, fontSize: 12, textAlign: 'center', margin: 0 }}>Please select a document type before uploading.</p>
+              )}
               {selectedFile && (
                 <button
                   onClick={uploadDocument}
                   disabled={isLoading || !documentType}
-                  className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  style={{ background: C.cyan, color: C.bg, border: 'none', borderRadius: 8, padding: '11px 0', width: '100%', fontWeight: 600, fontSize: 14, cursor: isLoading || !documentType ? 'not-allowed' : 'pointer', opacity: isLoading || !documentType ? 0.5 : 1 }}
                 >
                   {isLoading ? 'Uploading...' : 'Upload Document'}
                 </button>
-              )}
-              
-              {selectedFile && !documentType && (
-                <p className="text-red-600 text-sm text-center">
-                  Please select a document type before uploading.
-                </p>
               )}
             </div>
           </div>
@@ -1442,71 +1326,64 @@ const DemoPage: React.FC = () => {
 
       case 3:
         return (
-          <div className="text-center py-8">
-            <h2 className="text-xl sm:text-2xl font-bold mb-4">Processing Document</h2>
-            <div className="flex justify-center mb-6">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            </div>
-            <p className="text-gray-600">
-              We're extracting information from your document using OCR and PDF417 barcode scanning. This may take a few moments...
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <h2 style={{ fontSize: 18, fontWeight: 600, color: C.text, marginBottom: 20 }}>Processing Document</h2>
+            <div className="animate-spin" style={{ width: 40, height: 40, borderRadius: '50%', border: `3px solid ${C.border}`, borderTopColor: C.cyan, margin: '0 auto 16px' }} />
+            <p style={{ color: C.muted, fontSize: 13 }}>
+              Extracting information with OCR and PDF417 barcode scanning…
             </p>
           </div>
         );
 
       case 4:
         const ocrData = verificationRequest?.ocr_data;
-        
         return (
-          <div className="py-8">
-            <h2 className="text-xl sm:text-2xl font-bold mb-6 text-center">Document Information & Verification</h2>
-            
+          <div style={{ padding: '8px 0' }}>
+            <h2 style={{ fontSize: 18, fontWeight: 600, color: C.text, textAlign: 'center', marginBottom: 20 }}>Document Information & Verification</h2>
             {ocrData && Object.keys(ocrData).length > 0 ? (
-              <div className="bg-gray-50 p-6 rounded-lg mb-6">
-                <h3 className="font-semibold mb-4">Extracted Information:</h3>
-                <div className="space-y-2 text-sm">
+              <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 20, marginBottom: 20 }}>
+                <h3 style={{ fontFamily: C.mono, fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 12 }}>Extracted Information</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {ocrData.full_name && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Full Name:</span>
-                      <span className="font-medium">{ocrData.full_name}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                      <span style={{ color: C.muted }}>Full Name</span>
+                      <span style={{ color: C.text, fontWeight: 500 }}>{ocrData.full_name}</span>
                     </div>
                   )}
                   {ocrData.document_number && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Document Number:</span>
-                      <span className="font-medium">{ocrData.document_number}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                      <span style={{ color: C.muted }}>Document Number</span>
+                      <span style={{ color: C.text, fontWeight: 500, fontFamily: C.mono }}>{ocrData.document_number}</span>
                     </div>
                   )}
                   {ocrData.date_of_birth && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Date of Birth:</span>
-                      <span className="font-medium">{ocrData.date_of_birth}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                      <span style={{ color: C.muted }}>Date of Birth</span>
+                      <span style={{ color: C.text, fontWeight: 500 }}>{ocrData.date_of_birth}</span>
                     </div>
                   )}
                   {ocrData.expiry_date && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Expiry Date:</span>
-                      <span className="font-medium">{ocrData.expiry_date}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                      <span style={{ color: C.muted }}>Expiry Date</span>
+                      <span style={{ color: C.text, fontWeight: 500 }}>{ocrData.expiry_date}</span>
                     </div>
                   )}
                   {ocrData.nationality && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Nationality:</span>
-                      <span className="font-medium">{ocrData.nationality}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                      <span style={{ color: C.muted }}>Nationality</span>
+                      <span style={{ color: C.text, fontWeight: 500 }}>{ocrData.nationality}</span>
                     </div>
                   )}
                 </div>
               </div>
             ) : (
-              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-6">
-                <p className="text-yellow-800">
-                  Document information could not be extracted automatically.
-                </p>
+              <div style={{ background: C.amberDim, border: `1px solid ${C.amber}`, borderRadius: 8, padding: 16, marginBottom: 20 }}>
+                <p style={{ color: C.amber, fontSize: 13, margin: 0 }}>Document information could not be extracted automatically.</p>
               </div>
             )}
 
-            {/* Back-of-ID Upload Section */}
             {!backOfIdUploaded && (
-              <div className="mb-8">
+              <div style={{ marginBottom: 20 }}>
                 <BackOfIdUpload
                   verificationId={verificationId!}
                   documentType={documentType || 'national_id'}
@@ -1525,58 +1402,48 @@ const DemoPage: React.FC = () => {
             )}
 
             {backOfIdUploaded && (
-              <div className="mb-8 bg-green-50 border border-green-200 rounded-lg p-4">
-                <div className="flex items-center space-x-2 text-green-800">
-                  <span className="text-lg">✅</span>
-                  <span className="font-medium">Enhanced Verification Complete</span>
+              <div style={{ background: C.greenDim, border: `1px solid ${C.green}`, borderRadius: 8, padding: 16, marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: C.green, fontSize: 13, fontWeight: 600 }}>
+                  <span>✓</span>
+                  <span>Enhanced Verification Complete</span>
                 </div>
-                <p className="mt-1 text-green-700 text-sm">
-                  Back-of-ID successfully processed with PDF417 barcode scanning, QR code detection, and cross-validation.
+                <p style={{ color: C.green, fontSize: 12, marginTop: 6, opacity: 0.8, margin: '6px 0 0' }}>
+                  Back-of-ID processed with PDF417 barcode scanning, QR code detection, and cross-validation.
                 </p>
               </div>
             )}
 
-            {/* Embedded Live Capture */}
             {backOfIdUploaded && showLiveCapture && renderLiveCapture()}
 
-            {/* Live Capture Controls - Only show after back-of-ID is uploaded */}
             {backOfIdUploaded && !showLiveCapture && (
-              <div className="text-center">
-                <h3 className="text-lg font-semibold mb-4">Identity Verification</h3>
-                <p className="text-gray-600 mb-6">
-                  Now we need to verify that you're the person in the document using live capture.
+              <div style={{ textAlign: 'center' }}>
+                <h3 style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 8 }}>Identity Verification</h3>
+                <p style={{ color: C.muted, fontSize: 13, marginBottom: 20 }}>
+                  Verify you're the person in the document using live capture.
                 </p>
-                
-                <div className="space-y-4">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 360, margin: '0 auto' }}>
                   <button
                     onClick={handleLiveCapture}
-                    className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
+                    style={{ background: C.cyan, color: C.bg, border: 'none', borderRadius: 8, padding: '11px 0', fontWeight: 600, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
                   >
-                    <CameraIcon className="h-5 w-5" />
-                    <span>Start Live Capture</span>
+                    <CameraIcon style={{ width: 18, height: 18 }} />
+                    Start Live Capture
                   </button>
-                  
                   <button
                     onClick={skipLiveCapture}
-                    className="w-full bg-gray-300 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-400 transition-colors"
+                    style={{ background: 'transparent', color: C.muted, border: `1px solid ${C.border}`, borderRadius: 8, padding: '11px 0', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}
                   >
-                    Skip Live Capture (Complete Verification)
+                    Skip Live Capture
                   </button>
                 </div>
               </div>
             )}
 
-            {/* Instructions when back-of-ID is not uploaded */}
             {!backOfIdUploaded && (
-              <div className="text-center bg-blue-50 border border-blue-200 rounded-lg p-6">
-                <div className="text-blue-600 mb-2">
-                  <svg className="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-semibold text-blue-900 mb-2">Next Step: Upload Back-of-ID</h3>
-                <p className="text-blue-700 text-sm">
-                  Please upload the back of your ID above for enhanced verification with PDF417 barcode scanning and cross-validation before proceeding to live capture.
+              <div style={{ background: C.blueDim, border: `1px solid ${C.blue}`, borderRadius: 8, padding: 20, textAlign: 'center' }}>
+                <h3 style={{ fontSize: 14, fontWeight: 600, color: C.blue, marginBottom: 6 }}>Next Step: Upload Back-of-ID</h3>
+                <p style={{ color: C.muted, fontSize: 12, margin: 0 }}>
+                  Upload the back of your ID for enhanced verification with PDF417 barcode scanning.
                 </p>
               </div>
             )}
@@ -1585,69 +1452,63 @@ const DemoPage: React.FC = () => {
 
       case 5:
         const status = verificationRequest?.status;
-        const statusColor = status === 'verified' ? 'green' : status === 'failed' ? 'red' : 'yellow';
-        const statusIcon = status === 'verified' ? '✓' : status === 'failed' ? '✗' : '⚠';
-        
+        const isVerified = status === 'verified';
+        const isFailed = status === 'failed';
+        const statusTone = isVerified ? C.green : isFailed ? C.red : C.amber;
+        const statusBg = isVerified ? C.greenDim : isFailed ? C.redDim : C.amberDim;
+        const statusIcon = isVerified ? '✓' : isFailed ? '✗' : '⚠';
+        const statusLabel = isVerified ? 'Verification Complete' : isFailed ? 'Verification Failed' : 'Under Review';
         return (
-          <div className="text-center py-8">
-            <div className={`w-16 h-16 mx-auto mb-6 rounded-full bg-${statusColor}-100 flex items-center justify-center`}>
-              <span className={`text-2xl text-${statusColor}-600`}>{statusIcon}</span>
+          <div style={{ padding: '8px 0', textAlign: 'center' }}>
+            <div style={{ width: 60, height: 60, borderRadius: '50%', background: statusBg, border: `1px solid ${statusTone}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 24, color: statusTone }}>
+              {statusIcon}
             </div>
-            
-            <h2 className="text-xl sm:text-2xl font-bold mb-4">
-              Demo Verification {status === 'verified' ? 'Complete' : status === 'failed' ? 'Failed' : 'Under Review'}
-            </h2>
-            
-            <p className="text-gray-600 mb-6">
-              {status === 'verified' && 'Your identity has been successfully verified with live capture and PDF417 validation.'}
-              {status === 'failed' && 'Verification failed. Please try again with clearer documents.'}
-              {status === 'manual_review' && 'Your verification is under manual review. You will be notified of the result.'}
+            <h2 style={{ fontSize: 20, fontWeight: 600, color: C.text, marginBottom: 8 }}>{statusLabel}</h2>
+            <p style={{ color: C.muted, fontSize: 13, marginBottom: 24 }}>
+              {isVerified && 'Successfully verified with live capture and PDF417 validation.'}
+              {isFailed && 'Verification failed. Please try again with clearer documents.'}
+              {!isVerified && !isFailed && 'Your verification is under manual review.'}
             </p>
-
-            {verificationRequest && verificationRequest.verification_id && (
-              <div className="bg-gray-50 p-4 rounded-lg text-left max-w-md mx-auto">
-                <h3 className="font-semibold mb-2">Verification Details:</h3>
-                <div className="text-sm space-y-1">
-                  <div className="flex justify-between">
-                    <span>ID:</span>
-                    <span className="font-mono text-xs">{verificationRequest.verification_id?.slice(0, 8) || 'N/A'}...</span>
+            {verificationRequest?.verification_id && (
+              <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 20, textAlign: 'left', maxWidth: 400, margin: '0 auto 20px' }}>
+                <h3 style={{ fontFamily: C.mono, fontSize: 12, color: C.muted, marginBottom: 12, fontWeight: 600 }}>Verification Details</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: C.muted }}>ID</span>
+                    <span style={{ color: C.text, fontFamily: C.mono, fontSize: 11 }}>{verificationRequest.verification_id?.slice(0, 8)}…</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Status:</span>
-                    <span className="capitalize">{verificationRequest.status || 'Unknown'}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: C.muted }}>Status</span>
+                    <span style={{ color: statusTone, fontWeight: 600, textTransform: 'capitalize' }}>{verificationRequest.status}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Created:</span>
-                    <span>{verificationRequest.created_at ? new Date(verificationRequest.created_at).toLocaleDateString() : 'N/A'}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: C.muted }}>Created</span>
+                    <span style={{ color: C.text }}>{verificationRequest.created_at ? new Date(verificationRequest.created_at).toLocaleDateString() : 'N/A'}</span>
                   </div>
                   {captureResult && (
-                    <div className="flex justify-between">
-                      <span>Live Capture:</span>
-                      <span className="text-green-600">✓ Complete</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: C.muted }}>Live Capture</span>
+                      <span style={{ color: C.green }}>✓ Complete</span>
                     </div>
                   )}
                 </div>
-                
-                {/* Raw JSON Display */}
-                <div className="mt-4">
-                  <h4 className="font-semibold mb-2">Raw API Response:</h4>
-                  <div className="bg-gray-900 text-green-400 p-3 rounded text-xs font-mono overflow-x-auto max-h-64 overflow-y-auto">
-                    <pre>{JSON.stringify(verificationRequest, null, 2)}</pre>
-                  </div>
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ fontSize: 11, color: C.muted, marginBottom: 6, fontWeight: 600, fontFamily: C.mono }}>Raw API Response</div>
+                  <pre style={{ background: C.codeBg, color: C.code, padding: 12, borderRadius: 6, fontSize: 10, fontFamily: C.mono, overflowX: 'auto', maxHeight: 200, overflowY: 'auto', lineHeight: 1.5, margin: 0 }}>
+                    {JSON.stringify(verificationRequest, null, 2)}
+                  </pre>
                 </div>
               </div>
             )}
-
             <button
               onClick={() => {
-                // Clear URL parameters and reset state for new verification
                 const newUrl = new URL(window.location.href);
                 newUrl.searchParams.delete('verification_id');
                 newUrl.searchParams.delete('step');
                 newUrl.searchParams.set('step', '1');
                 window.location.href = newUrl.toString();
               }}
-              className="mt-6 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              style={{ background: C.cyan, color: C.bg, border: 'none', borderRadius: 8, padding: '10px 24px', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}
             >
               Start New Demo
             </button>
@@ -1660,156 +1521,22 @@ const DemoPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
-
-      {/* ── HERO ── */}
-      <div className="bg-[#0F172A] text-white">
-        <div className="max-w-6xl mx-auto px-6">
-          {/* Hero content */}
-          <div className="py-20 text-center max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs font-medium px-3 py-1.5 rounded-full mb-6">
-              <span className="w-1.5 h-1.5 bg-blue-400 rounded-full" />
-              Live Interactive Demo
-            </div>
-            <h1 className="text-4xl sm:text-6xl font-extrabold mb-6 leading-tight tracking-tight">
-              Identity Verification
-              <br />
-              <span className="text-blue-400">Built for Developers</span>
-            </h1>
-            <p className="text-gray-400 text-lg mb-10 leading-relaxed">
-              Production-ready KYC API with AI-powered document OCR, liveness detection,
-              and face matching. Integrate in under 30 minutes.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <a
-                href="#demo"
-                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3.5 rounded-xl transition-colors"
-              >
-                Try Demo ↓
-              </a>
-              <a
-                href="/docs"
-                className="w-full sm:w-auto bg-white/10 hover:bg-white/15 text-white font-semibold px-8 py-3.5 rounded-xl transition-colors"
-              >
-                View Docs →
-              </a>
-            </div>
-
-            {/* Trust badges */}
-            <div className="flex flex-wrap items-center justify-center gap-6 mt-12 text-sm text-gray-400">
-              <span className="flex items-center gap-1.5">
-                <CheckCircleIcon className="w-4 h-4 text-emerald-400" />
-                AI-Powered OCR
-              </span>
-              <span className="flex items-center gap-1.5">
-                <CheckCircleIcon className="w-4 h-4 text-emerald-400" />
-                Under 3 Minutes
-              </span>
-              <span className="flex items-center gap-1.5">
-                <CheckCircleIcon className="w-4 h-4 text-emerald-400" />
-                90%+ Accuracy
-              </span>
-              <span className="flex items-center gap-1.5">
-                <CheckCircleIcon className="w-4 h-4 text-emerald-400" />
-                GDPR Compliant
-              </span>
-            </div>
-          </div>
+    <div style={{ background: C.bg, fontFamily: C.sans, color: C.text, minHeight: '100vh' }}>
+      <div style={{ maxWidth: 680, margin: '0 auto', padding: '48px 24px' }}>
+        <div style={{ fontFamily: C.mono, fontSize: 11, color: C.muted, letterSpacing: '0.08em', marginBottom: 24 }}>
+          idswyft / live-demo
         </div>
-      </div>
-
-      {/* ── FEATURES STRIP ── */}
-      <div className="bg-white border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-6 py-12">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { icon: '📄', title: 'Document OCR', desc: 'Extracts name, DOB, ID number from passports, licenses, and national IDs' },
-              { icon: '👤', title: 'Face Matching', desc: 'Matches selfie against document photo with configurable confidence threshold' },
-              { icon: '👁', title: 'Liveness Detection', desc: 'Real-time challenge-response to prevent spoofing with printed photos or videos' },
-              { icon: '🔑', title: 'API-First', desc: 'RESTful API with webhook callbacks, sandbox mode, and SDKs for JS and Python' },
-            ].map(f => (
-              <div key={f.title} className="flex flex-col gap-2">
-                <div className="text-2xl">{f.icon}</div>
-                <h3 className="font-semibold text-gray-900 text-sm">{f.title}</h3>
-                <p className="text-xs text-gray-500 leading-relaxed">{f.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ── VERIFICATION WIDGET ── */}
-      <div id="demo" className="max-w-4xl mx-auto px-6 py-16">
-        <div className="text-center mb-8">
-          <span className="text-xs font-semibold text-blue-600 uppercase tracking-widest">Interactive Demo</span>
-          <h2 className="text-3xl font-bold text-gray-900 mt-2">Try It Live</h2>
-          <p className="text-gray-500 mt-2 text-sm">Use your real API key — this calls the actual verification API</p>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
+        <h1 style={{ fontFamily: C.mono, fontSize: 24, fontWeight: 600, color: C.text, marginBottom: 8 }}>
+          Live Demo
+        </h1>
+        <p style={{ color: C.muted, fontSize: 14, marginBottom: 36 }}>
+          Try a complete verification with a sandbox key. No signup required.
+        </p>
+        <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 12, padding: 32 }}>
           {renderProgressIndicator()}
           {renderStepContent()}
         </div>
       </div>
-
-      {/* ── HOW IT WORKS ── */}
-      <div className="bg-white border-t border-gray-100">
-        <div className="max-w-4xl mx-auto px-6 py-16">
-          <h2 className="text-2xl font-bold text-gray-900 text-center mb-12">How It Works</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 relative">
-            {[
-              { step: '1', icon: '📤', title: 'Upload ID', desc: 'User uploads a photo of their government-issued ID. Our AI extracts and validates the data.' },
-              { step: '2', icon: '🤳', title: 'Live Selfie', desc: 'A real-time liveness challenge confirms the person is physically present, not a photo or video.' },
-              { step: '3', icon: '⚡', title: 'Instant Result', desc: 'Receive a verification result in seconds with confidence scores via API response or webhook.' },
-            ].map((s) => (
-              <div key={s.step} className="flex flex-col items-center text-center gap-3">
-                <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center text-2xl">
-                  {s.icon}
-                </div>
-                <div className="w-6 h-6 bg-blue-600 text-white rounded-full text-xs font-bold flex items-center justify-center">
-                  {s.step}
-                </div>
-                <h3 className="font-semibold text-gray-900">{s.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ── DEVELOPER CTA ── */}
-      <div className="bg-[#0F172A] text-white">
-        <div className="max-w-4xl mx-auto px-6 py-16 text-center">
-          <h2 className="text-3xl font-bold mb-3">Integrate in 30 Minutes</h2>
-          <p className="text-gray-400 mb-8">One API call to start a verification session.</p>
-
-          <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-left font-mono text-sm text-gray-300 max-w-xl mx-auto mb-8 overflow-x-auto">
-            <span className="text-gray-500"># Start a verification</span>
-            <br />
-            curl -X POST https://api.idswyft.app/api/verify/start \
-            <br />
-            {'  '}-H <span className="text-emerald-400">"X-API-Key: YOUR_KEY"</span> \
-            <br />
-            {'  '}-d <span className="text-blue-400">{'\'{"user_id":"usr_123"}\''}</span>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a
-              href="/developer"
-              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3.5 rounded-xl transition-colors"
-            >
-              Get Free API Key →
-            </a>
-            <a
-              href="/docs"
-              className="w-full sm:w-auto bg-white/10 hover:bg-white/15 text-white font-semibold px-8 py-3.5 rounded-xl transition-colors"
-            >
-              Read the Docs →
-            </a>
-          </div>
-        </div>
-      </div>
-
     </div>
   );
 };

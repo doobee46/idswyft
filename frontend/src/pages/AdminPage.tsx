@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { API_BASE_URL } from '../config/api';
 import { exportUserData, deleteUserData } from '../lib/adminApiInstance';
 
