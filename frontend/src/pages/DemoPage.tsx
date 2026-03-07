@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { API_BASE_URL, shouldUseSandbox } from '../config/api';
 import { BackOfIdUpload } from '../components/BackOfIdUpload';
@@ -36,11 +36,20 @@ interface Document {
 
 interface VerificationRequest {
   id: string;
+  verification_id?: string;
   status: 'pending' | 'processing' | 'verified' | 'failed' | 'manual_review';
   documents: Document[];
   selfie_id?: string;
   created_at: string;
   updated_at: string;
+  ocr_data?: {
+    document_number?: string;
+    full_name?: string;
+    date_of_birth?: string;
+    expiry_date?: string;
+    nationality?: string;
+    place_of_birth?: string;
+  };
 }
 
 interface LiveCaptureSession {
@@ -66,9 +75,7 @@ interface CaptureResult {
 
 const DemoPage: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const urlApiKey = searchParams.get('api_key');
-  const token = searchParams.get('token');
   const urlStep = searchParams.get('step');
   const urlVerificationId = searchParams.get('verification_id');
   
@@ -76,7 +83,7 @@ const DemoPage: React.FC = () => {
   const [verificationRequest, setVerificationRequest] = useState<VerificationRequest | null>(null);
   const [verificationId, setVerificationId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [_uploadProgress, setUploadProgress] = useState(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [backOfIdUploaded, setBackOfIdUploaded] = useState(false);
@@ -88,15 +95,15 @@ const DemoPage: React.FC = () => {
 
   // Live capture state
   const [showLiveCapture, setShowLiveCapture] = useState(false);
-  const [sessionData, setSessionData] = useState<LiveCaptureSession | null>(null);
+  const [_sessionData, _setSessionData] = useState<LiveCaptureSession | null>(null);
   const [captureResult, setCaptureResult] = useState<CaptureResult | null>(null);
   const [cameraState, setCameraState] = useState<'prompt' | 'initializing' | 'ready' | 'error'>('prompt');
-  const [challengeState, setChallengeState] = useState<'waiting' | 'active' | 'completed'>('waiting');
-  const [countdown, setCountdown] = useState<number | null>(null);
+  const [_challengeState, setChallengeState] = useState<'waiting' | 'active' | 'completed'>('waiting');
+  const [_countdown, _setCountdown] = useState<number | null>(null);
   const [faceDetected, setFaceDetected] = useState(false);
-  const [captureAttempts, setCaptureAttempts] = useState(0);
+  const [_captureAttempts, _setCaptureAttempts] = useState(0);
   const [opencvReady, setOpencvReady] = useState(false);
-  const [faceDetectionBuffer, setFaceDetectionBuffer] = useState<boolean[]>([]);
+  const [_faceDetectionBuffer, setFaceDetectionBuffer] = useState<boolean[]>([]);
   const [mobileHandoffDone, setMobileHandoffDone] = useState(false);
   const [mobileResult, setMobileResult] = useState<any>(null);
   
@@ -406,7 +413,7 @@ const DemoPage: React.FC = () => {
       console.log('🔧 Verification ID:', verificationId);
       console.log('🔧 Upload URL:', url.toString());
       console.log('🔧 FormData entries:', Array.from(formData.entries()).map(([key, value]) => 
-        key === 'document' ? [key, `${value.constructor.name} (${value.size} bytes)`] : [key, value]
+        key === 'document' ? [key, `${value.constructor.name} (${(value as File).size} bytes)`] : [key, value]
       ));
 
       const response = await fetch(url.toString(), {
@@ -425,7 +432,7 @@ const DemoPage: React.FC = () => {
         throw new Error(errorData.error || errorData.message || 'Failed to upload document');
       }
 
-      const data = await response.json();
+      await response.json();
       // Document upload successful, start polling for OCR results
       setCurrentStep(3);
       toast.success('Document uploaded successfully');
@@ -547,16 +554,16 @@ const DemoPage: React.FC = () => {
     } catch (error) {
       console.error('Camera initialization failed:', error);
       setCameraState('error');
-      
-      // More specific error messages
-      if (error.name === 'NotAllowedError') {
+
+      const err = error as { name?: string; message?: string };
+      if (err.name === 'NotAllowedError') {
         toast.error('Camera access denied. Please allow camera permissions and try again.');
-      } else if (error.name === 'NotFoundError') {
+      } else if (err.name === 'NotFoundError') {
         toast.error('No camera found. Please connect a camera and try again.');
-      } else if (error.name === 'NotReadableError') {
+      } else if (err.name === 'NotReadableError') {
         toast.error('Camera is being used by another application.');
       } else {
-        toast.error(`Camera error: ${error.message || 'Unknown error'}`);
+        toast.error(`Camera error: ${err.message || 'Unknown error'}`);
       }
     }
   };
@@ -722,10 +729,6 @@ const DemoPage: React.FC = () => {
               
               faceCount = faces.size();
               console.log(`🔍 OPENCV: Detected ${faceCount} faces`);
-              
-              // Calculate scale factors to map from video coordinates to display coordinates
-              const scaleX = canvas.width / videoWidth;
-              const scaleY = canvas.height / videoHeight;
               
               // Face detection successful - count recorded but no visual overlay drawn
               

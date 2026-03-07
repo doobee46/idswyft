@@ -15,7 +15,7 @@ const _getApiBaseUrl = (): string => {
 export const API_BASE_URL = _getApiBaseUrl();
 
 // Determine if we should use sandbox mode
-export const shouldUseSandbox = (apiKey?: string) => {
+export const shouldUseSandbox = (_apiKey?: string) => {
   // First check explicit environment override
   const sandboxOverride = import.meta.env.VITE_SANDBOX_MODE;
   if (sandboxOverride !== undefined) {

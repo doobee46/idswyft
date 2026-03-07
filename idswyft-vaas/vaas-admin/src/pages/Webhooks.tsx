@@ -894,7 +894,6 @@ function WebhookFormModal({ webhook, onClose, onSuccess }: WebhookFormModalProps
                   const v = parseInt(e.target.value, 10);
                   if (!isNaN(v)) setFormData((f) => ({ ...f, max_retries: v }));
                 }}
-                }
                 className="w-full border rounded-lg px-3 py-2"
               />
             </div>
