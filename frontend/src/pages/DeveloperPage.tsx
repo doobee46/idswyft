@@ -164,7 +164,7 @@ function CreateKeyModal({ onClose, onCreated, token }: {
   token: string
 }) {
   const [name, setName] = useState('')
-  const [isSandbox, setIsSandbox] = useState(true)
+  const [isSandbox, setIsSandbox] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const submit = async (e: React.FormEvent) => {
@@ -178,7 +178,18 @@ function CreateKeyModal({ onClose, onCreated, token }: {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Failed to create key')
-      onCreated(data.key, data.full_key ?? data.key.key_preview)
+      const newKey: ApiKey = {
+        id: data.key_id,
+        name: data.name,
+        key_preview: `${data.key_prefix}...`,
+        is_sandbox: data.is_sandbox,
+        is_active: true,
+        last_used_at: null,
+        created_at: data.created_at,
+        expires_at: data.expires_at,
+        status: 'active',
+      }
+      onCreated(newKey, data.api_key)
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to create key')
     } finally {
