@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Shield } from 'lucide-react';
 import { useOrganization } from '../contexts/OrganizationContext';
+import { injectFonts } from '../theme';
 
 interface BrandedHeaderProps {
   showSubtitle?: boolean;
@@ -8,11 +9,12 @@ interface BrandedHeaderProps {
   className?: string;
 }
 
-const BrandedHeader: React.FC<BrandedHeaderProps> = ({ 
-  showSubtitle = true, 
+const BrandedHeader: React.FC<BrandedHeaderProps> = ({
+  showSubtitle = true,
   subtitle = "Identity Verification",
-  className = "" 
+  className = ""
 }) => {
+  useEffect(() => { injectFonts(); }, []);
   const { branding, organizationName } = useOrganization();
 
   const companyName = branding?.company_name || organizationName || 'Verification Portal';
